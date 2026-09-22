@@ -10,7 +10,7 @@ from pathlib import Path
 import tinycss2
 from weasyprint import HTML, default_url_fetcher
 
-TAGS = {'div', 'section', 'p', 'span', 'strong', 'b', 'em', 'h1', 'h2', 'h3',
+TAGS = {'div', 'section', 'p', 'span', 'strong', 'b', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'br', 'img'}
 PROPERTIES = {'color', 'background-color', 'border', 'border-color', 'border-width',
               'border-style', 'border-radius', 'border-top', 'border-bottom',
@@ -145,7 +145,8 @@ def document_markup(bodies: list[str], font: int = 13) -> str:
     * {{box-sizing:border-box;}} body {{margin:0;font-family:DejaVu Sans,sans-serif;color:#233544;font-size:{font}pt;line-height:1.3;}}
     article {{width:186mm;min-height:268mm;break-after:page;}}
     article:last-child {{break-after:auto;}}
-    img {{object-fit:contain;max-width:100%;}} h1,h2,h3,p {{margin:0 0 3mm;}}
+    img {{object-fit:contain;max-width:100%;}} h1,h2,h3,h4,h5,h6,p {{margin:0 0 3mm;}}
+    h4,h5,h6 {{font-size:1em;}}
     table {{width:100%;table-layout:fixed;}} td,th {{vertical-align:top;}}
     .key {{column-count:2;column-gap:8mm;font-size:10pt;}}
     .key section {{break-inside:avoid;margin:0 0 5mm;border-top:1mm solid #188a91;padding-top:2mm;}}

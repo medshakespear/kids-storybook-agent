@@ -91,7 +91,10 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
     design = deepcopy(raw)
     design['html'] = _text(design.get('html'), 'html', 18000)
     if not cover:
-        design['answers'] = _text(design.get('answers'), 'answers', 300)
+        answers = design.get('answers')
+        if isinstance(answers, list) and 1 <= len(answers) <= 30 and all(isinstance(a, str) and a.strip() for a in answers):
+            answers = '; '.join(answers)
+        design['answers'] = _text(answers, 'answers', 4000)
     images = design.get('images')
     if not isinstance(images, list) or not 1 <= len(images) <= 4:
         raise ValueError('Each page needs 1-4 purposeful original illustrations')
@@ -105,6 +108,24 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
         asset['prompt'] = _text(asset.get('prompt'), 'illustration prompt', 650)
     check_page(design, font)
     return design
+
+
+def compact_answers(page: dict, number: int) -> dict:
+    """Shorten only an oversized key; never redesign the already validated worksheet."""
+    if len(page['answers']) <= 300:
+        return page
+    def validate_key(raw):
+        """Require a concise, nonempty key without accepting arbitrary response fields."""
+        if not isinstance(raw, dict):
+            raise ValueError('Return an object containing answers')
+        return {'answers': _text(raw.get('answers'), 'condensed answers', 300)}
+    result = ask_json('Condense this classroom answer key to at most 300 characters. '
+                      'Preserve EVERY numbered answer, correct value and essential condition; '
+                      'remove repeated questions, explanations and teaching tips. Do not alter '
+                      'the worksheet. Return JSON {"answers":"..."}.\n'
+                      + json.dumps({'worksheet': page['html'], 'answers': page['answers']}),
+                      validate_key, f'Answer key {number}', tokens=1200)
+    return dict(page, answers=result['answers'])
 
 
 def layout_contract(font: int) -> str:
@@ -174,6 +195,7 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
                   + layout_contract(font) + f'\nPrint activity number {number} and its title prominently.')
         page = ask_json(prompt, lambda raw: validate_design(raw, font), f'Activity design {number}')
+        page = compact_answers(page, number)
         page.update(title=brief['title'], page_number=number)
         pages.append(page)
     pack = dict(title=plan['title'], overview=plan['overview'], theme=theme, grade_band=grade_band,

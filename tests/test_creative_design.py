@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from core.creative_generator import validate_design, generate_creative_pack
+from core.creative_generator import validate_design, generate_creative_pack, compact_answers
 from core.creative_layout import check_page, build_creative_pdf, fragment
 from core.pipeline import load_grade_config, generate_book
 from tests.activity_fixtures import attach_test_art
@@ -52,6 +52,27 @@ class CreativeTests(unittest.TestCase):
                     validate_design(page, config['student_font_pt'])
                 attach_creative_test_art(pack, config, folder)
                 self.assertTrue(build_creative_pdf(pack, config, Path(folder) / 'pack.pdf').is_file())
+
+    def test_h4_and_long_answer_do_not_reject_valid_layout(self):
+        """Common heading levels and long keys survive the design validation stage."""
+        page = design_fixture()
+        page['html'] = '<h4>Investigate and invent</h4>' + page['html']
+        page['answers'] = ['1. Accept a shelter with access to sunlight. ' * 10]
+        validated = validate_design(page, 15)
+        self.assertGreater(len(validated['answers']), 300)
+        with patch('core.creative_generator.ask_json', return_value={'answers': '1. A shelter with access to sunlight.'}) as request:
+            fixed = compact_answers(validated, 3)
+        request.assert_called_once()
+        self.assertEqual(fixed['html'], validated['html'])
+        self.assertEqual(fixed['images'], validated['images'])
+        self.assertLessEqual(len(fixed['answers']), 300)
+
+    def test_short_key_requires_no_extra_call(self):
+        """Existing compact answers use no additional provider quota."""
+        page = design_fixture()
+        with patch('core.creative_generator.ask_json') as request:
+            self.assertEqual(compact_answers(page, 1), page)
+        request.assert_not_called()
 
     def test_reject_external_or_hidden_content(self):
         """AI markup cannot load files, fetch URLs, run scripts, or hide overflow."""

@@ -197,6 +197,9 @@ overflow is rejected rather than silently hiding content. Live content and accou
 quotas must still be tested after deployment.
 
 Each creative unit (plan, cover, or one student page) has bounded retries with
+validation feedback. Long answer keys are condensed separately after the student
+layout passes; this never asks the model to redesign a valid worksheet. Short keys
+need no extra request. All six HTML heading levels are supported. Each unit uses
 validation feedback and the latest draft. Completed pages stay in memory when a
 later page needs correction. Python assigns page order. All pages are print-checked
 with fixed-size preview image boxes before illustration spending. Final PDFs are

@@ -25,7 +25,8 @@ PROPERTIES = {'color', 'background-color', 'border', 'border-color', 'border-wid
               'text-decoration', 'object-fit', 'object-position', 'overflow-wrap',
               'word-wrap', 'min-width', 'align-self', 'flex', 'list-style-type',
               'list-style-position', 'border-top-left-radius', 'border-top-right-radius',
-              'border-bottom-left-radius', 'border-bottom-right-radius'}
+              'border-bottom-left-radius', 'border-bottom-right-radius',
+              'gap', 'row-gap', 'column-gap'}
 
 
 def clean_style(value: str) -> str:
@@ -50,7 +51,8 @@ def clean_style(value: str) -> str:
             # spending another API call. The resulting geometry is still checked.
             rendered = re.sub(negative, '0', rendered)
         elif name in {'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
-                      'flex-basis', 'flex-grow', 'flex-shrink', 'border-spacing', 'border-width'} or name.endswith('radius'):
+                      'flex-basis', 'flex-grow', 'flex-shrink', 'border-spacing', 'border-width',
+                      'gap', 'row-gap', 'column-gap'} or name.endswith('radius'):
             if re.search(negative, rendered):
                 raise ValueError(f'CSS {name}:{rendered[:80]} has a negative size; use a nonnegative dimension')
         # Background angles may legitimately be negative. A border style of

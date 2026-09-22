@@ -17,9 +17,19 @@ from core.providers import text_provider_names, text_client, safe_api_error
 LOGGER = logging.getLogger(__name__)
 
 
+def parse_design_json(content: str) -> dict:
+    """Unwrap optional Markdown fences without guessing or rewriting malformed JSON."""
+    value = content.strip()
+    if value.startswith('```'):
+        match = re.fullmatch(r'```(?:json)?\s*\n([\s\S]*?)\n```', value, re.I)
+        if match:
+            value = match[1]
+    return json.loads(value)
+
+
 def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
     """Retry one bounded creative unit with its previous draft; preserve completed pages."""
-    errors, messages = [], [{'role': 'system', 'content': 'You are an original elementary curriculum designer and print art director. Return valid JSON only.'}, {'role': 'user', 'content': prompt}]
+    errors, messages = [], [{'role': 'system', 'content': 'You are an original elementary curriculum designer and print art director. Return valid JSON only. Use single quotes for HTML attribute values inside JSON strings; escape any embedded double quotes and line breaks. No trailing commas or Markdown fences.'}, {'role': 'user', 'content': prompt}]
     for provider in text_provider_names():
         api, model = text_client(provider)
         try:
@@ -28,12 +38,14 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                 try:
                     LOGGER.info('%s: %s / %s attempt %s', label, provider, model, attempt + 1)
                     response = api.chat.completions.create(model=model, messages=messages,
-                        response_format={'type': 'json_object'}, temperature=0.8,
+                        response_format={'type': 'json_object'}, temperature=0.3 if len(messages) > 2 else 0.8,
                         max_completion_tokens=tokens)
                     content = response.choices[0].message.content
                     if not content:
                         raise ValueError('Empty design response')
-                    return validate(json.loads(content))
+                    if getattr(response.choices[0], 'finish_reason', None) == 'length':
+                        raise ValueError('Response was truncated by the token limit; return a shorter complete design with concise markup')
+                    return validate(parse_design_json(content))
                 except (ValueError, TypeError, KeyError, IndexError) as exc:
                     reason = f'{label}: {provider}: {exc}'
                     errors.append(reason)
@@ -43,6 +55,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     if content:
                         messages.append({'role': 'assistant', 'content': content[:36000]})
                     repair = f'Correct only this unit and return complete JSON. Validation: {exc}'
+                    if isinstance(exc, json.JSONDecodeError):
+                        repair += (' Repair JSON serialization only: check missing commas, unescaped double quotes '
+                                   'inside the html string, and literal line breaks. Use single-quoted HTML attributes. '
+                                   'Preserve the exercise and design rather than inventing a different page.')
                     if 'overflow' in str(exc).lower() or 'printable bounds' in str(exc).lower():
                         repair += (' Recompose this same activity more compactly. Budget at most 245mm of content '
                                    'height including headings, margins, borders and response spaces. Keep total '

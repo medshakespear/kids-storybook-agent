@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import logging
+import json
+import hmac
 import os
 from pathlib import Path
 from urllib.parse import urlparse
 
-from flask import Flask, jsonify, request, send_from_directory, url_for
+from flask import Flask, jsonify, request, send_from_directory, url_for, render_template
 
+from core.book_library import list_books, register_book, receive_pdf
 from core.paths import OUTPUT_DIR, ensure_runtime_directories
 from core.pipeline import generate_book, load_grade_config
 from core.state_manager import load_state
@@ -16,7 +19,7 @@ from core.theme_picker import build_webhook_inspiration, pick_webhook_grade_band
 
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 ensure_runtime_directories()
@@ -58,7 +61,7 @@ def generate() -> tuple[object, int] | object:
     try:
         grade_config = load_grade_config()
         grade_band = payload.get("grade_band") or pick_webhook_grade_band(load_state())
-        if grade_band not in grade_config:
+        if not isinstance(grade_band, str) or grade_band not in grade_config:
             return jsonify(
                 {
                     "error": "Unknown grade_band.",
@@ -76,6 +79,7 @@ def generate() -> tuple[object, int] | object:
             source_context=inspiration,
             grade_config=grade_config,
         )
+        register_book(story, pdf_path.name, "On demand")
         download_url = url_for(
             "download_output", filename=pdf_path.name, _external=True
         )
@@ -112,6 +116,48 @@ def request_too_large(_: Exception) -> tuple[object, int]:
     """Return JSON when a request exceeds the configured limit."""
 
     return jsonify({"error": "Request body is too large."}), 413
+
+
+@app.get("/")
+@app.get("/books")
+def books_page():
+    """Show the public book library with download links."""
+    return render_template("books.html", books=list_books())
+
+
+@app.get("/api/books")
+def books_api():
+    """Return all known books and file availability."""
+    return jsonify(books=list_books())
+
+
+@app.get("/internal/state")
+def library_state():
+    """Allow the cron service to read current rotation history."""
+    if not delivery_authorized():
+        return jsonify(error="Unauthorized"), 401
+    return jsonify(load_state())
+
+
+def delivery_authorized():
+    """Require a configured shared secret for internal delivery endpoints."""
+    expected = os.environ.get("DELIVERY_TOKEN", "")
+    return bool(expected) and hmac.compare_digest(expected, request.headers.get("X-Delivery-Token", ""))
+
+
+@app.post("/internal/books")
+def upload_book():
+    """Receive a cron PDF and metadata, with idempotent filename handling."""
+    if not delivery_authorized():
+        return jsonify(error="Unauthorized"), 401
+    try:
+        metadata = json.loads(request.form.get("metadata", "{}"))
+        if not isinstance(metadata, dict) or "pdf" not in request.files:
+            raise ValueError("A PDF and metadata object are required")
+        filename = receive_pdf(request.files["pdf"], metadata)
+        return jsonify(status="stored", filename=filename), 201
+    except (ValueError, TypeError) as exc:
+        return jsonify(error=str(exc)), 400
 
 
 if __name__ == "__main__":

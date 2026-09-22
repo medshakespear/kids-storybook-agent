@@ -12,7 +12,7 @@ export default defineRailway(() => {
   const web = service("storybook-web", {
     source: github(repository, { branch: "main" }),
     start:
-      "gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 900 webhook_server:app",
+      "sh -c 'exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4 --timeout 900 webhook_server:app'",
     healthcheck: "/health",
     healthcheckTimeout: 300,
     env: {

@@ -75,7 +75,7 @@ def update_state(
     if grade_band_index is not None:
         state["last_grade_band_index"] = grade_band_index
     # Keep state compact while retaining two years of rotation history.
-    state["generated"] = state["generated"][-1000:]
+    # Retain all catalog records so older books remain discoverable.
     return state
 
 

@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Storybook Library</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#f6f3eb;color:#20352f;margin:0;padding:32px}main{max-width:1100px;margin:auto}h1{font-size:40px;margin-bottom:8px}.intro{color:#53665e;margin-bottom:32px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}.book,.empty{background:white;border:1px solid #deded2;border-radius:18px;padding:24px}.tag{font-size:13px;color:#386251}h2{font-size:23px}a{display:inline-block;background:#285c48;color:white;padding:12px 18px;border-radius:9px;text-decoration:none}small{color:#66736c}.missing{color:#8d4935}footer{margin-top:28px;color:#66736c}
+</style><main><p>YOUR CLASSROOM COLLECTION</p><h1>Storybook Library</h1>
+<p class="intro">{{ books|length }} book{{ '' if books|length == 1 else 's' }} in your collection. Refresh to see newly completed books.</p>
+<div class="grid">{% for book in books %}<article class="book"><span class="tag">{{ book.grade_band }} · {{ book.generated_on }}</span><h2>{{ book.title }}</h2><p>{{ book.theme }}</p><p><small>{{ book.source or book.event_name }}</small></p>{% if book.available %}<a href="{{ url_for('download_output', filename=book.filename) }}">Download PDF ↓</a>{% else %}<p class="missing">PDF unavailable — this history record has no stored file.</p>{% endif %}</article>{% else %}<div class="empty"><h2>Your first story is on its way</h2><p>No completed books are stored yet. Generate a book through the webhook or run your daily cron.</p></div>{% endfor %}</div><footer>Printable stories · A4 portrait</footer></main></html>

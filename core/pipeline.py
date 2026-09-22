@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import tempfile
+from uuid import uuid4
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -50,9 +51,16 @@ def generate_book(
     with tempfile.TemporaryDirectory(prefix="storybook-") as temporary:
         images = generate_images(story, config[grade_band], temporary)
         filename = (
-            f"{date.today().isoformat()}_{slugify(grade_band)}_{slugify(story['title'])}.pdf"
+            f"{date.today().isoformat()}_{slugify(grade_band)}_{slugify(story['title'])}-{uuid4().hex[:12]}.pdf"
         )
         target = Path(output_dir) / filename
-        build_pdf(story, images, config[grade_band], target)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=target.parent, suffix=".part", delete=False) as handle:
+            staged = Path(handle.name)
+        try:
+            build_pdf(story, images, config[grade_band], staged)
+            staged.replace(target)
+        finally:
+            staged.unlink(missing_ok=True)
     return story, target
 

@@ -9,6 +9,7 @@ import sys
 import traceback
 from datetime import date
 
+from core.delivery import deliver_book, fetch_library_state
 from core.paths import CALENDAR_PATH, STATE_PATH
 from core.pipeline import generate_book, load_grade_config
 from core.state_manager import (
@@ -42,7 +43,7 @@ def main() -> int:
     with CALENDAR_PATH.open("r", encoding="utf-8") as handle:
         calendar = json.load(handle)
     grade_config = load_grade_config()
-    state = load_state()
+    state = fetch_library_state() or load_state()
     count = _daily_count()
     specs = pick_daily_book_specs(calendar, state, count=count)
     successes: list[dict[str, str]] = []
@@ -58,6 +59,11 @@ def main() -> int:
                 grade_band=spec["grade_band"],
                 grade_config=grade_config,
             )
+            delivered = deliver_book({**story, "theme": spec["theme"]}, pdf_path)
+            if delivered:
+                print(f"  DELIVERED: {pdf_path.name}", flush=True)
+            else:
+                print("  LOCAL ONLY: set BOOK_LIBRARY_URL for dashboard delivery", flush=True)
             band_index = GRADE_BANDS.index(spec["grade_band"])
             update_state(
                 state,
@@ -65,7 +71,7 @@ def main() -> int:
                 event_name=spec["event_name"],
                 grade_band=spec["grade_band"],
                 title=story["title"],
-                output_path=str(pdf_path.relative_to(pdf_path.parent.parent)),
+                output_path=f"output/{pdf_path.name}",
                 grade_band_index=band_index,
             )
             save_state(state, STATE_PATH)
@@ -79,7 +85,10 @@ def main() -> int:
             traceback.print_exc()
 
     if successes:
-        persisted, message = commit_state_to_github(STATE_PATH)
+        try:
+            persisted, message = commit_state_to_github(STATE_PATH)
+        except Exception as exc:
+            persisted, message = False, f"GitHub write-back failed: {exc}"
         print(("STATE: " if persisted else "STATE WARNING: ") + message, flush=True)
 
     print("\nDaily run summary", flush=True)
@@ -91,7 +100,7 @@ def main() -> int:
         print(f"    - {item['spec']}: {item['error']}", flush=True)
 
     # A partly successful batch is still useful. Fail only if every book failed.
-    return 0 if successes else 1
+    return 0 if successes and not failures else 1
 
 
 if __name__ == "__main__":

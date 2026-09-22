@@ -1,3 +1,47 @@
+# Book library update — manual Railway setup
+
+Open `/` or `/books` on the web service to see titles, themes, grade bands, dates,
+and PDF downloads. `/api/books` provides the same catalog as JSON. This page and
+its downloads are public to anyone with the address. No generation history can be
+inferred from a healthy deployment alone; the empty page means no stored books yet.
+
+1. On the Railway project canvas, create a Volume, attach it to **web**, and set
+   its mount path to `/data`. Set `DATA_DIR=/data` on web. Keep one replica and one
+   Gunicorn worker (threads are supported).
+2. On **web**, set `DELIVERY_TOKEN` to a long random password you choose. This is
+   a shared application password, not an API subscription. Keep `OPENAI_API_KEY`.
+3. On **cron**, set `BOOK_LIBRARY_URL` to the web service's HTTPS base URL (no
+   `/books` suffix), and set the same `DELIVERY_TOKEN`. Keep `OPENAI_API_KEY`.
+4. Web start command: `sh -c 'exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4 --timeout 900 webhook_server:app'`.
+   Cron start command: `python cron_job.py`; schedule: `0 7 * * *`; restart: Never.
+5. Redeploy both services. Run one cron test using `DAILY_BOOK_COUNT=1`, then remove
+   that override for the normal 6–8 books. Look for `DELIVERED` in cron logs.
+6. Open the web domain and refresh after completion. Each available book has a
+   Download PDF button. On-demand books appear automatically too.
+
+The web service stores PDFs at `/data/output` and all catalog/rotation data in
+`/data/state.json`. No database or separate metadata files are introduced. Cron
+reads that durable state before selecting themes and uploads each completed PDF
+with metadata. Uploads are authenticated, bounded in size, and safe to retry.
+A failed delivery is logged as a failed book and produces a nonzero job exit.
+The remaining books still run. PDFs left only in a failed cron container require
+manual recovery before the container disappears; there is no durable retry queue.
+
+`GITHUB_TOKEN` is optional with volume-backed rotation. It is needed only if you
+also want the original GitHub state-commit behavior. Only cron performs GitHub
+write-back. Do not assume web and cron have a shared filesystem.
+
+Old files in a replaced container cannot be recovered by this update. Copy any
+existing PDFs into `/data/output` before removing their old storage. Files without
+metadata appear under their filenames as recovered PDFs. Legacy history records
+without PDFs are explicitly marked unavailable. Never wipe the volume to redeploy.
+
+Existing `.railway/railway.ts` is optional CLI configuration; the manual volume and
+transfer variables above must be configured separately. The dashboard persists
+through restarts only after the volume is attached.
+
+---
+
 # Automated Kids Storybook Agent
 
 A production-oriented Python agent that creates original, grade-scaled, illustrated

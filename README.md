@@ -1,37 +1,42 @@
 # Classroom Activity Pack Agent
 
 Generates original **printable classroom exercise packs**, not storybooks.
-Gemini writes the activities; optional Groq fallback handles text failures.
-Python/WeasyPrint draws the worksheets and assembles A4 PDFs. There is no database.
+Gemini plans the activities AND authors their page layouts; optional Groq fallback
+handles text failures. Cloudflare supplies original illustrations. Python/WeasyPrint
+validates and assembles the model-authored designs as A4 PDFs. There is no database.
 
 ## What each pack includes
 
 - An illustrated cover, student activities, and exactly one final answer page.
 - 6 student worksheets for Pre-K-K / 1st-2nd, or 8 for 3rd-4th / 5th-6th.
 - No teacher guide, teaching tips, or separate teacher worksheets. Total: 8 or 10 PDF pages.
-- At least three task types, chosen to suit the grade: counting, arithmetic, matching,
-  sorting cards, informational reading, outlined-word tracing, creative design, and
-  illustrated multiple-choice situations (at least two pages per pack).
+- Original activity concepts and compositions chosen by the AI from the grade,
+  theme, and teacher description. There is no hardcoded exercise-type menu or
+  required repeating count/match/sort sequence.
 - Large, colorful visual supports for young learners; restrained accents and
   more text/reasoning for older learners. White workspaces keep printing practical.
 
-These are actual student tasks with answer space, not lists of ideas. Gemini/Groq
-writes illustration briefs alongside the exercises. Cloudflare generates original
-scene pictures, matching pairs, sorting objects, and tracing pictures. Python embeds
-the art without cropping and renders all text, choices, equations and response areas.
-For counting, one generated object is repeated the exact required number of times.
-Identical briefs are reused within a pack. Depending on task mix, expect roughly
-15-35 image requests per pack, rather than one image per PDF page. Provider quotas
+These are actual student tasks with answer space, not lists of ideas. A planning
+call chooses distinct learning activities and their visual compositions. Separate
+calls author the cover and each student page using restricted HTML/inline CSS,
+with a pack-specific palette and 1-4 original illustration briefs per page.
+Python supplies page boundaries, checks supported markup and printable bounds,
+embeds artwork without cropping, and adds the single consolidated answer page.
+Cloudflare produces the artwork; Gemini/Groq decides what the art should show.
+Identical briefs are reused within a pack. Expect 8-10 text calls before retries
+and up to 28-36 image calls, depending on grade and design. Provider quotas
 apply; free daily capacity is not guaranteed. Missing art fails the pack explicitly.
 The same cast/style brief is sent on every request; exact character consistency is
 not guaranteed. Review that pictures agree with questions before using or selling.
 
 The PDFs are static and are NOT editable forms or personalized name books.
-Tracing uses outlined uppercase words, not a handwriting curriculum or automatic
-class-name personalization. Originality is requested, not a guarantee of novelty.
+No automatic class-name personalization is supplied. Originality and varied layouts
+are requested, not guarantees of novelty or professional design quality.
 Before selling or teaching, review content, answer keys, cultural context, reading
-level, and print quality. Arithmetic/counting are checked in code; semantic answers
-and educational suitability still require human review. No standards alignment is claimed.
+level, and print quality. In this flexible design mode, mathematical and semantic
+correctness are model-authored and require human review; the former fixed-type
+arithmetic checker is not used. Layout checks cannot detect every visual or
+educational flaw. No standards alignment is claimed.
 
 ## Daily selection: today, not upcoming events
 
@@ -136,12 +141,26 @@ users; manual website configuration above is the recommended path.
 - `GET /` or `/books`: public activity library (also shows old PDFs).
 - `GET /api/books`: public JSON catalog.
 - `GET /output/<filename>.pdf`: download.
-- `POST /generate`: generate ONE original exercise pack from URL slug inspiration.
+- `POST /generate`: generate ONE original pack from `description`, `link`, or both.
   Does not scrape or copy the reference product; omitted grade uses history rotation.
 
 ```json
 {"link": "https://example.com/classroom-sorting-activities", "grade_band": "1st-2nd"}
 ```
+
+For a detailed creative brief, no link is required:
+
+```json
+{
+  "description": "Create a colorful garden detective pack. Children investigate plant needs, invent a watering tool, and draw a comic ending. Use varied illustrated page compositions with generous drawing space.",
+  "grade_band": "1st-2nd"
+}
+```
+
+Descriptions accept up to 4,000 characters. Generation now involves multiple text
+and illustration calls and can take longer than the old templates. Prefer cron for
+long runs; a synchronous webhook can exceed an HTTP client's timeout. A disconnected
+client should check `/books` before retrying, since the server may finish the pack.
 
 Response includes `title`, `grade_band`, `resource_type: "activity_pack"`,
 `pdf_path`, and `download_url`. Generation is synchronous and may take minutes.
@@ -177,32 +196,28 @@ do not spend API credits. Offline PDF tests check all four grade layouts. Layout
 overflow is rejected rather than silently hiding content. Live content and account
 quotas must still be tested after deployment.
 
-Content-validation retries preserve valid pages and request complete replacements
-only for failed pages, including their image briefs and answers. Each repair request
-handles one page with a compact contract for its activity type. Code assigns the
-destination page number, so an AI response numbered "1" cannot overwrite page 1
-when page 4 was requested. Responses containing multiple pages are rejected.
-The current draft
-is also preserved across text-provider fallback within the run. Logs identify the
-page/item and failed constraint; the final error retains earlier validation failures
-instead of hiding them behind the last provider error. Integer strings such as
-`"12"` are normalized, but out-of-range values and fractions are never clamped or
-rounded. Short passages are regenerated with their questions, not padded. HTTP 429
-switches to the configured fallback without immediate same-provider retries. This
-does not remove provider quotas or guarantee recovery during outages.
+Each creative unit (plan, cover, or one student page) has bounded retries with
+validation feedback and the latest draft. Completed pages stay in memory when a
+later page needs correction. Python assigns page order. All pages are print-checked
+with fixed-size preview image boxes before illustration spending. Final PDFs are
+checked again with real art. Model-authored code is never executed; scripts, file
+links, external resource loads, and unsupported layout declarations are rejected.
+HTTP 429 switches to the configured fallback without immediate same-provider retries.
+This does not remove quotas or guarantee recovery during outages. Interrupted runs
+do not retain unfinished pages across container restarts.
 
 ## Main modules
 
 - `core/calendar_rules.py`: exact periods and timezone-aware today.
 - `core/theme_picker.py`: current-event / evergreen themes and random grade batches.
-- `core/activity_generator.py`: complete exercise JSON, constraints and computed keys.
-- `core/activity_pdf.py`: illustrated worksheets and one final answer page.
-- `core/activity_images.py`: per-task illustration briefs, reuse, and temporary assets.
+- `core/creative_generator.py`: AI activity planning, page design, repair and illustrations.
+- `core/creative_layout.py`: restricted HTML/CSS, print preflight, final PDF and answer page.
 - `core/pipeline.py`: shared activity generation and atomic PDF output.
 - `core/providers.py`: Gemini/Groq/OpenAI text routing and sanitized errors.
 - `core/book_library.py`, `core/delivery.py`, `core/state_manager.py`: storage.
 - `cron_job.py`, `webhook_server.py`: scheduled and on-demand entry points.
 
-Legacy story modules are retained for compatibility; the active pipeline reuses
-the image backend for activity art. `DAILY_BOOK_COUNT` and `/books` keep their existing names
+Legacy story and fixed-template activity modules are retained for compatibility;
+the active pipeline uses the creative engine and reuses the image backend.
+`DAILY_BOOK_COUNT` and `/books` keep their existing names
 to avoid breaking your Railway configuration and download links.

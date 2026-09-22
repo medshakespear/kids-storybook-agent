@@ -66,8 +66,9 @@ class ActivityTests(unittest.TestCase):
 
     def test_pipeline_generates_art_and_removes_temporary_paths(self):
         """The shared pipeline requires illustrations and returns portable metadata."""
+        from tests.test_creative_design import creative_fixture, attach_creative_test_art
         band = "Pre-K-K"
-        with tempfile.TemporaryDirectory() as folder, patch("core.pipeline.text_provider_names"), patch('core.pipeline.image_provider_name'), patch('core.pipeline.generate_activity_images', side_effect=lambda pack, config, art_folder: attach_test_art(pack, art_folder)) as images, patch("core.pipeline.generate_activity_pack", return_value=sample_pack(band, self.grades[band])):
+        with tempfile.TemporaryDirectory() as folder, patch("core.pipeline.text_provider_names"), patch('core.pipeline.image_provider_name'), patch('core.pipeline.generate_activity_images', side_effect=attach_creative_test_art) as images, patch("core.pipeline.generate_activity_pack", return_value=creative_fixture(band)):
             pack, pdf = generate_book(theme="test", grade_band=band, output_dir=folder)
             self.assertEqual(pack["resource_type"], "activity_pack")
             self.assertTrue(pdf.is_file())

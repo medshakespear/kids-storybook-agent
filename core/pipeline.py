@@ -10,9 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from core.providers import text_provider_names, image_provider_name
-from core.activity_images import generate_activity_images, strip_local_art
-from core.activity_generator import generate_activity_pack
-from core.activity_pdf import build_activity_pdf
+from core.creative_generator import generate_creative_images as generate_activity_images
+from core.creative_generator import strip_creative_art as strip_local_art
+from core.creative_generator import generate_creative_pack as generate_activity_pack
+from core.creative_layout import build_creative_pdf as build_activity_pdf
 from core.calendar_rules import today_in_timezone
 from core.paths import GRADE_CONFIG_PATH, OUTPUT_DIR, ensure_runtime_directories
 

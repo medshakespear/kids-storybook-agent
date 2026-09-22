@@ -27,7 +27,7 @@ def _image_prompt(story: dict, page: dict, style: str, limit: int = 2048) -> str
     description = story["character_description"]
     lock = STYLE_LOCK
     if story.get('resource_type') == 'activity_pack':
-        lock = ('Original educational illustration, consistent teal coral yellow palette and clean outlines. '
+        lock = ('Original educational illustration; follow the supplied pack palette and rendering style consistently. '
                 'Use the cast only when people are requested. Isolated objects contain no people. '
                 'No words, letters, numbers, logos, borders, labels or answer marks. '
                 'One composition, no panels. Full subject visible with generous white margins, no cropping.')

@@ -41,7 +41,7 @@ def health() -> tuple[dict[str, str], int]:
 
 @app.post("/generate")
 def generate() -> tuple[object, int] | object:
-    """Generate one original activity pack from a URL-derived inspiration seed."""
+    """Generate an original pack from a teacher description, reference URL, or both."""
 
     if not _authorized():
         return jsonify({"error": "Unauthorized. Supply a valid X-API-Key header."}), 401
@@ -52,11 +52,18 @@ def generate() -> tuple[object, int] | object:
         return jsonify({"error": "Request body must be a JSON object."}), 400
 
     link = payload.get("link")
-    if not isinstance(link, str) or len(link) > 2048:
-        return jsonify({"error": "link is required and must be a URL string."}), 400
-    parsed = urlparse(link)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        return jsonify({"error": "link must be a valid http or https URL."}), 400
+    description = payload.get('description', '')
+    if not isinstance(description, str) or len(description) > 4000:
+        return jsonify(error='description must be text of at most 4000 characters.'), 400
+    description = description.strip()
+    if link is not None:
+        if not isinstance(link, str) or len(link) > 2048:
+            return jsonify(error='link must be a URL string.'), 400
+        parsed = urlparse(link)
+        if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
+            return jsonify(error='link must be a valid http or https URL.'), 400
+    if not link and not description:
+        return jsonify(error='Provide a description or a reference link.'), 400
 
     try:
         grade_config = load_grade_config()
@@ -68,7 +75,9 @@ def generate() -> tuple[object, int] | object:
                     "allowed_grade_bands": list(grade_config),
                 }
             ), 400
-        inspiration = build_webhook_inspiration(link)
+        inspiration = build_webhook_inspiration(link) if link else ''
+        if description:
+            inspiration += '\nTeacher creative brief: ' + description
         broad_theme = (
             "An original classroom exercise pack inspired only by the broad educational "
             "niche words contained in the supplied URL"

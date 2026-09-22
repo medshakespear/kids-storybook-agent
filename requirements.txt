@@ -7,3 +7,4 @@ WeasyPrint==66.0
 
 Pillow>=11.3.0,<13
 tzdata>=2025.2
+tinycss2>=1.4,<2

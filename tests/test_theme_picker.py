@@ -7,7 +7,7 @@ from datetime import date
 
 from core.theme_picker import (
     build_webhook_inspiration,
-    find_upcoming_events,
+    find_active_events,
     pick_daily_book_specs,
     pick_grade_bands,
 )
@@ -25,16 +25,18 @@ class ThemePickerTests(unittest.TestCase):
                     "event_name": "Test Day",
                     "month": 2,
                     "day": 15,
+                    "schedule": {"kind": "fixed", "month": 2, "day": 15},
                     "theme_angles": ["Angle one", "Angle two", "Angle three"],
                 }
             ]
         }
         self.state = {"last_grade_band_index": -1, "generated": []}
 
-    def test_finds_event_in_one_to_four_week_window(self) -> None:
-        """Events inside the configured horizon are returned."""
+    def test_finds_event_only_on_exact_date(self) -> None:
+        """A future fixed-date event is never used before its date."""
 
-        events = find_upcoming_events(self.calendar, today=date(2026, 1, 25))
+        self.assertEqual(find_active_events(self.calendar, today=date(2026, 1, 25)), [])
+        events = find_active_events(self.calendar, today=date(2026, 2, 15))
         self.assertEqual(events[0]["event_name"], "Test Day")
         self.assertEqual(events[0]["occurs_on"], "2026-02-15")
 
@@ -54,7 +56,7 @@ class ThemePickerTests(unittest.TestCase):
             self.calendar,
             self.state,
             count=4,
-            today=date(2026, 1, 25),
+            today=date(2026, 2, 15),
             rng=random.Random(7),
         )
         self.assertEqual(len(specs), 4)
@@ -80,4 +82,3 @@ class ThemePickerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -1,4 +1,4 @@
-"""Railway cron entry point for daily batch storybook generation."""
+"""Railway cron entry point for daily classroom activity packs."""
 
 from __future__ import annotations
 
@@ -10,7 +10,8 @@ import sys
 import traceback
 from datetime import date
 
-from core.providers import validate_providers
+from core.providers import text_provider_names
+from core.calendar_rules import today_in_timezone
 from core.delivery import deliver_book, fetch_library_state
 from core.paths import CALENDAR_PATH, STATE_PATH
 from core.pipeline import generate_book, load_grade_config
@@ -40,7 +41,7 @@ def main() -> int:
 
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(levelname)s %(name)s: %(message)s")
     try:
-        validate_providers()
+        text_provider_names()
     except ValueError as exc:
         print(f"ERROR: {exc}", flush=True)
         return 2
@@ -50,13 +51,15 @@ def main() -> int:
     grade_config = load_grade_config()
     state = fetch_library_state() or load_state()
     count = _daily_count()
-    specs = pick_daily_book_specs(calendar, state, count=count)
+    today = today_in_timezone()
+    specs = pick_daily_book_specs(calendar, state, count=count, today=today)
     successes: list[dict[str, str]] = []
     failures: list[dict[str, str]] = []
 
-    print(f"Starting daily run for {date.today().isoformat()}: {count} books", flush=True)
+    print(f"Starting daily run for {today.isoformat()} ({os.getenv('BOOK_TIMEZONE', 'UTC')}): {count} activity packs", flush=True)
     for index, spec in enumerate(specs, start=1):
         label = f"{spec['event_name']} / {spec['grade_band']} / {spec['theme']}"
+        print(f"  THEME MODE: {spec['selection_mode']}; period {spec['event_date']} to {spec['event_end']}", flush=True)
         print(f"[{index}/{count}] Generating {label}", flush=True)
         try:
             story, pdf_path = generate_book(
@@ -64,6 +67,7 @@ def main() -> int:
                 grade_band=spec["grade_band"],
                 grade_config=grade_config,
             )
+            story.update({key: spec[key] for key in ('event_name', 'event_date', 'event_end', 'selection_mode')})
             delivered = deliver_book({**story, "theme": spec["theme"]}, pdf_path)
             if delivered:
                 print(f"  DELIVERED: {pdf_path.name}", flush=True)
@@ -78,7 +82,10 @@ def main() -> int:
                 title=story["title"],
                 output_path=f"output/{pdf_path.name}",
                 grade_band_index=band_index,
+                generated_on=today.isoformat(),
             )
+            state['generated'][-1].update(resource_type='activity_pack',
+                selection_mode=spec['selection_mode'], event_date=spec['event_date'], event_end=spec['event_end'])
             save_state(state, STATE_PATH)
             successes.append(
                 {"title": story["title"], "grade_band": spec["grade_band"], "pdf": str(pdf_path)}
@@ -104,10 +111,9 @@ def main() -> int:
     for item in failures:
         print(f"    - {item['spec']}: {item['error']}", flush=True)
 
-    # A partly successful batch is still useful. Fail only if every book failed.
+    # Preserve successful packs but surface any failures in Railway's run status.
     return 0 if successes and not failures else 1
 
 
 if __name__ == "__main__":
     sys.exit(main())
-

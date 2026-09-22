@@ -1,4 +1,4 @@
-"""Select upcoming school themes and derive safe webhook inspiration prompts."""
+"""Choose today's active events or original evergreen classroom activities."""
 
 from __future__ import annotations
 
@@ -7,41 +7,10 @@ import re
 from datetime import date, datetime, timedelta
 from typing import Any
 from urllib.parse import unquote, urlparse
+from core.calendar_rules import find_active_events, today_in_timezone
 
 
 GRADE_BANDS = ["Pre-K-K", "1st-2nd", "3rd-4th", "5th-6th"]
-
-
-def _occurrence(event: dict[str, Any], today: date) -> date:
-    """Return the next annual occurrence of a calendar event."""
-
-    candidate = date(today.year, int(event["month"]), int(event["day"]))
-    if candidate < today:
-        candidate = date(today.year + 1, int(event["month"]), int(event["day"]))
-    return candidate
-
-
-def find_upcoming_events(
-    calendar: dict[str, Any],
-    *,
-    today: date | None = None,
-    min_days: int = 7,
-    max_days: int = 28,
-) -> list[dict[str, Any]]:
-    """Find events occurring between one and four weeks from a date."""
-
-    reference = today or date.today()
-    events = calendar.get("events", [])
-    matches: list[dict[str, Any]] = []
-    for event in events:
-        occurrence = _occurrence(event, reference)
-        distance = (occurrence - reference).days
-        if min_days <= distance <= max_days:
-            enriched = dict(event)
-            enriched["occurs_on"] = occurrence.isoformat()
-            enriched["days_away"] = distance
-            matches.append(enriched)
-    return sorted(matches, key=lambda item: (item["days_away"], item["event_name"]))
 
 
 def _recent_pairs(state: dict[str, Any], today: date, days: int = 120) -> set[tuple[str, str]]:
@@ -79,26 +48,29 @@ def pick_daily_book_specs(
     today: date | None = None,
     rng: random.Random | None = None,
 ) -> list[dict[str, str]]:
-    """Pick a varied batch of upcoming event angles and grade bands."""
+    """Choose active-event packs or evergreen packs, with shuffled grade coverage."""
 
     if not 1 <= count <= 20:
         raise ValueError("count must be between 1 and 20")
-    reference = today or date.today()
+    reference = today or today_in_timezone()
     randomizer = rng or random.SystemRandom()
-    events = find_upcoming_events(calendar, today=reference)
+    events = find_active_events(calendar, today=reference)
     if not events:
-        # A dense calendar should avoid this, but use the nearest annual events safely.
-        events = sorted(
-            (
-                {**event, "occurs_on": _occurrence(event, reference).isoformat()}
-                for event in calendar.get("events", [])
-            ),
-            key=lambda item: item["occurs_on"],
-        )[:6]
-    if not events:
-        raise ValueError("calendar.json contains no events")
-
-    bands = pick_grade_bands(state, count)
+        topics = ["classroom supply shop", "garden detectives", "animal rescue planning",
+                  "invention workshop", "weather observers", "community kindness lab",
+                  "playground designers", "recycling team", "library treasure hunt",
+                  "space explorers", "pattern museum", "healthy habits investigation"]
+        approaches = ["sorting and explaining", "counting and solving", "reading clues",
+                      "matching connections", "designing and testing", "planning and reflecting"]
+        events = [{"event_name": "Everyday classroom skills", "occurs_on": reference.isoformat(),
+                   "theme_angles": [f"{topic}: {approach}" for topic in topics for approach in approaches],
+                   "evergreen": True}]
+    bands = []
+    while len(bands) < count:
+        cycle = list(GRADE_BANDS)
+        randomizer.shuffle(cycle)
+        bands.extend(cycle)
+    bands = bands[:count]
     recent = _recent_pairs(state, reference)
     candidates: list[dict[str, str]] = []
     for event in events:
@@ -107,11 +79,13 @@ def pick_daily_book_specs(
                 {
                     "event_name": event["event_name"],
                     "event_date": event["occurs_on"],
+                    "event_end": event.get("ends_on", event["occurs_on"]),
+                    "selection_mode": "evergreen" if event.get("evergreen") else "active_event",
                     "theme": angle,
                 }
             )
     if not candidates:
-        raise ValueError("Upcoming calendar events contain no theme angles")
+        raise ValueError("Active calendar events contain no theme angles")
     randomizer.shuffle(candidates)
 
     selections: list[dict[str, str]] = []
@@ -150,11 +124,13 @@ def build_webhook_inspiration(link: str) -> str:
     seed = " ".join(useful[:14]) or parsed.netloc
     return (
         f"Use only this URL-derived niche seed: '{seed}'. Create a fresh educational "
-        "storybook angle inspired by the broad topic or classroom skill suggested by "
+        "printable exercise pack inspired by the broad topic or classroom skill suggested by "
         "those words. Do not access or scrape the link. Do not copy, paraphrase, or "
         "imitate the referenced product's wording, sequence, characters, page structure, "
-        "trade dress, branding, or visual identity. Invent a new premise, plot, cast, "
-        "title, teaching approach, and illustration direction."
+        "trade dress, branding, or visual identity. Invent original student tasks, "
+        "examples, answer keys, title, teaching approach, and visual layout. "
+        "Produce complete usable exercises, not a story or a list of activity ideas. "
+        "The output is a static PDF: do not promise editable fields or personalized names."
     )
 
 
@@ -167,4 +143,3 @@ def pick_webhook_grade_band(state: dict[str, Any]) -> str:
         if band in last_seen:
             last_seen[band] = max(last_seen[band], item.get("generated_on", ""))
     return min(GRADE_BANDS, key=lambda band: (last_seen[band], GRADE_BANDS.index(band)))
-

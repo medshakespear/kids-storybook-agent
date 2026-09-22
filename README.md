@@ -1,274 +1,183 @@
-# Book library update — manual Railway setup
+# Classroom Activity Pack Agent
 
-Open `/` or `/books` on the web service to see titles, themes, grade bands, dates,
-and PDF downloads. `/api/books` provides the same catalog as JSON. This page and
-its downloads are public to anyone with the address. No generation history can be
-inferred from a healthy deployment alone; the empty page means no stored books yet.
+Generates original **printable classroom exercise packs**, not storybooks.
+Gemini writes the activities; optional Groq fallback handles text failures.
+Python/WeasyPrint draws the worksheets and assembles A4 PDFs. There is no database.
 
-1. On the Railway project canvas, create a Volume, attach it to **web**, and set
-   its mount path to `/data`. Set `DATA_DIR=/data` on web. Keep one replica and one
-   Gunicorn worker (threads are supported).
-2. On **web**, set `DELIVERY_TOKEN` to a long random password you choose. This is
-   a shared application password, not an API subscription. Set the provider credentials listed below.
-3. On **cron**, set `BOOK_LIBRARY_URL` to the web service's HTTPS base URL (no
-   `/books` suffix), and set the same `DELIVERY_TOKEN`. Set the provider credentials listed below.
-4. Web start command: `sh -c 'exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4 --timeout 900 webhook_server:app'`.
-   Cron start command: `python cron_job.py`; schedule: `0 7 * * *`; restart: Never.
-5. Redeploy both services. Run one cron test using `DAILY_BOOK_COUNT=1`, then remove
-   that override for the normal 6–8 books. Look for `DELIVERED` in cron logs.
-6. Open the web domain and refresh after completion. Each available book has a
-   Download PDF button. On-demand books appear automatically too.
+## What each pack includes
 
-The web service stores PDFs at `/data/output` and all catalog/rotation data in
-`/data/state.json`. No database or separate metadata files are introduced. Cron
-reads that durable state before selecting themes and uploads each completed PDF
-with metadata. Uploads are authenticated, bounded in size, and safe to retry.
-A failed delivery is logged as a failed book and produces a nonzero job exit.
-The remaining books still run. PDFs left only in a failed cron container require
-manual recovery before the container disappears; there is no durable retry queue.
+- A colorful cover and teacher plan with learning goals, materials, and timing.
+- 6 student worksheets for Pre-K-K / 1st-2nd, or 8 for 3rd-4th / 5th-6th.
+- One separate teacher key per worksheet, with answers/sample responses, teaching tips,
+  support, extension, and observation space. Total: 14 or 18 PDF pages.
+- At least three task types, chosen to suit the grade: counting, arithmetic, matching,
+  sorting cards, informational reading, outlined-word tracing, and creative design.
+- Large, colorful visual supports for young learners; restrained accents and
+  more text/reasoning for older learners. White workspaces keep printing practical.
 
-`GITHUB_TOKEN` is optional with volume-backed rotation. It is needed only if you
-also want the original GitHub state-commit behavior. Only cron performs GitHub
-write-back. Do not assume web and cron have a shared filesystem.
+These are actual student tasks with answer space, not lists of ideas. Counting art,
+math answers, matching layouts, tracing letters, cards and diagrams are created by
+code. **Activity generation makes no image API calls and needs no Cloudflare key.**
+This avoids spending image quota or relying on AI pictures for exact quantities.
+Existing Cloudflare/OpenAI image code remains available as legacy code, but the cron
+and webhook do not call it. No new storybook is produced by these entry points.
 
-Old files in a replaced container cannot be recovered by this update. Copy any
-existing PDFs into `/data/output` before removing their old storage. Files without
-metadata appear under their filenames as recovered PDFs. Legacy history records
-without PDFs are explicitly marked unavailable. Never wipe the volume to redeploy.
+The PDFs are static and are NOT editable forms or personalized name books.
+Tracing uses outlined uppercase words, not a handwriting curriculum or automatic
+class-name personalization. Originality is requested, not a guarantee of novelty.
+Before selling or teaching, review content, answer keys, cultural context, reading
+level, and print quality. Arithmetic/counting are checked in code; semantic answers
+and educational suitability still require human review. No standards alignment is claimed.
 
-Existing `.railway/railway.ts` is optional CLI configuration; the manual volume and
-transfer variables above must be configured separately. The dashboard persists
-through restarts only after the volume is attached.
+## Daily selection: today, not upcoming events
 
----
+1. Resolve today's date in `BOOK_TIMEZONE` (default `UTC`).
+2. Match only calendar events whose inclusive start/end dates contain today.
+3. If multiple events are active, vary the selected themes across the batch.
+4. If none is active, select original evergreen classroom challenges.
+5. Shuffle grade bands in groups of four, giving random order and balanced coverage.
+6. Avoid recently used theme/grade pairs where possible; permit reuse when exhausted.
 
-# Automated Kids Storybook Agent
+For example, September 22 can match Hispanic Heritage Month (September 15-October 15),
+but not October's Fire Prevention Week. There is no 1-4-week lookahead or nearest-event
+fallback. Daily count remains `DAILY_BOOK_COUNT` (default random 6-8; allowed 1-20).
 
-A production-oriented Python agent that creates original, grade-scaled, illustrated
-children's storybooks as printable A4 PDFs. Gemini (with optional Groq fallback) generates the structured story and Cloudflare generates
-one illustration per page; WeasyPrint lays out the title, art, and readable text bands.
-There is no Canva integration, database, or scraper. OpenAI remains an explicit opt-in backend.
+`calendar.json` now contains exact schedule rules:
+- `fixed`: actual annual month/day, not a substitute federal day.
+- `month`: the whole named month, including leap days.
+- `range`: inclusive month/day through end_month/end_day; supports year rollover.
+- `nth_weekday` and `last_weekday`: Monday=0 through Sunday=6, recalculated each year.
+- `week_containing`: week containing a reference day, e.g. October 9.
+- `dates`: explicit year-specific start/end ISO dates.
 
-## What it does
-
-- **Daily cron:** chooses 6-8 books from school events occurring in the next 1-4 weeks,
-  rotates coverage across four grade bands, avoids recently used theme/grade pairs,
-  continues after individual failures, updates `state.json`, and commits that state back
-  to GitHub when repository credentials are configured.
-- **On-demand webhook:** accepts one reference URL plus an optional grade band, derives
-  a broad niche seed from URL/slug words without visiting the page, and creates one
-  original book. The prompt explicitly forbids copying wording, structure, characters,
-  branding, trade dress, or visual identity.
-- **PDF output:** writes files as
-  `output/YYYY-MM-DD_grade-band_story-title.pdf`. Each PDF has an A4 portrait title page
-  followed by a full-page illustration and a grade-appropriate text treatment per page.
-
-## Repository layout
-
-```text
-.
-├── .railway/railway.ts       # Current Railway IaC: web + cron services
-├── calendar.json             # Full-year US school event calendar
-├── grade_config.json         # Reading/layout/art settings by grade band
-├── state.json                # The only persistent generation state
-├── core/
-│   ├── image_generator.py
-│   ├── pdf_builder.py
-│   ├── pipeline.py
-│   ├── state_manager.py
-│   ├── story_generator.py
-│   └── theme_picker.py
-├── cron_job.py               # Daily batch entry point
-├── webhook_server.py         # Flask webhook and PDF download service
-├── Dockerfile                # Python 3.11 + WeasyPrint native libraries
-├── Procfile
-└── requirements.txt
-```
-
-## Configuration
-
-### Required
-
-Set these variables on **both Railway services** (web and cron):
-
-| Variable | Value |
-| --- | --- |
-| `TEXT_PROVIDER` | `gemini` (default) |
-| `IMAGE_PROVIDER` | `cloudflare` (default) |
-| `GEMINI_API_KEY` | Your Google AI Studio API key |
-| `CLOUDFLARE_API_TOKEN` | Workers AI token with permission to run models |
-| `CLOUDFLARE_ACCOUNT_ID` | Your 32-character Cloudflare account ID |
-| `GROQ_API_KEY` | Optional; enables Groq story fallback |
-
-The default text model is `GEMINI_TEXT_MODEL=gemini-3.5-flash-lite`.
-Groq uses `GROQ_TEXT_MODEL=openai/gpt-oss-20b`. Override model IDs when
-provider availability changes. `TEXT_FALLBACK_PROVIDER=none` disables fallback;
-otherwise Groq is enabled when its key is present. `TEXT_PROVIDER=groq` can also
-use Groq directly without a Gemini key.
-
-If upgrading from the initial multi-provider version, change or remove old Railway
-`GEMINI_TEXT_MODEL` / `GROQ_TEXT_MODEL` overrides on **both** services. Redeploying
-code does not replace explicit environment variables. The current defaults are
-`gemini-3.5-flash-lite` and `openai/gpt-oss-20b`. The latter runs **on Groq**, using
-`GROQ_API_KEY`; it does not call the paid OpenAI API. HTTP 404 errors now include
-the selected model to help diagnose unavailable or restricted models.
-
-Provider references: [Gemini availability](https://ai.google.dev/gemini-api/docs/deprecations),
-[Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing),
-[Groq models](https://console.groq.com/docs/models).
-
-Images use Cloudflare `@cf/black-forest-labs/flux-1-schnell` with
-`CLOUDFLARE_IMAGE_STEPS=4` (allowed 1–8). The endpoint controls output dimensions;
-the code does not send unsupported width/height parameters. Square illustrations
-are cropped by the existing A4 layout. Inspect character consistency and print
-sharpness before selling PDFs. JPEG responses are validated and converted to PNG.
-
-No OpenAI key is required with these defaults, even if an old key remains in Railway.
-For paid OpenAI explicitly set `TEXT_PROVIDER=openai` and/or `IMAGE_PROVIDER=openai`
-and `OPENAI_API_KEY`. Existing `OPENAI_TEXT_MODEL`, `OPENAI_IMAGE_MODEL`, and
-`OPENAI_IMAGE_QUALITY` overrides still work. The `openai` Python package is also the
-compatible HTTP client for Gemini/Groq; its presence does not mean calls go to OpenAI.
-
-Free provider quotas are account-specific and can change; the app does not guarantee
-free or unlimited production. Use free-tier accounts to avoid usage billing. It
-retries transient failures with bounded backoff, then tries the configured text
-fallback. Authentication errors fail immediately for that provider. Image failures
-fail that book; cron continues remaining books. There is no automatic paid fallback
-or automatic next-day resume. API keys and provider response bodies are not logged.
-
-After saving variables, deploy the latest GitHub commit on both services. Set
-`DAILY_BOOK_COUNT=1` on cron for the first run; check `/books` after a successful
-delivery, then increase the count. Keep your existing volume, `DATA_DIR`,
-`BOOK_LIBRARY_URL`, and `DELIVERY_TOKEN` settings.
-
-### Optional GitHub state write-back
-
-Railway's build checkout does not expose a reusable GitHub write credential. To fulfill
-the state-commit requirement, set these variables on the cron service:
-
-- `GITHUB_TOKEN`: a fine-grained token for this repository with **Contents: Read and write**.
-- `GITHUB_REPOSITORY=medshakespear/kids-storybook-agent`
-- `GITHUB_BRANCH=main` (optional; defaults to `main`).
-
-The job updates `state.json` atomically after every successful book, then makes one GitHub
-Contents API commit at the end. If the token is absent, generation still completes and a
-clear state-persistence warning is printed, but the next Railway container will not retain
-that local state. With library delivery configured, cron instead reloads current
-rotation state from the web service volume at the start of each run.
-
-### Optional
-
-- `WEBHOOK_API_KEY`: when set, clients must send the same value in `X-API-Key`.
-- `DAILY_BOOK_COUNT`: fixed batch size from 1-20; unset means a random 6-8.
-- `LOG_LEVEL`: Flask logging level, default `INFO`.
-- `PORT`: local web port, default `8080`; Railway supplies this automatically.
-
-## Run locally
-
-Python 3.11+ is required. WeasyPrint also requires its native libraries; the included
-Dockerfile is the most reproducible option.
-
-### Docker
-
-```bash
-docker build -t kids-storybook-agent .
-docker run --rm -p 8080:8080 -e GEMINI_API_KEY -e CLOUDFLARE_API_TOKEN -e CLOUDFLARE_ACCOUNT_ID kids-storybook-agent
-```
-
-Open `http://localhost:8080/health` to verify the web service.
-
-### Local Python environment
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-export GEMINI_API_KEY="your-gemini-key"
-export CLOUDFLARE_API_TOKEN="your-cloudflare-token"
-export CLOUDFLARE_ACCOUNT_ID="your-cloudflare-account-id"
-python webhook_server.py
-```
-
-Run a daily batch manually:
-
-```bash
-DAILY_BOOK_COUNT=1 python cron_job.py
-```
-
-Run the test suite without making external API calls:
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-## Webhook API
-
-### `POST /generate`
-
-Request:
+Local/annually announced events (back to school, seasonal breaks, solstices,
+Lunar New Year, etc.) are **disabled until verified dates are supplied**.
+They are not guessed from old approximate anchors. Example school period:
 
 ```json
 {
-  "link": "https://www.teacherspayteachers.com/Product/Data-Collection-Sheets-for-Special-Education-IEP-Goals-EDITABLE-7823047",
-  "grade_band": "3rd-4th"
+  "event_name": "Back to School",
+  "enabled": true,
+  "schedule": {"kind": "dates", "years": {"2026": ["2026-08-24", "2026-08-28"]}},
+  "theme_angles": ["Organizing supplies and learning classroom routines"]
 }
 ```
 
-Allowed grade bands are `Pre-K-K`, `1st-2nd`, `3rd-4th`, and `5th-6th`. If omitted, the
-service selects the least recently represented band from the current read-only state.
+Use your own actual district dates for that example. Calendar sources:
+[OPM holidays](https://www.opm.gov/policy-data-oversight/pay-leave/federal-holidays/),
+[Hispanic Heritage Month](https://hispanicheritagemonth.gov/About),
+[NFPA](https://www.nfpa.org/events/fire-prevention-week).
 
-Example request:
+## Manual Railway setup (no CLI needed)
 
-```bash
-curl -X POST "http://localhost:8080/generate" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: optional-webhook-secret" \
-  -d '{"link":"https://www.teacherspayteachers.com/Product/Data-Collection-Sheets-for-Special-Education-IEP-Goals-EDITABLE-7823047","grade_band":"3rd-4th"}'
-```
-
-Successful response:
-
-```json
-{
-  "status": "completed",
-  "title": "Mina and the Pattern Parade",
-  "grade_band": "3rd-4th",
-  "pdf_path": "/output/2026-09-22_3rd-4th_mina-and-the-pattern-parade.pdf",
-  "download_url": "https://your-service.up.railway.app/output/2026-09-22_3rd-4th_mina-and-the-pattern-parade.pdf"
-}
-```
-
-Generation is synchronous and can take several minutes because every page receives a
-separate image request. Gunicorn's timeout is set to 15 minutes. PDFs persist on the
-web service's `/data` volume when configured as described at the top of this README.
-Without that volume, files are ephemeral and can disappear on redeployment.
-
-## Railway deployment through the website
-
-Use the manual setup at the top of this README. Connect this GitHub repository to
-**two services** in the same Railway project:
+Connect this repository to two services. Both build with the included Dockerfile.
 
 | Service | Start command | Schedule |
 | --- | --- | --- |
 | web | `sh -c 'exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4 --timeout 900 webhook_server:app'` | Always on |
 | cron | `python cron_job.py` | `0 7 * * *` (07:00 UTC daily) |
 
-Set the provider variables in both services, attach the volume to web, and set the
-cron delivery variables. In the web service's networking settings, generate a public
-domain. Your library is `https://your-domain/books`, webhook is
-`https://your-domain/generate`, and health check is `https://your-domain/health`.
-Set cron's restart policy to Never. Redeploy both services after changing variables.
-No Railway CLI is needed. The optional `.railway/railway.ts` is for CLI users only.
+Use **Never** as cron's restart policy. Keep one web replica and one Gunicorn worker.
 
-## Operational notes
+Set on BOTH services:
+- `TEXT_PROVIDER=gemini`
+- `GEMINI_API_KEY`: Google AI Studio key.
+- `GEMINI_TEXT_MODEL=gemini-3.5-flash-lite` (default).
+- `GROQ_API_KEY`: optional; enables Groq fallback.
+- `GROQ_TEXT_MODEL=openai/gpt-oss-20b` (default; runs on Groq, not OpenAI).
+- `TEXT_FALLBACK_PROVIDER=none` to disable the optional Groq fallback.
+- `BOOK_TIMEZONE=UTC`, or e.g. `Africa/Casablanca` / `America/New_York`.
+  Set the same value on web and cron. Railway's cron schedule is still in UTC.
 
-- A 6-8 book batch may make 70+ image calls, so monitor provider quotas and costs.
-- API and validation failures use bounded exponential backoff. One failed daily book does
-  not stop the rest of the batch.
-- Character descriptions are inserted verbatim into every page prompt after validation,
-  while a fixed style-lock keeps palette, rendering, and proportions consistent.
-- Image models do not guarantee perfect recurring-character identity. The prompt strategy
-  improves consistency without claiming deterministic identity preservation.
-- Review every generated PDF for accuracy, age appropriateness, layout, and commercial
-  licensing/policy compliance before listing it on Teachers Pay Teachers.
+`TEXT_PROVIDER=groq` can use Groq directly without a Gemini key.
+Paid OpenAI text is opt-in with `TEXT_PROVIDER=openai` and `OPENAI_API_KEY`;
+there is no automatic paid OpenAI fallback. Free quotas depend on your provider account.
+The OpenAI Python SDK also transports Gemini/Groq requests; installing it does not
+mean they go to OpenAI. Provider/model errors do not log raw response bodies or keys.
+Explicit Railway model variables override code defaults; update old values on both services.
 
+Storage and delivery:
+1. Attach a persistent Volume to **web** at `/data`; set `DATA_DIR=/data`.
+2. Set `DELIVERY_TOKEN` to the same long random secret on web and cron.
+3. Generate a public domain for web in its networking settings.
+4. On cron set `BOOK_LIBRARY_URL=https://your-web-domain` (no `/books` suffix).
+5. Deploy the latest commit on BOTH services. Set `DAILY_BOOK_COUNT=1` on cron
+   for your first test, run once, and look for `SUCCESS` and `DELIVERED` in logs.
+6. Open `https://your-web-domain/books` to download the activity pack.
+7. After reviewing it, change the daily count or remove the test override.
+
+Old PDFs and state history are preserved. No volume or database migration is needed.
+Web stores `/data/output/*.pdf` and its catalog in the single `/data/state.json`.
+Cron reads that state and uploads each completed PDF via authenticated delivery.
+Without a volume, web files are ephemeral. Web and cron do NOT share a filesystem.
+If delivery fails, the local cron PDF has no durable retry queue: recover it before
+that container disappears. Never remove the web volume merely to deploy new code.
+
+`GITHUB_TOKEN` with Contents read/write, `GITHUB_REPOSITORY`, and optional
+`GITHUB_BRANCH=main` enable cron's optional state commit-back. Without these,
+volume-backed catalog/rotation still works. Secrets belong in Railway Variables,
+never in GitHub, chat, or screenshots. Existing image-provider variables may remain;
+the new activity pipeline ignores them. Optional `.railway/railway.ts` is for CLI
+users; manual website configuration above is the recommended path.
+
+## Web API
+
+- `GET /health`: health check.
+- `GET /` or `/books`: public activity library (also shows old PDFs).
+- `GET /api/books`: public JSON catalog.
+- `GET /output/<filename>.pdf`: download.
+- `POST /generate`: generate ONE original exercise pack from URL slug inspiration.
+  Does not scrape or copy the reference product; omitted grade uses history rotation.
+
+```json
+{"link": "https://example.com/classroom-sorting-activities", "grade_band": "1st-2nd"}
+```
+
+Response includes `title`, `grade_band`, `resource_type: "activity_pack"`,
+`pdf_path`, and `download_url`. Generation is synchronous and may take minutes.
+Set `WEBHOOK_API_KEY` on web and supply `X-API-Key` when calling `/generate`
+to prevent strangers consuming your quota. The library/downloads remain public.
+
+`GET /internal/state` and `POST /internal/books` require `X-Delivery-Token`;
+only cron uses them. Each uploaded filename is registered once. New metadata records
+the resource type, event period, and whether selection was event-based or evergreen.
+
+## Local development and checks
+
+Python 3.11+ and WeasyPrint's native libraries are required. The Dockerfile installs
+native dependencies and fonts. Export provider keys in your shell, then:
+
+```bash
+pip install -r requirements.txt
+python -m unittest discover -s tests -v
+python webhook_server.py
+# In another invocation, with the same exported environment:
+DAILY_BOOK_COUNT=1 python cron_job.py
+```
+
+Or build and run Docker, passing the exported credentials:
+
+```bash
+docker build -t classroom-agent .
+docker run --rm -p 8080:8080 -e GEMINI_API_KEY classroom-agent
+```
+
+Tests use mocked API responses and original deterministic exercise fixtures; they
+do not spend API credits. Offline PDF tests check all four grade layouts. Layout
+overflow is rejected rather than silently hiding content. Live content and account
+quotas must still be tested after deployment.
+
+## Main modules
+
+- `core/calendar_rules.py`: exact periods and timezone-aware today.
+- `core/theme_picker.py`: current-event / evergreen themes and random grade batches.
+- `core/activity_generator.py`: complete exercise JSON, constraints and computed keys.
+- `core/activity_pdf.py`: code-drawn visual worksheets and teacher pages.
+- `core/pipeline.py`: shared activity generation and atomic PDF output.
+- `core/providers.py`: Gemini/Groq/OpenAI text routing and sanitized errors.
+- `core/book_library.py`, `core/delivery.py`, `core/state_manager.py`: storage.
+- `cron_job.py`, `webhook_server.py`: scheduled and on-demand entry points.
+
+Legacy story/image modules are retained for compatibility and tests only; the active
+pipeline does not use them. `DAILY_BOOK_COUNT` and `/books` keep their existing names
+to avoid breaking your Railway configuration and download links.

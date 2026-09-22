@@ -1,35 +1,148 @@
 {
   "Pre-K-K": {
-    "page_count": {"min": 8, "max": 10},
-    "words_per_page": {"min": 8, "max": 22},
+    "page_count": {
+      "min": 8,
+      "max": 10
+    },
+    "words_per_page": {
+      "min": 8,
+      "max": 22
+    },
     "vocabulary_notes": "Use familiar concrete words, gentle repetition, simple action verbs, and at most one clearly explained new word.",
     "sentence_complexity_notes": "Use one or two short sentences per page, mostly subject-verb-object patterns, with a predictable refrain where natural.",
     "text_placement_style": "bottom_band",
-    "illustration_style": "Bold simple shapes, huge friendly characters, rounded forms, clear facial emotions, flat cheerful colors, very low visual clutter, soft picture-book texture."
+    "illustration_style": "Bold simple shapes, huge friendly characters, rounded forms, clear facial emotions, flat cheerful colors, very low visual clutter, soft picture-book texture.",
+    "activity_pages": 6,
+    "items_per_page": 3,
+    "student_font_pt": 17,
+    "color_level": 3,
+    "accent": "#007F82",
+    "secondary": "#F4B942",
+    "wash": "#E3F5EF",
+    "max_operand": 10,
+    "max_result": 10,
+    "operations": [
+      "+",
+      "-"
+    ],
+    "allowed_types": [
+      "count",
+      "matching",
+      "sort",
+      "draw",
+      "trace"
+    ],
+    "skill_notes": "Emergent learners: adult-read directions, familiar words, count within 10, simple shape/word matching, first-letter recognition, large drawing and tracing spaces. No independent reading passages."
   },
   "1st-2nd": {
-    "page_count": {"min": 10, "max": 12},
-    "words_per_page": {"min": 18, "max": 40},
+    "page_count": {
+      "min": 10,
+      "max": 12
+    },
+    "words_per_page": {
+      "min": 18,
+      "max": 40
+    },
     "vocabulary_notes": "Use decodable high-frequency language plus a few context-supported descriptive words; make meaning inferable from the scene.",
     "sentence_complexity_notes": "Use mostly simple sentences with occasional conjunctions, varied openings, dialogue tags, and a clear chronological sequence.",
     "text_placement_style": "top_band",
-    "illustration_style": "Warm contemporary picture-book art, friendly expressive characters, clean shapes with light texture, bright harmonious colors, readable action, moderate background detail."
+    "illustration_style": "Warm contemporary picture-book art, friendly expressive characters, clean shapes with light texture, bright harmonious colors, readable action, moderate background detail.",
+    "activity_pages": 6,
+    "items_per_page": 4,
+    "student_font_pt": 14,
+    "color_level": 2,
+    "accent": "#2468B4",
+    "secondary": "#F18A55",
+    "wash": "#EAF3FC",
+    "max_operand": 50,
+    "max_result": 100,
+    "operations": [
+      "+",
+      "-"
+    ],
+    "allowed_types": [
+      "count",
+      "arithmetic",
+      "matching",
+      "sort",
+      "reading",
+      "draw",
+      "trace"
+    ],
+    "skill_notes": "Foundational literacy, short concrete passages, addition/subtraction within 100, classification, sentence writing. Avoid content requiring advanced decoding."
   },
   "3rd-4th": {
-    "page_count": {"min": 12, "max": 14},
-    "words_per_page": {"min": 38, "max": 70},
+    "page_count": {
+      "min": 12,
+      "max": 14
+    },
+    "words_per_page": {
+      "min": 38,
+      "max": 70
+    },
     "vocabulary_notes": "Use vivid grade-appropriate vocabulary, meaningful context clues, sensory detail, and domain words when the lesson calls for them.",
     "sentence_complexity_notes": "Mix simple, compound, and accessible complex sentences; use dialogue and interior thought while keeping paragraphs compact.",
     "text_placement_style": "balanced_panel",
-    "illustration_style": "Polished middle-grade storybook illustration, expressive characters, cinematic but uncluttered compositions, textured brushwork, layered environments, rich balanced color."
+    "illustration_style": "Polished middle-grade storybook illustration, expressive characters, cinematic but uncluttered compositions, textured brushwork, layered environments, rich balanced color.",
+    "activity_pages": 8,
+    "items_per_page": 4,
+    "student_font_pt": 12,
+    "color_level": 1,
+    "accent": "#3D7587",
+    "secondary": "#BFA36A",
+    "wash": "#EEF4F5",
+    "max_operand": 100,
+    "max_result": 1000,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "allowed_types": [
+      "arithmetic",
+      "matching",
+      "sort",
+      "reading",
+      "draw"
+    ],
+    "skill_notes": "Multi-step thinking, multiplication facts and exact division, evidence from short informational passages, word relationships, explain choices. Do not use babyish counting tasks."
   },
   "5th-6th": {
-    "page_count": {"min": 14, "max": 16},
-    "words_per_page": {"min": 65, "max": 105},
+    "page_count": {
+      "min": 14,
+      "max": 16
+    },
+    "words_per_page": {
+      "min": 65,
+      "max": 105
+    },
     "vocabulary_notes": "Use precise, nuanced vocabulary, figurative language in moderation, subject-specific terms with natural context, and no condescending baby talk.",
     "sentence_complexity_notes": "Use varied sentence lengths, controlled complex syntax, subtext in dialogue, stronger transitions, and age-appropriate reflection.",
     "text_placement_style": "side_panel",
-    "illustration_style": "Detailed sophisticated illustrated-fiction art, less babyish character proportions, dynamic perspective, nuanced expressions, atmospheric lighting, richer color depth and environmental detail."
+    "illustration_style": "Detailed sophisticated illustrated-fiction art, less babyish character proportions, dynamic perspective, nuanced expressions, atmospheric lighting, richer color depth and environmental detail.",
+    "activity_pages": 8,
+    "items_per_page": 4,
+    "student_font_pt": 11,
+    "color_level": 0,
+    "accent": "#334A66",
+    "secondary": "#778594",
+    "wash": "#F1F3F5",
+    "max_operand": 1000,
+    "max_result": 10000,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "allowed_types": [
+      "arithmetic",
+      "matching",
+      "sort",
+      "reading",
+      "draw"
+    ],
+    "skill_notes": "Upper-elementary reasoning: authentic planning constraints, multi-digit arithmetic, precise vocabulary, inference and evidence, compare solutions, justify design decisions. No infantile clip art or tracing."
   }
 }
-

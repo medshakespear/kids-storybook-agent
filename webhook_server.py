@@ -1,4 +1,4 @@
-"""Flask web service for on-demand storybook generation."""
+"""Flask web service for on-demand classroom activity-pack generation."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def health() -> tuple[dict[str, str], int]:
 
 @app.post("/generate")
 def generate() -> tuple[object, int] | object:
-    """Generate one original book from a URL-derived inspiration seed."""
+    """Generate one original activity pack from a URL-derived inspiration seed."""
 
     if not _authorized():
         return jsonify({"error": "Unauthorized. Supply a valid X-API-Key header."}), 401
@@ -70,7 +70,7 @@ def generate() -> tuple[object, int] | object:
             ), 400
         inspiration = build_webhook_inspiration(link)
         broad_theme = (
-            "An original classroom-friendly story inspired only by the broad educational "
+            "An original classroom exercise pack inspired only by the broad educational "
             "niche words contained in the supplied URL"
         )
         story, pdf_path = generate_book(
@@ -87,6 +87,7 @@ def generate() -> tuple[object, int] | object:
             {
                 "status": "completed",
                 "title": story["title"],
+                "resource_type": "activity_pack",
                 "grade_band": grade_band,
                 "pdf_path": f"/output/{pdf_path.name}",
                 "download_url": download_url,
@@ -96,7 +97,7 @@ def generate() -> tuple[object, int] | object:
         logger.exception("On-demand generation failed")
         return jsonify(
             {
-                "error": "Storybook generation failed.",
+                "error": "Activity-pack generation failed.",
                 "detail": str(exc),
             }
         ), 500
@@ -104,7 +105,7 @@ def generate() -> tuple[object, int] | object:
 
 @app.get("/output/<path:filename>")
 def download_output(filename: str) -> object:
-    """Serve a generated PDF from the ephemeral Railway filesystem."""
+    """Serve a generated PDF from the configured output directory/volume."""
 
     if not filename.lower().endswith(".pdf"):
         return jsonify({"error": "Only PDF files are available."}), 404
@@ -163,4 +164,3 @@ def upload_book():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8080"))
     app.run(host="0.0.0.0", port=port, debug=False)
-

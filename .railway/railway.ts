@@ -18,12 +18,9 @@ export default defineRailway(() => {
     env: {
       GEMINI_API_KEY: preserve(),
       GROQ_API_KEY: preserve(),
-      CLOUDFLARE_API_TOKEN: preserve(),
-      CLOUDFLARE_ACCOUNT_ID: preserve(),
       TEXT_PROVIDER: "gemini",
-      IMAGE_PROVIDER: "cloudflare",
+      BOOK_TIMEZONE: "UTC",
       GEMINI_TEXT_MODEL: "gemini-3.5-flash-lite",
-      CLOUDFLARE_IMAGE_STEPS: "4",
     },
     deploy: {
       restartPolicyType: "ON_FAILURE",
@@ -37,15 +34,12 @@ export default defineRailway(() => {
     env: {
       GEMINI_API_KEY: preserve(),
       GROQ_API_KEY: preserve(),
-      CLOUDFLARE_API_TOKEN: preserve(),
-      CLOUDFLARE_ACCOUNT_ID: preserve(),
       TEXT_PROVIDER: "gemini",
-      IMAGE_PROVIDER: "cloudflare",
+      BOOK_TIMEZONE: "UTC",
       GITHUB_TOKEN: preserve(),
       GITHUB_REPOSITORY: repository,
       GITHUB_BRANCH: "main",
       GEMINI_TEXT_MODEL: "gemini-3.5-flash-lite",
-      CLOUDFLARE_IMAGE_STEPS: "4",
     },
     deploy: {
       cronSchedule: "0 7 * * *",

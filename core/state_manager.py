@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from core.paths import STATE_PATH
+from core.calendar_rules import today_in_timezone
 
 
 DEFAULT_STATE: dict[str, Any] = {
@@ -69,7 +70,7 @@ def update_state(
             "grade_band": grade_band,
             "title": title,
             "output_path": output_path,
-            "generated_on": generated_on or date.today().isoformat(),
+            "generated_on": generated_on or today_in_timezone().isoformat(),
         }
     )
     if grade_band_index is not None:
@@ -120,7 +121,7 @@ def commit_state_to_github(path: str | Path = STATE_PATH) -> tuple[bool, str]:
         return False, f"Could not read remote state.json: {current.status_code} {current.text[:300]}"
 
     payload: dict[str, Any] = {
-        "message": f"chore: update storybook generation state ({date.today().isoformat()})",
+        "message": f"chore: update activity generation state ({today_in_timezone().isoformat()})",
         "content": base64.b64encode(state_path.read_bytes()).decode("ascii"),
         "branch": branch,
     }

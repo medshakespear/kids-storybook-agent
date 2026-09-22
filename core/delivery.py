@@ -34,6 +34,9 @@ def deliver_book(story, pdf_path):
     if not base:
         return False
     metadata = {key: story[key] for key in ('title', 'theme', 'grade_band')}
+    for key in ('resource_type', 'generated_on', 'event_name', 'event_date', 'event_end', 'selection_mode'):
+        if key in story:
+            metadata[key] = story[key]
     for attempt in range(4):
         try:
             with pdf_path.open('rb') as handle:

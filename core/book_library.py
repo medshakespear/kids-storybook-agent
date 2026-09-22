@@ -18,10 +18,13 @@ def register_book(story, filename, source):
         state = load_state()
         if any(item.get('filename') == filename for item in state['generated']):
             return
-        update_state(state, theme=story['theme'], event_name=source,
+        update_state(state, theme=story['theme'], event_name=story.get('event_name', source),
                      grade_band=story['grade_band'], title=story['title'],
-                     output_path=f'output/{filename}')
+                     output_path=f'output/{filename}', generated_on=story.get('generated_on'))
         state['generated'][-1].update(filename=filename, source=source)
+        for key in ('resource_type', 'selection_mode', 'event_date', 'event_end'):
+            if key in story:
+                state['generated'][-1][key] = story[key]
         from core.theme_picker import GRADE_BANDS
         state['last_grade_band_index'] = GRADE_BANDS.index(story['grade_band'])
         save_state(state)
@@ -57,6 +60,14 @@ def receive_pdf(upload, metadata):
     from core.theme_picker import GRADE_BANDS
     if metadata['grade_band'] not in GRADE_BANDS:
         raise ValueError('Invalid grade_band')
+    for key in ('resource_type', 'selection_mode', 'event_name'):
+        if key in metadata and (not isinstance(metadata[key], str) or len(metadata[key]) > 250):
+            raise ValueError(f'Invalid {key}')
+    for key in ('generated_on', 'event_date', 'event_end'):
+        if key in metadata:
+            if not isinstance(metadata[key], str):
+                raise ValueError(f'Invalid {key}')
+            date.fromisoformat(metadata[key])
     with tempfile.NamedTemporaryFile(dir=OUTPUT_DIR, suffix='.part', delete=False) as temp:
         temporary = Path(temp.name)
     try:

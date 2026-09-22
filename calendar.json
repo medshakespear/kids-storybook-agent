@@ -1,0 +1,490 @@
+{
+  "description": "Annual US school-year event calendar. Dates are practical planning anchors; districts may observe events on nearby dates.",
+  "events": [
+    {
+      "event_name": "New Year's Day",
+      "month": 1,
+      "day": 1,
+      "approximate_date": "January 1",
+      "theme_angles": [
+        "A child chooses one small kindness goal and discovers how tiny steps add up",
+        "Classroom friends make a hopeful wishes garden for the new year",
+        "A nervous character learns that a fresh start does not require being perfect"
+      ]
+    },
+    {
+      "event_name": "Martin Luther King Jr. Day",
+      "month": 1,
+      "day": 20,
+      "approximate_date": "Third Monday in January",
+      "theme_angles": [
+        "Children use peaceful words and teamwork to make their playground fairer",
+        "A young helper learns how courage and kindness can improve a community",
+        "Classmates listen to one another and build a shared dream mural"
+      ]
+    },
+    {
+      "event_name": "Lunar New Year",
+      "month": 1,
+      "day": 29,
+      "approximate_date": "Late January or February; planning anchor January 29",
+      "theme_angles": [
+        "A child helps prepare a family celebration and learns why traditions travel across generations",
+        "An animal friend searches for the meaning of good fortune through generous acts",
+        "Neighbors create lanterns that each tell a different family story"
+      ]
+    },
+    {
+      "event_name": "Black History Month",
+      "month": 2,
+      "day": 1,
+      "approximate_date": "All February",
+      "theme_angles": [
+        "A curious student creates a museum of local Black inventors and everyday problem-solvers",
+        "A child follows clues left by courageous community builders from different eras",
+        "Young artists learn how stories, music, science, and leadership can change a neighborhood"
+      ]
+    },
+    {
+      "event_name": "National School Counseling Week",
+      "month": 2,
+      "day": 3,
+      "approximate_date": "First full week of February",
+      "theme_angles": [
+        "A worried student learns three practical ways to name and handle big feelings",
+        "A school counselor helps classmates turn a disagreement into a listening challenge",
+        "A quiet child discovers that asking a trusted adult for help is a brave skill"
+      ]
+    },
+    {
+      "event_name": "Valentine's Day and Friendship",
+      "month": 2,
+      "day": 14,
+      "approximate_date": "February 14",
+      "theme_angles": [
+        "A class learns that friendship can be shown through helpful actions rather than gifts",
+        "A handmade card travels through school collecting sincere compliments",
+        "Two unlikely partners discover how to include someone who feels left out"
+      ]
+    },
+    {
+      "event_name": "Presidents Day",
+      "month": 2,
+      "day": 17,
+      "approximate_date": "Third Monday in February",
+      "theme_angles": [
+        "A student council faces a fair-decision challenge and learns responsible leadership",
+        "Children imagine the qualities they would bring to serving their community",
+        "A young leader learns that listening is more powerful than giving orders"
+      ]
+    },
+    {
+      "event_name": "Read Across America Day",
+      "month": 3,
+      "day": 2,
+      "approximate_date": "March 2",
+      "theme_angles": [
+        "A library book opens doors to several wildly different worlds in one afternoon",
+        "A reluctant reader discovers the perfect book by following clues about personal interests",
+        "Classmates trade favorite reading spots and create a cozy school reading map"
+      ]
+    },
+    {
+      "event_name": "Women's History Month",
+      "month": 3,
+      "day": 8,
+      "approximate_date": "All March; planning anchor March 8",
+      "theme_angles": [
+        "A student interviews women in the community whose everyday work solves important problems",
+        "A young inventor studies courageous women and tests an idea of her own",
+        "Friends recover overlooked stories for a school hallway history gallery"
+      ]
+    },
+    {
+      "event_name": "Pi Day and Math Week",
+      "month": 3,
+      "day": 14,
+      "approximate_date": "March 14",
+      "theme_angles": [
+        "A bakery mystery is solved by measuring circles and spotting patterns",
+        "Friends discover that mistakes are useful clues during a school math quest",
+        "A character who fears numbers learns to use estimation in a real adventure"
+      ]
+    },
+    {
+      "event_name": "First Day of Spring",
+      "month": 3,
+      "day": 20,
+      "approximate_date": "Around March 20",
+      "theme_angles": [
+        "A patient gardener watches tiny seasonal changes and records what happens",
+        "Woodland friends investigate why daylight and weather begin to change",
+        "A late-blooming seed learns that growth follows different timelines"
+      ]
+    },
+    {
+      "event_name": "Autism Acceptance Month",
+      "month": 4,
+      "day": 2,
+      "approximate_date": "All April; planning anchor April 2",
+      "theme_angles": [
+        "Classmates redesign a noisy celebration so different sensory needs are respected",
+        "A detail-loving child becomes the key problem-solver on a group project",
+        "Friends learn to ask what support helps instead of making assumptions"
+      ]
+    },
+    {
+      "event_name": "National Poetry Month",
+      "month": 4,
+      "day": 6,
+      "approximate_date": "All April; planning anchor first week",
+      "theme_angles": [
+        "A shy poet collects sounds from the neighborhood and finds a voice",
+        "Words escape from a notebook and must be arranged by rhythm and meaning",
+        "A class writes tiny poems to help others notice ordinary wonders"
+      ]
+    },
+    {
+      "event_name": "National Library Week",
+      "month": 4,
+      "day": 13,
+      "approximate_date": "Usually in April",
+      "theme_angles": [
+        "A library scavenger hunt reveals all the surprising things librarians help people do",
+        "A lost question travels through books, maps, databases, and helpful conversations",
+        "Young neighbors work together to save a little free library after a storm"
+      ]
+    },
+    {
+      "event_name": "Earth Day",
+      "month": 4,
+      "day": 22,
+      "approximate_date": "April 22",
+      "theme_angles": [
+        "Children trace one piece of litter and organize a realistic cleanup solution",
+        "A school garden teaches how soil, water, insects, plants, and people are connected",
+        "An energy detective finds small ways a classroom can waste less each day"
+      ]
+    },
+    {
+      "event_name": "Teacher Appreciation Week",
+      "month": 5,
+      "day": 5,
+      "approximate_date": "First full week of May",
+      "theme_angles": [
+        "Students secretly collect the small ways a teacher helps everyone grow",
+        "A class becomes the teacher for one playful day and discovers how much planning care takes",
+        "A thank-you chain reveals helpers throughout the entire school"
+      ]
+    },
+    {
+      "event_name": "Asian American, Native Hawaiian, and Pacific Islander Heritage Month",
+      "month": 5,
+      "day": 12,
+      "approximate_date": "All May; planning anchor May 12",
+      "theme_angles": [
+        "Children explore family migration stories through objects shared at a classroom table",
+        "A young navigator uses stars, observation, and inherited knowledge to guide a team",
+        "A neighborhood festival shows many distinct cultures without treating them as one"
+      ]
+    },
+    {
+      "event_name": "Memorial Day",
+      "month": 5,
+      "day": 26,
+      "approximate_date": "Last Monday in May",
+      "theme_angles": [
+        "A child learns why a community creates a quiet remembrance garden",
+        "Families honor service through stories, gratitude, and peaceful reflection",
+        "Students care for memorial flags and learn the difference between remembrance and celebration"
+      ]
+    },
+    {
+      "event_name": "World Environment Day",
+      "month": 6,
+      "day": 5,
+      "approximate_date": "June 5",
+      "theme_angles": [
+        "A neighborhood team restores a tiny habitat one practical step at a time",
+        "A raindrop's journey teaches why clean waterways depend on many choices",
+        "Young scientists compare solutions for reducing waste at a summer event"
+      ]
+    },
+    {
+      "event_name": "Juneteenth",
+      "month": 6,
+      "day": 19,
+      "approximate_date": "June 19",
+      "theme_angles": [
+        "A family celebration connects freedom, memory, food, music, and responsibility",
+        "A child learns why delayed news matters and creates a community freedom timeline",
+        "Neighbors honor ancestors by pairing joyful traditions with honest history"
+      ]
+    },
+    {
+      "event_name": "Summer Reading",
+      "month": 6,
+      "day": 24,
+      "approximate_date": "Late June",
+      "theme_angles": [
+        "Friends design a reading adventure that travels without leaving the neighborhood",
+        "A child turns a summer boredom list into a library-powered curiosity quest",
+        "A book club learns that readers can enjoy different genres and still connect"
+      ]
+    },
+    {
+      "event_name": "Independence Day",
+      "month": 7,
+      "day": 4,
+      "approximate_date": "July 4",
+      "theme_angles": [
+        "Children plan an inclusive neighborhood celebration and share what community means",
+        "A young historian compares national symbols with the ideals people keep working toward",
+        "Friends solve a parade problem using cooperation and civic responsibility"
+      ]
+    },
+    {
+      "event_name": "National Park and Recreation Month",
+      "month": 7,
+      "day": 12,
+      "approximate_date": "All July; planning anchor July 12",
+      "theme_angles": [
+        "Junior rangers protect a trail by teaching visitors leave-no-trace habits",
+        "A city child discovers that nearby parks hold wildlife mysteries",
+        "Friends design a park space that welcomes different ages and abilities"
+      ]
+    },
+    {
+      "event_name": "Summer Safety Week",
+      "month": 7,
+      "day": 21,
+      "approximate_date": "Late July planning theme",
+      "theme_angles": [
+        "A superhero team uses water, shade, helmets, and buddy checks during summer play",
+        "A beach adventure succeeds because children notice signs and follow trusted adults",
+        "Friends create a heat-safety plan for their outdoor club"
+      ]
+    },
+    {
+      "event_name": "Back to School",
+      "month": 8,
+      "day": 12,
+      "approximate_date": "Early to mid-August",
+      "theme_angles": [
+        "A nervous student maps friendly places and people on the first day",
+        "Classmates turn different strengths into a team classroom agreement",
+        "A forgotten backpack item leads to a chain of practical problem-solving"
+      ]
+    },
+    {
+      "event_name": "National Friendship Day",
+      "month": 8,
+      "day": 18,
+      "approximate_date": "August planning anchor",
+      "theme_angles": [
+        "Two friends repair trust after a misunderstanding by listening and taking responsibility",
+        "A newcomer teaches the class that friendship invitations can be small and specific",
+        "A group learns how to disagree without excluding anyone"
+      ]
+    },
+    {
+      "event_name": "Classroom Routines Week",
+      "month": 8,
+      "day": 25,
+      "approximate_date": "Late August",
+      "theme_angles": [
+        "A playful classroom robot learns routines that help everyone feel safe and ready",
+        "Students test which morning habits make learning calmer",
+        "A messy materials mystery is solved through shared responsibility"
+      ]
+    },
+    {
+      "event_name": "Labor Day",
+      "month": 9,
+      "day": 1,
+      "approximate_date": "First Monday in September",
+      "theme_angles": [
+        "A child follows the many workers who make one school day possible",
+        "Young neighbors solve a problem by respecting every kind of useful work",
+        "A class interviews community workers about skills, safety, and teamwork"
+      ]
+    },
+    {
+      "event_name": "Patriot Day and Community Helpers",
+      "month": 9,
+      "day": 11,
+      "approximate_date": "September 11",
+      "theme_angles": [
+        "Children practice age-appropriate ways communities help one another during hard moments",
+        "A thank-you project recognizes quiet courage among local helpers",
+        "A class builds a chain of service focused on unity and care"
+      ]
+    },
+    {
+      "event_name": "Hispanic Heritage Month",
+      "month": 9,
+      "day": 15,
+      "approximate_date": "September 15 to October 15",
+      "theme_angles": [
+        "A child gathers family sayings and discovers how language carries history",
+        "Young creators explore distinct Latin American traditions through a community arts night",
+        "A student maps how many different journeys and cultures shape one neighborhood"
+      ]
+    },
+    {
+      "event_name": "Constitution Day",
+      "month": 9,
+      "day": 17,
+      "approximate_date": "September 17",
+      "theme_angles": [
+        "Classmates write fair rules for a shared makerspace and learn why rules can be revised",
+        "A school debate shows how rights and responsibilities work together",
+        "Young citizens solve a problem by using representation and respectful compromise"
+      ]
+    },
+    {
+      "event_name": "First Day of Fall",
+      "month": 9,
+      "day": 22,
+      "approximate_date": "Around September 22",
+      "theme_angles": [
+        "A leaf detective records color, daylight, and temperature changes",
+        "Forest animals prepare for cooler days in different scientific ways",
+        "A character learns to welcome change while keeping meaningful memories"
+      ]
+    },
+    {
+      "event_name": "National Bullying Prevention Month",
+      "month": 10,
+      "day": 1,
+      "approximate_date": "All October",
+      "theme_angles": [
+        "A bystander practices safe ways to interrupt exclusion and seek adult help",
+        "Classmates distinguish teasing, conflict, and repeated bullying through a realistic scenario",
+        "A student rebuilds confidence with support from peers and trusted adults"
+      ]
+    },
+    {
+      "event_name": "Fire Prevention Week",
+      "month": 10,
+      "day": 6,
+      "approximate_date": "Early October",
+      "theme_angles": [
+        "A family of animal characters practices a calm home fire escape plan",
+        "Junior safety inspectors find smoke alarms and two exits from each room",
+        "A classroom visit from a firefighter turns safety facts into a teamwork mission"
+      ]
+    },
+    {
+      "event_name": "Indigenous Peoples' Day",
+      "month": 10,
+      "day": 13,
+      "approximate_date": "Second Monday in October",
+      "theme_angles": [
+        "A child learns that Indigenous nations are living, diverse communities with present-day stories",
+        "Students study how local place names connect to language, land, and stewardship",
+        "A respectful classroom project replaces stereotypes with specific contemporary voices"
+      ]
+    },
+    {
+      "event_name": "Halloween",
+      "month": 10,
+      "day": 31,
+      "approximate_date": "October 31",
+      "theme_angles": [
+        "A friendly little ghost solves a silly costume mix-up with honesty",
+        "Children turn a spooky-looking sound into a science investigation",
+        "A pumpkin who dislikes scares creates a cheerful new tradition"
+      ]
+    },
+    {
+      "event_name": "Native American Heritage Month",
+      "month": 11,
+      "day": 1,
+      "approximate_date": "All November",
+      "theme_angles": [
+        "A student learns about a specific present-day Native nation through land, language, and community",
+        "Young researchers correct a school display that used stereotypes and vague history",
+        "A contemporary Indigenous child balances family knowledge with a modern science project"
+      ]
+    },
+    {
+      "event_name": "Election Day and Civic Learning",
+      "month": 11,
+      "day": 4,
+      "approximate_date": "Early November",
+      "theme_angles": [
+        "A class holds a fair vote after learning how to compare ideas rather than popularity",
+        "A young citizen follows a local issue from listening session to community decision",
+        "Friends learn why losing a vote does not remove their voice or responsibility"
+      ]
+    },
+    {
+      "event_name": "Veterans Day",
+      "month": 11,
+      "day": 11,
+      "approximate_date": "November 11",
+      "theme_angles": [
+        "A child interviews veterans about service, teamwork, and returning to community life",
+        "Students create respectful thank-you messages after learning what the day recognizes",
+        "A family story explains the difference between honoring veterans and remembering the fallen"
+      ]
+    },
+    {
+      "event_name": "Thanksgiving and Gratitude",
+      "month": 11,
+      "day": 27,
+      "approximate_date": "Fourth Thursday in November",
+      "theme_angles": [
+        "A child notices the hidden chain of people behind a shared meal",
+        "Neighbors create a gratitude gathering that welcomes different foods and traditions",
+        "A classroom studies a fuller history while practicing present-day appreciation and care"
+      ]
+    },
+    {
+      "event_name": "Inclusive Schools Week",
+      "month": 12,
+      "day": 2,
+      "approximate_date": "First week of December",
+      "theme_angles": [
+        "Students redesign a school activity so everyone can participate meaningfully",
+        "A character discovers that fairness sometimes means people receive different supports",
+        "Classmates replace assumptions with questions and build a more welcoming club"
+      ]
+    },
+    {
+      "event_name": "Human Rights Day",
+      "month": 12,
+      "day": 10,
+      "approximate_date": "December 10",
+      "theme_angles": [
+        "Children connect everyday dignity and fairness to universal human needs",
+        "A fictional town repairs an unfair rule by listening to the people affected",
+        "Young advocates learn that rights come with responsibility to protect others"
+      ]
+    },
+    {
+      "event_name": "Winter Traditions",
+      "month": 12,
+      "day": 16,
+      "approximate_date": "Mid-December",
+      "theme_angles": [
+        "Classmates share distinct winter traditions without deciding that one is the default",
+        "A traveling light discovers many ways families create warmth and belonging",
+        "A child who celebrates differently helps plan an inclusive classroom gathering"
+      ]
+    },
+    {
+      "event_name": "Winter Solstice",
+      "month": 12,
+      "day": 21,
+      "approximate_date": "Around December 21",
+      "theme_angles": [
+        "Young sky-watchers investigate the shortest day and the return of longer light",
+        "Nocturnal animals guide a child through the science of a long winter night",
+        "A community uses light as a symbol of patience during the darkest season"
+      ]
+    }
+  ]
+}
+

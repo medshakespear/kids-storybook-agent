@@ -13,6 +13,22 @@ class PrintStyleTests(unittest.TestCase):
         self.assertIn('border:none', result)
         self.assertNotIn('!important', result)
 
+    def test_font_units_normalized_before_layout(self):
+        """Common browser sizes become readable print points without API retries."""
+        self.assertEqual(clean_style('font-size:24px'), 'font-size:18pt')
+        self.assertEqual(clean_style('font-size:9pt'), 'font-size:11pt')
+        self.assertEqual(clean_style('font-size:56pt'), 'font-size:40pt')
+        with self.assertRaisesRegex(ValueError, 'positive pt or px'):
+            clean_style('font-size:2em')
+
+    def test_overflow_reports_element_direction_and_distance(self):
+        """A layout repair receives measured guidance rather than a generic failure."""
+        from weasyprint import HTML
+        from core.creative_layout import document_markup, check_document
+        doc = HTML(string=document_markup(['<div style="width:210mm">Too wide</div>'])).render()
+        with self.assertRaisesRegex(ValueError, r'<div>: right overflow 24.0mm'):
+            check_document(doc, 1)
+
     def test_names_rejected_property(self):
         """Feedback must identify the exact declaration the AI needs to correct."""
         with self.assertRaisesRegex(ValueError, 'Unsupported CSS property "position"'):

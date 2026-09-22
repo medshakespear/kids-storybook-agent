@@ -42,7 +42,14 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     messages = messages[:2]
                     if content:
                         messages.append({'role': 'assistant', 'content': content[:36000]})
-                    messages.append({'role': 'user', 'content': f'Correct only this unit and return complete JSON. Validation: {exc}'})
+                    repair = f'Correct only this unit and return complete JSON. Validation: {exc}'
+                    if 'overflow' in str(exc).lower() or 'printable bounds' in str(exc).lower():
+                        repair += (' Recompose this same activity more compactly. Budget at most 245mm of content '
+                                   'height including headings, margins, borders and response spaces. Keep total '
+                                   'table widths including cell padding and spacing below 186mm. Avoid explicit '
+                                   'percentage widths on table cells; use equal auto-width cells or a stacked layout. '
+                                   'Do not hide overflow, remove questions, shrink text below 11pt or remove essential response space.')
+                    messages.append({'role': 'user', 'content': repair})
                 except Exception as exc:
                     failure = safe_api_error(provider, exc, model=model)
                     errors.append(f'{label}: {failure}')
@@ -109,7 +116,8 @@ Canvas: A4, 186mm wide, content at most 265mm high. No html/head/body/style tags
 Choose YOUR OWN layout, palette, typographic hierarchy, borders, panels and response spaces.
 Allowed tags: {sorted(TAGS)}. Only inline style attributes; no classes or external files.
 Allowed CSS properties: {sorted(PROPERTIES)}. Use valid simple CSS, positive mm dimensions,
-percent widths, colors, numeric line-height >=1.15. Font-size in pt, 11-40pt; student text
+percent widths, colors, numeric line-height >=1.15. Font-size preferably in pt, 11-40pt; px
+is converted at 0.75pt per px and sizes are normalized to 11-40pt before print checks. Student text
 should usually be {font}pt or larger. Use tables or flex for columns; no CSS grid, positioning,
 floats, transforms, overflow hiding, scripts, SVG, negative spacing, URLs or font imports.
 Images: <img data-asset="asset_id" style="width:80mm;height:55mm"/>.
@@ -120,7 +128,10 @@ Python renders all written content. Draw exact quantities, diagrams, number line
 boxes and symbols using HTML/text; never depend on image-model accuracy for a numeric answer.
 Do not put solutions in student HTML. Include clear directions, numbered tasks, and sufficient
 writing/cutting/drawing space appropriate to the activity. Never refer to missing materials.
-Use normal document flow and leave breathing room; do not fill the sheet with tiny text.
+Use normal document flow and leave breathing room; aim for 245mm total content height.
+Include padding, margins, borders and table spacing in the 186mm width budget.
+Prefer auto-width table cells; percentage cell widths plus padding may overflow.
+Do not fill the sheet with tiny text.
 No teacher guide, teaching tips, answer page, or teacher instructions in this fragment.'''
 
 

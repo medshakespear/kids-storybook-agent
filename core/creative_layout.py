@@ -44,9 +44,12 @@ def clean_style(value: str) -> str:
         if re.search(r'(^|[\s,(])-\d|\bhidden\b', rendered, re.I) or (decl.lower_name == 'display' and rendered.lower() == 'none'):
             raise ValueError('Do not hide content or use negative dimensions')
         if decl.lower_name == 'font-size':
-            match = re.fullmatch(r'(\d+(?:\.\d+)?)pt', rendered)
-            if not match or not 11 <= float(match[1]) <= 40:
-                raise ValueError('Font sizes must be 11-40pt')
+            match = re.fullmatch(r'(\d+(?:\.\d+)?)(pt|px)', rendered, re.I)
+            if not match or float(match[1]) <= 0:
+                raise ValueError('font-size must be a positive pt or px value, e.g. 14pt or 20px; avoid relative units')
+            points = float(match[1]) * (0.75 if match[2].lower() == 'px' else 1)
+            # Normalize typography before measuring layout; never scale the whole PDF.
+            rendered = f'{max(11, min(40, points)):g}pt'
         if decl.lower_name == 'line-height':
             try:
                 if float(rendered) < 1.15:
@@ -156,11 +159,18 @@ def check_document(document, expected: int) -> None:
     if len(document.pages) != expected:
         raise ValueError(f'Design overflow: expected {expected} pages, got {len(document.pages)}; reduce content or spacing')
     right, bottom = 198 * 96 / 25.4, 283 * 96 / 25.4
-    for page in document.pages:
+    violations = []
+    for page_number, page in enumerate(document.pages, 1):
         for box in page._page_box.descendants():
             if box.element_tag not in {None, 'html', 'body', 'article'}:
-                if box.border_box_x() + box.border_width() > right + 1 or box.border_box_y() + box.border_height() > bottom + 1:
-                    raise ValueError('Design content extends outside printable bounds; reflow this page')
+                dx = box.border_box_x() + box.border_width() - right
+                dy = box.border_box_y() + box.border_height() - bottom
+                if dx > 1 or dy > 1:
+                    violations.append((max(dx, dy), f'page {page_number} <{box.element_tag}>: right overflow {max(0, dx)*25.4/96:.1f}mm, bottom overflow {max(0, dy)*25.4/96:.1f}mm'))
+    if violations:
+        details = '; '.join(dict.fromkeys(v for _, v in sorted(violations, reverse=True)))
+        raise ValueError('Design content extends outside printable bounds: ' + details[:650]
+                         + '. Reflow within 186mm width and 265mm height: reduce panel/image heights, padding and margins; use auto-width table cells. Preserve readable text and response space.')
 
 
 def check_page(page: dict, font: int) -> None:

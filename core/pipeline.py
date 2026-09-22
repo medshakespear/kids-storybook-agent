@@ -10,6 +10,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from core.providers import validate_providers
 from core.image_generator import generate_images
 from core.paths import GRADE_CONFIG_PATH, OUTPUT_DIR, ensure_runtime_directories
 from core.pdf_builder import build_pdf
@@ -40,6 +41,7 @@ def generate_book(
 ) -> tuple[dict[str, Any], Path]:
     """Generate story text, illustrations, and a final printable PDF."""
 
+    validate_providers()
     ensure_runtime_directories()
     config = grade_config or load_grade_config()
     story = generate_story(

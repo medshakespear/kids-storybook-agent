@@ -1,12 +1,14 @@
-"""Generate and validate grade-appropriate story scripts with OpenAI."""
+"""Generate and validate grade-appropriate story scripts with configurable text providers."""
 
 from __future__ import annotations
 
 import json
-import os
+import logging
 import random
 import time
 from typing import TYPE_CHECKING, Any
+
+from core.providers import text_provider_names, text_client, safe_api_error
 
 if TYPE_CHECKING:
     from openai import OpenAI
@@ -70,6 +72,13 @@ def _validate_and_normalize_story(
 ) -> dict[str, Any]:
     """Validate generation constraints and normalize consistency fields."""
 
+    if not isinstance(story, dict):
+        raise ValueError("Story must be a JSON object.")
+    for field in ("title", "character_name", "character_description"):
+        if not isinstance(story.get(field), str) or not story[field].strip():
+            raise ValueError(f"{field} must be a nonempty string.")
+    if len(story["character_description"]) > 400:
+        raise ValueError("character_description must be at most 400 characters.")
     page_range = config["page_count"]
     word_range = config["words_per_page"]
     pages = story.get("pages")
@@ -87,6 +96,9 @@ def _validate_and_normalize_story(
     for index, page in enumerate(pages, start=1):
         if not isinstance(page, dict):
             raise ValueError(f"Page {index} is not an object.")
+        for field in ("text", "image_prompt"):
+            if not isinstance(page.get(field), str):
+                raise ValueError(f"Page {index} {field} must be a string.")
         page["page_number"] = index
         text = str(page.get("text", "")).strip()
         count = _word_count(text)
@@ -121,7 +133,7 @@ def generate_story(
     client: "OpenAI | None" = None,
     max_retries: int = 4,
 ) -> dict[str, Any]:
-    """Generate one validated story using OpenAI Chat Completions.
+    """Generate one validated story using the selected provider and optional Groq fallback.
 
     Args:
         theme: The event, lesson, or original story angle.
@@ -145,13 +157,7 @@ def generate_story(
     page_max = int(config["page_count"]["max"])
     word_min = int(config["words_per_page"]["min"])
     word_max = int(config["words_per_page"]["max"])
-    if client is None:
-        from openai import OpenAI
-
-        openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    else:
-        openai_client = client
-    model = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4.1-mini")
+    providers = ["injected"] if client is not None else text_provider_names()
     originality_context = source_context or (
         "Create an entirely original story. Do not imitate any existing book, "
         "franchise, character, visual identity, wording, or plot structure."
@@ -176,50 +182,50 @@ Originality guidance: {originality_context}
 
 Create one main character. Make character_description a single, concrete visual
 description covering age/species, face, hair/fur, clothing, colors, and one distinctive
-accessory. Copy that exact character_description verbatim inside EVERY image_prompt.
+accessory, in at most 400 characters. Keep each image_prompt under 1000 characters. Copy that exact character_description verbatim inside EVERY image_prompt.
 Each image_prompt must describe the page action, setting, composition, mood, and lighting;
 it must request a clean illustration with no words, letters, captions, logos, or watermark.
 Number pages consecutively from 1. Give the story a clear beginning, middle, and ending.
 """.strip()
 
-    last_error: Exception | None = None
-    validation_feedback = ""
-    for attempt in range(max_retries):
+    system_prompt += "\nRequired JSON schema: " + json.dumps(_story_schema(page_min, page_max))
+    if max_retries < 1:
+        raise ValueError("max_retries must be positive")
+    errors = []
+    for provider in providers:
+        api, model = (client, "test-model") if client is not None else text_client(provider)
+        feedback = ""
         try:
-            response = openai_client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": user_prompt + validation_feedback,
-                    },
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "kids_storybook",
-                        "strict": True,
-                        "schema": _story_schema(page_min, page_max),
-                    },
-                },
-                temperature=0.8,
-                max_completion_tokens=7000,
-            )
-            content = response.choices[0].message.content
-            if not content:
-                raise ValueError("OpenAI returned empty story content.")
-            story = json.loads(content)
-            return _validate_and_normalize_story(story, grade_band, theme, config)
-        except Exception as exc:  # API and validation failures share retry behavior.
-            last_error = exc
-            validation_feedback = (
-                f"\n\nThe previous attempt was invalid: {exc}. Regenerate the entire "
-                "story and obey every numeric constraint exactly."
-            )
-            if attempt < max_retries - 1:
-                time.sleep(min((2**attempt) + random.random(), 20))
-
-    raise StoryGenerationError(
-        f"Could not generate a valid story after {max_retries} attempts: {last_error}"
-    ) from last_error
+            for attempt in range(max_retries):
+                try:
+                    response = api.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "system", "content": system_prompt},
+                                  {"role": "user", "content": user_prompt + feedback}],
+                        response_format={"type": "json_object"},
+                        temperature=0.8,
+                        max_completion_tokens=8000,
+                    )
+                    content = response.choices[0].message.content
+                    if not content:
+                        raise ValueError("Provider returned empty story content.")
+                    story = _validate_and_normalize_story(json.loads(content), grade_band, theme, config)
+                    logging.getLogger(__name__).info("Story generated with %s (%s)", provider, model)
+                    return story
+                except (ValueError, IndexError, TypeError) as exc:
+                    error = "Story JSON or grade constraints failed validation."
+                    feedback = (f"\nPrevious response failed validation: {exc}. "
+                                "Regenerate complete JSON satisfying every constraint.")
+                except Exception as exc:
+                    failure = safe_api_error(provider, exc)
+                    error = str(failure)
+                    if not failure.retryable:
+                        break
+                if attempt < max_retries - 1:
+                    time.sleep(min(2 ** attempt + random.random(), 20))
+            errors.append(f"{provider}: {error}")
+            logging.getLogger(__name__).warning("%s exhausted; trying next configured provider if available", provider)
+        finally:
+            if client is None:
+                api.close()
+    raise StoryGenerationError("Could not generate a valid story. " + "; ".join(errors)) from None

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import random
 import sys
 import traceback
 from datetime import date
 
+from core.providers import validate_providers
 from core.delivery import deliver_book, fetch_library_state
 from core.paths import CALENDAR_PATH, STATE_PATH
 from core.pipeline import generate_book, load_grade_config
@@ -36,8 +38,11 @@ def _daily_count() -> int:
 def main() -> int:
     """Run today's batch, continue after per-book errors, and persist results."""
 
-    if not os.environ.get("OPENAI_API_KEY"):
-        print("ERROR: OPENAI_API_KEY is not set.", flush=True)
+    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(levelname)s %(name)s: %(message)s")
+    try:
+        validate_providers()
+    except ValueError as exc:
+        print(f"ERROR: {exc}", flush=True)
         return 2
 
     with CALENDAR_PATH.open("r", encoding="utf-8") as handle:

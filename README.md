@@ -9,9 +9,9 @@ inferred from a healthy deployment alone; the empty page means no stored books y
    its mount path to `/data`. Set `DATA_DIR=/data` on web. Keep one replica and one
    Gunicorn worker (threads are supported).
 2. On **web**, set `DELIVERY_TOKEN` to a long random password you choose. This is
-   a shared application password, not an API subscription. Keep `OPENAI_API_KEY`.
+   a shared application password, not an API subscription. Set the provider credentials listed below.
 3. On **cron**, set `BOOK_LIBRARY_URL` to the web service's HTTPS base URL (no
-   `/books` suffix), and set the same `DELIVERY_TOKEN`. Keep `OPENAI_API_KEY`.
+   `/books` suffix), and set the same `DELIVERY_TOKEN`. Set the provider credentials listed below.
 4. Web start command: `sh -c 'exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4 --timeout 900 webhook_server:app'`.
    Cron start command: `python cron_job.py`; schedule: `0 7 * * *`; restart: Never.
 5. Redeploy both services. Run one cron test using `DAILY_BOOK_COUNT=1`, then remove
@@ -45,9 +45,9 @@ through restarts only after the volume is attached.
 # Automated Kids Storybook Agent
 
 A production-oriented Python agent that creates original, grade-scaled, illustrated
-children's storybooks as printable A4 PDFs. OpenAI generates the structured story and
+children's storybooks as printable A4 PDFs. Gemini (with optional Groq fallback) generates the structured story and Cloudflare generates
 one illustration per page; WeasyPrint lays out the title, art, and readable text bands.
-There is no Canva integration, database, scraper, or non-OpenAI AI service.
+There is no Canva integration, database, or scraper. OpenAI remains an explicit opt-in backend.
 
 ## What it does
 
@@ -89,15 +89,48 @@ There is no Canva integration, database, scraper, or non-OpenAI AI service.
 
 ### Required
 
-Set `OPENAI_API_KEY` for both processes. The default models are:
+Set these variables on **both Railway services** (web and cron):
 
-- `OPENAI_TEXT_MODEL=gpt-4.1-mini`
-- `OPENAI_IMAGE_MODEL=gpt-image-1`
-- `OPENAI_IMAGE_QUALITY=medium`
+| Variable | Value |
+| --- | --- |
+| `TEXT_PROVIDER` | `gemini` (default) |
+| `IMAGE_PROVIDER` | `cloudflare` (default) |
+| `GEMINI_API_KEY` | Your Google AI Studio API key |
+| `CLOUDFLARE_API_TOKEN` | Workers AI token with permission to run models |
+| `CLOUDFLARE_ACCOUNT_ID` | Your 32-character Cloudflare account ID |
+| `GROQ_API_KEY` | Optional; enables Groq story fallback |
 
-You can override any of those environment variables without changing code.
+The default text model is `GEMINI_TEXT_MODEL=gemini-2.5-flash-lite`.
+Groq uses `GROQ_TEXT_MODEL=llama-3.3-70b-versatile`. Override model IDs when
+provider availability changes. `TEXT_FALLBACK_PROVIDER=none` disables fallback;
+otherwise Groq is enabled when its key is present. `TEXT_PROVIDER=groq` can also
+use Groq directly without a Gemini key.
 
-### Required for cron state persistence on Railway
+Images use Cloudflare `@cf/black-forest-labs/flux-1-schnell` with
+`CLOUDFLARE_IMAGE_STEPS=4` (allowed 1–8). The endpoint controls output dimensions;
+the code does not send unsupported width/height parameters. Square illustrations
+are cropped by the existing A4 layout. Inspect character consistency and print
+sharpness before selling PDFs. JPEG responses are validated and converted to PNG.
+
+No OpenAI key is required with these defaults, even if an old key remains in Railway.
+For paid OpenAI explicitly set `TEXT_PROVIDER=openai` and/or `IMAGE_PROVIDER=openai`
+and `OPENAI_API_KEY`. Existing `OPENAI_TEXT_MODEL`, `OPENAI_IMAGE_MODEL`, and
+`OPENAI_IMAGE_QUALITY` overrides still work. The `openai` Python package is also the
+compatible HTTP client for Gemini/Groq; its presence does not mean calls go to OpenAI.
+
+Free provider quotas are account-specific and can change; the app does not guarantee
+free or unlimited production. Use free-tier accounts to avoid usage billing. It
+retries transient failures with bounded backoff, then tries the configured text
+fallback. Authentication errors fail immediately for that provider. Image failures
+fail that book; cron continues remaining books. There is no automatic paid fallback
+or automatic next-day resume. API keys and provider response bodies are not logged.
+
+After saving variables, deploy the latest GitHub commit on both services. Set
+`DAILY_BOOK_COUNT=1` on cron for the first run; check `/books` after a successful
+delivery, then increase the count. Keep your existing volume, `DATA_DIR`,
+`BOOK_LIBRARY_URL`, and `DELIVERY_TOKEN` settings.
+
+### Optional GitHub state write-back
 
 Railway's build checkout does not expose a reusable GitHub write credential. To fulfill
 the state-commit requirement, set these variables on the cron service:
@@ -109,7 +142,8 @@ the state-commit requirement, set these variables on the cron service:
 The job updates `state.json` atomically after every successful book, then makes one GitHub
 Contents API commit at the end. If the token is absent, generation still completes and a
 clear state-persistence warning is printed, but the next Railway container will not retain
-that local state.
+that local state. With library delivery configured, cron instead reloads current
+rotation state from the web service volume at the start of each run.
 
 ### Optional
 
@@ -127,7 +161,7 @@ Dockerfile is the most reproducible option.
 
 ```bash
 docker build -t kids-storybook-agent .
-docker run --rm -p 8080:8080 -e OPENAI_API_KEY="your-key" kids-storybook-agent
+docker run --rm -p 8080:8080 -e GEMINI_API_KEY -e CLOUDFLARE_API_TOKEN -e CLOUDFLARE_ACCOUNT_ID kids-storybook-agent
 ```
 
 Open `http://localhost:8080/health` to verify the web service.
@@ -138,17 +172,19 @@ Open `http://localhost:8080/health` to verify the web service.
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export OPENAI_API_KEY="your-key"
+export GEMINI_API_KEY="your-gemini-key"
+export CLOUDFLARE_API_TOKEN="your-cloudflare-token"
+export CLOUDFLARE_ACCOUNT_ID="your-cloudflare-account-id"
 python webhook_server.py
 ```
 
 Run a daily batch manually:
 
 ```bash
-OPENAI_API_KEY="your-key" DAILY_BOOK_COUNT=1 python cron_job.py
+DAILY_BOOK_COUNT=1 python cron_job.py
 ```
 
-Run the test suite without making OpenAI calls:
+Run the test suite without making external API calls:
 
 ```bash
 python -m unittest discover -s tests -v
@@ -192,46 +228,30 @@ Successful response:
 ```
 
 Generation is synchronous and can take several minutes because every page receives a
-separate image request. Gunicorn's timeout is set to 15 minutes. Generated webhook PDFs
-are on Railway's ephemeral filesystem; download them before a redeploy/restart, or attach
-a Railway volume at `/app/output` if long-term PDF storage is needed. A volume is file
-storage, not a database, and `state.json` remains the only application state record.
+separate image request. Gunicorn's timeout is set to 15 minutes. PDFs persist on the
+web service's `/data` volume when configured as described at the top of this README.
+Without that volume, files are ephemeral and can disappear on redeployment.
 
-## Railway deployment
+## Railway deployment through the website
 
-Railway replaced per-service `railway.json` configuration with project-level
-Infrastructure as Code in 2026. The current `.railway/railway.ts` is the modern equivalent
-and defines both required services from this repository:
+Use the manual setup at the top of this README. Connect this GitHub repository to
+**two services** in the same Railway project:
 
-| Service | Process | Schedule |
-|---|---|---|
-| `storybook-web` | Gunicorn serving `webhook_server:app` | Always on |
-| `storybook-daily-cron` | `python cron_job.py` | `0 7 * * *` (07:00 UTC daily) |
+| Service | Start command | Schedule |
+| --- | --- | --- |
+| web | `sh -c 'exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4 --timeout 900 webhook_server:app'` | Always on |
+| cron | `python cron_job.py` | `0 7 * * *` (07:00 UTC daily) |
 
-1. Install Railway CLI 5.42.1 or newer and Node 22+.
-2. Clone this repository and run `npm install` (installs the Railway IaC SDK only).
-3. Run `railway login`, then `railway init` to create/link a project.
-4. In Railway, create the shared/secret values expected by `preserve()`:
-   `OPENAI_API_KEY` for both services and `GITHUB_TOKEN` for the cron service. You may
-   initially create the two service variables after the first plan identifies the services.
-5. Preview changes with `railway config plan`; review that it creates exactly the two
-   services above. Apply with `railway config apply`.
-6. In the `storybook-web` service, open **Settings > Networking** and choose
-   **Generate Domain**. Railway will display the public base URL. Your webhook is
-   `https://that-domain/generate`, and health is `https://that-domain/health`.
-
-Railway evaluates cron schedules in UTC. Change `cronSchedule` in
-`.railway/railway.ts` if another UTC time is preferable, then run plan/apply again.
-
-Official Railway references:
-
-- [Infrastructure as Code](https://docs.railway.com/infrastructure-as-code)
-- [Cron jobs](https://docs.railway.com/cron-jobs)
-- [Public networking](https://docs.railway.com/networking/public-networking)
+Set the provider variables in both services, attach the volume to web, and set the
+cron delivery variables. In the web service's networking settings, generate a public
+domain. Your library is `https://your-domain/books`, webhook is
+`https://your-domain/generate`, and health check is `https://your-domain/health`.
+Set cron's restart policy to Never. Redeploy both services after changing variables.
+No Railway CLI is needed. The optional `.railway/railway.ts` is for CLI users only.
 
 ## Operational notes
 
-- A 6-8 book batch may make 70+ image calls, so monitor OpenAI rate limits and cost.
+- A 6-8 book batch may make 70+ image calls, so monitor provider quotas and costs.
 - API and validation failures use bounded exponential backoff. One failed daily book does
   not stop the rest of the batch.
 - Character descriptions are inserted verbatim into every page prompt after validation,

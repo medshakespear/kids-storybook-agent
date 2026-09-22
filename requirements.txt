@@ -5,3 +5,4 @@ python-dateutil==2.9.0.post0
 requests==2.32.5
 WeasyPrint==66.0
 
+Pillow>=11.3.0,<13

@@ -13,7 +13,7 @@ from openai import OpenAI
 from PIL import Image
 
 from core.providers import validate_providers, text_provider_names, text_client
-from core.story_generator import generate_story
+from core.story_generator import generate_story, StoryGenerationError
 from core.image_generator import generate_images, ImageGenerationError, _image_prompt
 
 ENV = {"GEMINI_API_KEY": "test-gemini", "GROQ_API_KEY": "test-groq",
@@ -37,7 +37,7 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(text_provider_names(), ["gemini", "groq"])
         api, model = text_client("gemini")
         self.assertEqual(str(api.base_url), "https://generativelanguage.googleapis.com/v1beta/openai/")
-        self.assertEqual(model, "gemini-2.5-flash-lite")
+        self.assertEqual(model, "gemini-3.5-flash-lite")
         api.close()
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "old-key"}, clear=True)
@@ -110,6 +110,59 @@ class ProviderTests(unittest.TestCase):
                 generate_images(STORY, CONFIG, folder, max_retries=2)
             self.assertEqual(post.call_count, 2)
             sleep.assert_called_once()
+
+    @patch.dict(os.environ, {**ENV, "TEXT_FALLBACK_PROVIDER": "none"}, clear=True)
+    def test_404_identifies_model_and_uses_real_gemini_route(self):
+        """404 diagnostics expose the model, never raw error content, and do not retry."""
+        seen = []
+
+        def handler(request):
+            """Capture the actual configured client path and return a missing model."""
+            seen.append(request)
+            return httpx.Response(404, json={"error": {"message": "private-response-secret"}})
+
+        def sdk_client(**kwargs):
+            """Keep production client arguments, replacing only network transport."""
+            return OpenAI(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+        with patch("core.providers.OpenAI", side_effect=sdk_client), patch("core.story_generator.time.sleep") as sleep:
+            with self.assertRaises(StoryGenerationError) as error:
+                generate_story("Sharing", "Pre-K-K", {"Pre-K-K": CONFIG})
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(str(seen[0].url), "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
+        self.assertIn("gemini-3.5-flash-lite", str(error.exception))
+        self.assertIn("GEMINI_TEXT_MODEL", str(error.exception))
+        self.assertNotIn("private-response-secret", str(error.exception))
+        self.assertNotIn("gemini: gemini:", str(error.exception))
+        sleep.assert_not_called()
+
+    @patch.dict(os.environ, {**ENV, "TEXT_PROVIDER": "groq"}, clear=True)
+    def test_groq_default_routes_to_groq(self):
+        """GPT-OSS requests use Groq's credential and endpoint, not OpenAI's."""
+        seen = []
+
+        def handler(request):
+            """Return a valid story through the Groq-compatible wire format."""
+            seen.append(request)
+            return httpx.Response(200, json={"choices": [{"index": 0, "finish_reason": "stop",
+                "message": {"role": "assistant", "content": json.dumps(STORY)}}]})
+
+        def sdk_client(**kwargs):
+            """Retain actual provider routing while preventing network traffic."""
+            return OpenAI(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+        with patch("core.providers.OpenAI", side_effect=sdk_client):
+            generate_story("Sharing", "Pre-K-K", {"Pre-K-K": CONFIG})
+        self.assertEqual(str(seen[0].url), "https://api.groq.com/openai/v1/chat/completions")
+        self.assertEqual(json.loads(seen[0].content)["model"], "openai/gpt-oss-20b")
+        self.assertEqual(seen[0].headers["authorization"], "Bearer test-groq")
+
+    @patch.dict(os.environ, {**ENV, "GEMINI_TEXT_MODEL": " models/gemini-3.5-flash-lite "}, clear=True)
+    def test_gemini_model_name_normalization(self):
+        """Copied model resource names normalize to the compatible API model ID."""
+        api, model = text_client("gemini")
+        self.assertEqual(model, "gemini-3.5-flash-lite")
+        api.close()
 
     def test_long_prompt_keeps_character(self):
         """Scene truncation preserves verbatim identity and the provider limit."""

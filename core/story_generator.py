@@ -194,6 +194,7 @@ Number pages consecutively from 1. Give the story a clear beginning, middle, and
     errors = []
     for provider in providers:
         api, model = (client, "test-model") if client is not None else text_client(provider)
+        logging.getLogger(__name__).info("Using story provider %s, model %s", provider, model)
         feedback = ""
         try:
             for attempt in range(max_retries):
@@ -217,13 +218,13 @@ Number pages consecutively from 1. Give the story a clear beginning, middle, and
                     feedback = (f"\nPrevious response failed validation: {exc}. "
                                 "Regenerate complete JSON satisfying every constraint.")
                 except Exception as exc:
-                    failure = safe_api_error(provider, exc)
+                    failure = safe_api_error(provider, exc, model=model)
                     error = str(failure)
                     if not failure.retryable:
                         break
                 if attempt < max_retries - 1:
                     time.sleep(min(2 ** attempt + random.random(), 20))
-            errors.append(f"{provider}: {error}")
+            errors.append(error)
             logging.getLogger(__name__).warning("%s exhausted; trying next configured provider if available", provider)
         finally:
             if client is None:

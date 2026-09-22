@@ -22,7 +22,7 @@ export default defineRailway(() => {
       CLOUDFLARE_ACCOUNT_ID: preserve(),
       TEXT_PROVIDER: "gemini",
       IMAGE_PROVIDER: "cloudflare",
-      GEMINI_TEXT_MODEL: "gemini-2.5-flash-lite",
+      GEMINI_TEXT_MODEL: "gemini-3.5-flash-lite",
       CLOUDFLARE_IMAGE_STEPS: "4",
     },
     deploy: {
@@ -44,7 +44,7 @@ export default defineRailway(() => {
       GITHUB_TOKEN: preserve(),
       GITHUB_REPOSITORY: repository,
       GITHUB_BRANCH: "main",
-      GEMINI_TEXT_MODEL: "gemini-2.5-flash-lite",
+      GEMINI_TEXT_MODEL: "gemini-3.5-flash-lite",
       CLOUDFLARE_IMAGE_STEPS: "4",
     },
     deploy: {

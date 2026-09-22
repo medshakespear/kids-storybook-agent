@@ -6,9 +6,9 @@ import re
 from openai import OpenAI
 
 TEXT_PROVIDERS = {
-    "gemini": ("GEMINI_API_KEY", "GEMINI_TEXT_MODEL", "gemini-2.5-flash-lite",
+    "gemini": ("GEMINI_API_KEY", "GEMINI_TEXT_MODEL", "gemini-3.5-flash-lite",
                "https://generativelanguage.googleapis.com/v1beta/openai/"),
-    "groq": ("GROQ_API_KEY", "GROQ_TEXT_MODEL", "llama-3.3-70b-versatile",
+    "groq": ("GROQ_API_KEY", "GROQ_TEXT_MODEL", "openai/gpt-oss-20b",
              "https://api.groq.com/openai/v1"),
     "openai": ("OPENAI_API_KEY", "OPENAI_TEXT_MODEL", "gpt-4.1-mini",
                "https://api.openai.com/v1"),
@@ -45,8 +45,13 @@ def text_provider_names() -> list[str]:
 def text_client(name: str) -> tuple[OpenAI, str]:
     """Build an OpenAI-compatible client pointed only at the selected provider."""
     key, model_env, default_model, base_url = TEXT_PROVIDERS[name]
-    return OpenAI(api_key=os.environ[key], base_url=base_url, timeout=120,
-                  max_retries=0), os.getenv(model_env, default_model)
+    model = os.getenv(model_env, default_model).strip()
+    if name == "gemini":
+        model = model.removeprefix("models/")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,127}", model):
+        raise ValueError(f"{model_env} must contain a model ID, without quotes or spaces")
+    return OpenAI(api_key=os.environ[key].strip(), base_url=base_url, timeout=120,
+                  max_retries=0), model
 
 
 def image_provider_name() -> str:
@@ -74,12 +79,20 @@ def validate_providers() -> None:
     image_provider_name()
 
 
-def safe_api_error(provider: str, exc: Exception) -> ProviderError:
+def safe_api_error(provider: str, exc: Exception, model: str | None = None) -> ProviderError:
     """Avoid leaking response bodies, prompts, or credentials in logs."""
     if isinstance(exc, ProviderError):
         return exc
     status = getattr(exc, "status_code", None)
     code = getattr(exc, "code", None)
+    if status == 404:
+        model_env = TEXT_PROVIDERS.get(provider, (None, "model setting"))[1]
+        selected = f" for model {model!r}" if model else ""
+        return ProviderError(
+            f"{provider}: HTTP 404{selected}; model or endpoint unavailable to this account. "
+            f"Check {model_env} against the provider model catalog. "
+            "Railway model variables override code defaults."
+        )
     if status == 429:
         return ProviderError(f"{provider}: rate limit or quota reached; check your provider dashboard.",
                              code not in {"insufficient_quota", "credit_balance_exhausted"})

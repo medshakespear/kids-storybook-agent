@@ -100,11 +100,22 @@ Set these variables on **both Railway services** (web and cron):
 | `CLOUDFLARE_ACCOUNT_ID` | Your 32-character Cloudflare account ID |
 | `GROQ_API_KEY` | Optional; enables Groq story fallback |
 
-The default text model is `GEMINI_TEXT_MODEL=gemini-2.5-flash-lite`.
-Groq uses `GROQ_TEXT_MODEL=llama-3.3-70b-versatile`. Override model IDs when
+The default text model is `GEMINI_TEXT_MODEL=gemini-3.5-flash-lite`.
+Groq uses `GROQ_TEXT_MODEL=openai/gpt-oss-20b`. Override model IDs when
 provider availability changes. `TEXT_FALLBACK_PROVIDER=none` disables fallback;
 otherwise Groq is enabled when its key is present. `TEXT_PROVIDER=groq` can also
 use Groq directly without a Gemini key.
+
+If upgrading from the initial multi-provider version, change or remove old Railway
+`GEMINI_TEXT_MODEL` / `GROQ_TEXT_MODEL` overrides on **both** services. Redeploying
+code does not replace explicit environment variables. The current defaults are
+`gemini-3.5-flash-lite` and `openai/gpt-oss-20b`. The latter runs **on Groq**, using
+`GROQ_API_KEY`; it does not call the paid OpenAI API. HTTP 404 errors now include
+the selected model to help diagnose unavailable or restricted models.
+
+Provider references: [Gemini availability](https://ai.google.dev/gemini-api/docs/deprecations),
+[Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing),
+[Groq models](https://console.groq.com/docs/models).
 
 Images use Cloudflare `@cf/black-forest-labs/flux-1-schnell` with
 `CLOUDFLARE_IMAGE_STEPS=4` (allowed 1–8). The endpoint controls output dimensions;

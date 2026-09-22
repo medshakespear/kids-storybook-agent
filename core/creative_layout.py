@@ -41,8 +41,20 @@ def clean_style(value: str) -> str:
             raise ValueError(f'Unsupported CSS property "{decl.lower_name}"; remove it or use a listed print property')
         # Priority flags are unnecessary in these isolated fragments; keep the value.
         rendered = tinycss2.serialize(decl.value).strip()
-        if re.search(r'(^|[\s,(])-\d|\bhidden\b', rendered, re.I) or (decl.lower_name == 'display' and rendered.lower() == 'none'):
-            raise ValueError('Do not hide content or use negative dimensions')
+        name = decl.lower_name
+        if name == 'display' and rendered.lower() == 'none':
+            raise ValueError('CSS display:none hides worksheet content; remove that declaration')
+        negative = r'(?<![\w.])-\d*\.?\d+(?:[a-zA-Z]+|%)?'
+        if name.startswith(('margin', 'padding')) or name == 'letter-spacing':
+            # Negative spacing is cosmetic; normalize it before layout instead of
+            # spending another API call. The resulting geometry is still checked.
+            rendered = re.sub(negative, '0', rendered)
+        elif name in {'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
+                      'flex-basis', 'flex-grow', 'flex-shrink', 'border-spacing', 'border-width'} or name.endswith('radius'):
+            if re.search(negative, rendered):
+                raise ValueError(f'CSS {name}:{rendered[:80]} has a negative size; use a nonnegative dimension')
+        # Background angles may legitimately be negative. A border style of
+        # "hidden" removes a border, not the content. Neither hides a worksheet.
         if decl.lower_name == 'font-size':
             match = re.fullmatch(r'(\d+(?:\.\d+)?)(pt|px)', rendered, re.I)
             if not match or float(match[1]) <= 0:

@@ -37,9 +37,22 @@ class PrintStyleTests(unittest.TestCase):
     def test_resource_and_hidden_content_remain_blocked(self):
         """Background support never enables remote resources or invisible exercises."""
         for value in ['background:url(https://example.com/art.png)', 'display:none',
-                      'margin-left:-10mm', 'overflow:hidden', 'font-family:var(--font)']:
+                      'width:-10mm', 'overflow:hidden', 'font-family:var(--font)']:
             with self.subTest(value=value), self.assertRaises(ValueError):
                 clean_style(value)
+
+    def test_negative_angles_and_cosmetic_spacing(self):
+        """Negative gradient angles are valid; spacing is normalized before measuring."""
+        self.assertIn('-45deg', clean_style('background:linear-gradient(-45deg, #fff, #abcdef)'))
+        self.assertEqual(clean_style('margin:-2mm 4mm;letter-spacing:-0.5pt'), 'margin:0 4mm;letter-spacing:0')
+        self.assertEqual(clean_style('border-style:hidden'), 'border-style:hidden')
+
+    def test_negative_size_error_names_the_declaration(self):
+        """Remaining rejections tell the model precisely which value to repair."""
+        with self.assertRaisesRegex(ValueError, 'CSS height:-20mm has a negative size'):
+            clean_style('height:-20mm')
+        with self.assertRaisesRegex(ValueError, 'display:none hides'):
+            clean_style('display:none')
 
     def test_malformed_declaration_is_actionable(self):
         """Syntax failures are distinguished from unsupported property names."""

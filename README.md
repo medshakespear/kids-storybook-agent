@@ -178,7 +178,11 @@ overflow is rejected rather than silently hiding content. Live content and accou
 quotas must still be tested after deployment.
 
 Content-validation retries preserve valid pages and request complete replacements
-only for failed pages, including their image briefs and answers. The current draft
+only for failed pages, including their image briefs and answers. Each repair request
+handles one page with a compact contract for its activity type. Code assigns the
+destination page number, so an AI response numbered "1" cannot overwrite page 1
+when page 4 was requested. Responses containing multiple pages are rejected.
+The current draft
 is also preserved across text-provider fallback within the run. Logs identify the
 page/item and failed constraint; the final error retains earlier validation failures
 instead of hiding them behind the last provider error. Integer strings such as

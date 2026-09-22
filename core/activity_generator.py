@@ -251,6 +251,48 @@ def merge_repairs(draft: dict, response: dict, requested: dict[int, str]) -> dic
     return result
 
 
+def repair_prompt(draft: dict, number: int, error: str, band: str, config: dict) -> str:
+    """Give one page a compact, type-specific contract without full-pack instructions."""
+    page = draft['pages'][number - 1]
+    contracts = {
+        'arithmetic': f'items: a and b are JSON integers 0-{config["max_operand"]}, op in {config["operations"]}. Result 0-{config["max_result"]}; division exact with nonzero b. Include page.image_prompt.',
+        'matching': 'items: left and right (65 chars each), left_image_prompt AND right_image_prompt (650 chars each). Every pair must be unique and visually understandable.',
+        'reading': 'page.passage: 40-110 words AND at most 750 chars; aim for 55-85 words. items: question <=120 chars, answer <=100 chars, supported by passage. Repair passage and questions together. Include page.image_prompt.',
+        'sort': 'page.categories: two distinct strings <=28 chars. items: label <=45 chars, category integer 0 or 1, image_prompt. Use both categories.',
+        'count': f'items: count integer 1-10, icon from {sorted(ICONS)}, image_prompt describing ONE isolated object. Code repeats it.',
+        'trace': 'items: word of 1-10 ASCII letters, image_prompt showing that concrete word as one object on white.',
+        'picture_choice': 'items: question <=100 chars, choices three distinct strings <=65 chars, correct integer 0-2, image_prompt depicting the scenario. Vary correct position.',
+        'draw': 'items: []. page.challenge <=250 chars, criteria 2-3 strings <=100 chars, sample_response <=180 chars, image_prompt.',
+    }
+    clean = {k: v for k, v in page.items() if k not in {'answers', 'page_number', 'art'}}
+    return (f'REPAIR MODE: Repair ONE classroom activity for {band}. Return ONLY {{"page": {{...}}}}. '
+            'Do not return a pack or a pages list. Page numbering is assigned by code. '
+            f'Keep type={page.get("type")}. Required fields: type, title <=55 chars, instructions <=140 chars, '
+            f'items (exactly {0 if page.get("type") == "draw" else config["items_per_page"]} objects). '
+            f'{contracts.get(page.get("type"), "Use a supported activity type.")} '
+            'Every image_prompt must be nonempty and <=650 chars, original art without text or numbers. '
+            'Keep age-appropriate original content and all required illustration briefs. '
+            f'Fix this validation error: {error}\nCurrent page: {json.dumps(clean)}')
+
+
+def apply_page_repair(draft: dict, response: dict, number: int) -> dict:
+    """Bind one returned page to the caller-owned slot, ignoring model numbering."""
+    if not isinstance(response, dict):
+        raise ValueError('Single-page repair must be a JSON object')
+    page = response.get('page')
+    if page is None and isinstance(response.get('pages'), list) and len(response['pages']) == 1:
+        page = response['pages'][0]
+    if page is None and 'type' in response:
+        page = response
+    if not isinstance(page, dict):
+        raise ValueError('Return exactly one repaired page, not a full pack')
+    if page.get('type') != draft['pages'][number - 1].get('type'):
+        raise ValueError('Repair must keep the requested activity type')
+    result = deepcopy(draft)
+    result['pages'][number - 1] = dict(page, page_number=number)
+    return result
+
+
 def generate_activity_pack(theme: str, grade_band: str, grade_config: dict, *,
                            source_context: str | None = None, max_retries: int = 4) -> dict:
     """Generate a validated pack, retrying constraints and using configured fallback."""
@@ -267,20 +309,19 @@ def generate_activity_pack(theme: str, grade_band: str, grade_config: dict, *,
                 try:
                     logging.getLogger(__name__).info("Activity pack: %s / %s, attempt %s", provider, model, attempt + 1)
                     request = prompt + feedback
+                    repair_number = next(iter(repairs), None)
                     if repairs:
-                        request = prompt + '\nREPAIR MODE: Return only {"pages": [...]} with complete replacement pages for these page numbers. Include page_number in each. Keep the task type. Repair the passage AND its questions/answers together when needed. Do not return other pages or pack metadata.\n' + json.dumps({
-                            'failures': repairs, 'pages': [dict(draft['pages'][n-1], page_number=n) for n in repairs],
-                            'character_description': draft.get('character_description', '')})
+                        request = repair_prompt(draft, repair_number, repairs[repair_number], grade_band, config)
                     response = api.chat.completions.create(model=model,
                         messages=[{"role": "system", "content": "You are a careful elementary curriculum writer. Return complete JSON exercises."},
                                   {"role": "user", "content": request}],
                         response_format={"type": "json_object"}, temperature=0.5,
-                        max_completion_tokens=min(10000, 2000 * len(repairs)) if repairs else 10000)
+                        max_completion_tokens=2200 if repairs else 10000)
                     content = response.choices[0].message.content
                     if not content:
                         raise ValueError("Empty response")
                     parsed = json.loads(content)
-                    draft = merge_repairs(draft, parsed, repairs) if repairs else parsed
+                    draft = apply_page_repair(draft, parsed, repair_number) if repairs else parsed
                     pack = validate_visuals(validate_pack(draft, theme, grade_band, config))
                     if sum(p['type'] == 'picture_choice' for p in pack['pages']) < 2:
                         raise ValueError("Include at least two picture_choice pages")

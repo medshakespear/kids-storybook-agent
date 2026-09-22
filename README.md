@@ -177,6 +177,16 @@ do not spend API credits. Offline PDF tests check all four grade layouts. Layout
 overflow is rejected rather than silently hiding content. Live content and account
 quotas must still be tested after deployment.
 
+Content-validation retries preserve valid pages and request complete replacements
+only for failed pages, including their image briefs and answers. The current draft
+is also preserved across text-provider fallback within the run. Logs identify the
+page/item and failed constraint; the final error retains earlier validation failures
+instead of hiding them behind the last provider error. Integer strings such as
+`"12"` are normalized, but out-of-range values and fractions are never clamped or
+rounded. Short passages are regenerated with their questions, not padded. HTTP 429
+switches to the configured fallback without immediate same-provider retries. This
+does not remove provider quotas or guarantee recovery during outages.
+
 ## Main modules
 
 - `core/calendar_rules.py`: exact periods and timezone-aware today.

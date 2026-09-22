@@ -10,7 +10,7 @@ import sys
 import traceback
 from datetime import date
 
-from core.providers import text_provider_names
+from core.providers import validate_providers
 from core.calendar_rules import today_in_timezone
 from core.delivery import deliver_book, fetch_library_state
 from core.paths import CALENDAR_PATH, STATE_PATH
@@ -41,7 +41,7 @@ def main() -> int:
 
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(levelname)s %(name)s: %(message)s")
     try:
-        text_provider_names()
+        validate_providers()
     except ValueError as exc:
         print(f"ERROR: {exc}", flush=True)
         return 2

@@ -14,7 +14,7 @@
     "illustration_style": "Bold simple shapes, huge friendly characters, rounded forms, clear facial emotions, flat cheerful colors, very low visual clutter, soft picture-book texture.",
     "activity_pages": 6,
     "items_per_page": 3,
-    "student_font_pt": 17,
+    "student_font_pt": 15,
     "color_level": 3,
     "accent": "#007F82",
     "secondary": "#F4B942",
@@ -30,7 +30,8 @@
       "matching",
       "sort",
       "draw",
-      "trace"
+      "trace",
+      "picture_choice"
     ],
     "skill_notes": "Emergent learners: adult-read directions, familiar words, count within 10, simple shape/word matching, first-letter recognition, large drawing and tracing spaces. No independent reading passages."
   },
@@ -67,7 +68,8 @@
       "sort",
       "reading",
       "draw",
-      "trace"
+      "trace",
+      "picture_choice"
     ],
     "skill_notes": "Foundational literacy, short concrete passages, addition/subtraction within 100, classification, sentence writing. Avoid content requiring advanced decoding."
   },
@@ -89,7 +91,7 @@
     "student_font_pt": 12,
     "color_level": 1,
     "accent": "#3D7587",
-    "secondary": "#BFA36A",
+    "secondary": "#E9A83B",
     "wash": "#EEF4F5",
     "max_operand": 100,
     "max_result": 1000,
@@ -104,7 +106,8 @@
       "matching",
       "sort",
       "reading",
-      "draw"
+      "draw",
+      "picture_choice"
     ],
     "skill_notes": "Multi-step thinking, multiplication facts and exact division, evidence from short informational passages, word relationships, explain choices. Do not use babyish counting tasks."
   },
@@ -141,7 +144,8 @@
       "matching",
       "sort",
       "reading",
-      "draw"
+      "draw",
+      "picture_choice"
     ],
     "skill_notes": "Upper-elementary reasoning: authentic planning constraints, multi-digit arithmetic, precise vocabulary, inference and evidence, compare solutions, justify design decisions. No infantile clip art or tracing."
   }

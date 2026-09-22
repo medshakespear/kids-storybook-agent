@@ -9,7 +9,8 @@ from uuid import uuid4
 from pathlib import Path
 from typing import Any
 
-from core.providers import text_provider_names
+from core.providers import text_provider_names, image_provider_name
+from core.activity_images import generate_activity_images, strip_local_art
 from core.activity_generator import generate_activity_pack
 from core.activity_pdf import build_activity_pdf
 from core.calendar_rules import today_in_timezone
@@ -38,9 +39,10 @@ def generate_book(
     grade_config: dict[str, Any] | None = None,
     output_dir: str | Path = OUTPUT_DIR,
 ) -> tuple[dict[str, Any], Path]:
-    """Generate a classroom exercise pack with teacher pages and answer keys."""
+    """Generate illustrated exercises with one consolidated final answer page."""
 
     text_provider_names()
+    image_provider_name()
     ensure_runtime_directories()
     config = grade_config or load_grade_config()
     story = generate_activity_pack(
@@ -50,7 +52,8 @@ def generate_book(
         source_context=source_context,
     )
     story["generated_on"] = today_in_timezone().isoformat()
-    with tempfile.TemporaryDirectory(prefix="activity-pack-"):
+    with tempfile.TemporaryDirectory(prefix="activity-pack-") as art_folder:
+        generate_activity_images(story, config[grade_band], art_folder)
         filename = (
             f"{today_in_timezone().isoformat()}_{slugify(grade_band)}_{slugify(story['title'])}-{uuid4().hex[:12]}.pdf"
         )
@@ -63,4 +66,5 @@ def generate_book(
             staged.replace(target)
         finally:
             staged.unlink(missing_ok=True)
+            strip_local_art(story)
     return story, target

@@ -6,21 +6,25 @@ Python/WeasyPrint draws the worksheets and assembles A4 PDFs. There is no databa
 
 ## What each pack includes
 
-- A colorful cover and teacher plan with learning goals, materials, and timing.
+- An illustrated cover, student activities, and exactly one final answer page.
 - 6 student worksheets for Pre-K-K / 1st-2nd, or 8 for 3rd-4th / 5th-6th.
-- One separate teacher key per worksheet, with answers/sample responses, teaching tips,
-  support, extension, and observation space. Total: 14 or 18 PDF pages.
+- No teacher guide, teaching tips, or separate teacher worksheets. Total: 8 or 10 PDF pages.
 - At least three task types, chosen to suit the grade: counting, arithmetic, matching,
-  sorting cards, informational reading, outlined-word tracing, and creative design.
+  sorting cards, informational reading, outlined-word tracing, creative design, and
+  illustrated multiple-choice situations (at least two pages per pack).
 - Large, colorful visual supports for young learners; restrained accents and
   more text/reasoning for older learners. White workspaces keep printing practical.
 
-These are actual student tasks with answer space, not lists of ideas. Counting art,
-math answers, matching layouts, tracing letters, cards and diagrams are created by
-code. **Activity generation makes no image API calls and needs no Cloudflare key.**
-This avoids spending image quota or relying on AI pictures for exact quantities.
-Existing Cloudflare/OpenAI image code remains available as legacy code, but the cron
-and webhook do not call it. No new storybook is produced by these entry points.
+These are actual student tasks with answer space, not lists of ideas. Gemini/Groq
+writes illustration briefs alongside the exercises. Cloudflare generates original
+scene pictures, matching pairs, sorting objects, and tracing pictures. Python embeds
+the art without cropping and renders all text, choices, equations and response areas.
+For counting, one generated object is repeated the exact required number of times.
+Identical briefs are reused within a pack. Depending on task mix, expect roughly
+15-35 image requests per pack, rather than one image per PDF page. Provider quotas
+apply; free daily capacity is not guaranteed. Missing art fails the pack explicitly.
+The same cast/style brief is sent on every request; exact character consistency is
+not guaranteed. Review that pictures agree with questions before using or selling.
 
 The PDFs are static and are NOT editable forms or personalized name books.
 Tracing uses outlined uppercase words, not a handwriting curriculum or automatic
@@ -83,6 +87,10 @@ Set on BOTH services:
 - `TEXT_PROVIDER=gemini`
 - `GEMINI_API_KEY`: Google AI Studio key.
 - `GEMINI_TEXT_MODEL=gemini-3.5-flash-lite` (default).
+- `IMAGE_PROVIDER=cloudflare` (default).
+- `CLOUDFLARE_ACCOUNT_ID`: your 32-character account ID, not an API token.
+- `CLOUDFLARE_API_TOKEN`: a token with Workers AI permission for that account.
+- `CLOUDFLARE_IMAGE_STEPS=4` (default, permitted 1-8).
 - `GROQ_API_KEY`: optional; enables Groq fallback.
 - `GROQ_TEXT_MODEL=openai/gpt-oss-20b` (default; runs on Groq, not OpenAI).
 - `TEXT_FALLBACK_PROVIDER=none` to disable the optional Groq fallback.
@@ -116,8 +124,10 @@ that container disappears. Never remove the web volume merely to deploy new code
 `GITHUB_TOKEN` with Contents read/write, `GITHUB_REPOSITORY`, and optional
 `GITHUB_BRANCH=main` enable cron's optional state commit-back. Without these,
 volume-backed catalog/rotation still works. Secrets belong in Railway Variables,
-never in GitHub, chat, or screenshots. Existing image-provider variables may remain;
-the new activity pipeline ignores them. Optional `.railway/railway.ts` is for CLI
+never in GitHub, chat, or screenshots. Image credentials are required again on BOTH
+services. Set `IMAGE_PROVIDER=openai` with `OPENAI_API_KEY` only if you explicitly
+want paid OpenAI illustrations; there is no automatic paid fallback.
+Optional `.railway/railway.ts` is for CLI
 users; manual website configuration above is the recommended path.
 
 ## Web API
@@ -159,7 +169,7 @@ Or build and run Docker, passing the exported credentials:
 
 ```bash
 docker build -t classroom-agent .
-docker run --rm -p 8080:8080 -e GEMINI_API_KEY classroom-agent
+docker run --rm -p 8080:8080 -e GEMINI_API_KEY -e CLOUDFLARE_ACCOUNT_ID -e CLOUDFLARE_API_TOKEN classroom-agent
 ```
 
 Tests use mocked API responses and original deterministic exercise fixtures; they
@@ -172,12 +182,13 @@ quotas must still be tested after deployment.
 - `core/calendar_rules.py`: exact periods and timezone-aware today.
 - `core/theme_picker.py`: current-event / evergreen themes and random grade batches.
 - `core/activity_generator.py`: complete exercise JSON, constraints and computed keys.
-- `core/activity_pdf.py`: code-drawn visual worksheets and teacher pages.
+- `core/activity_pdf.py`: illustrated worksheets and one final answer page.
+- `core/activity_images.py`: per-task illustration briefs, reuse, and temporary assets.
 - `core/pipeline.py`: shared activity generation and atomic PDF output.
 - `core/providers.py`: Gemini/Groq/OpenAI text routing and sanitized errors.
 - `core/book_library.py`, `core/delivery.py`, `core/state_manager.py`: storage.
 - `cron_job.py`, `webhook_server.py`: scheduled and on-demand entry points.
 
-Legacy story/image modules are retained for compatibility and tests only; the active
-pipeline does not use them. `DAILY_BOOK_COUNT` and `/books` keep their existing names
+Legacy story modules are retained for compatibility; the active pipeline reuses
+the image backend for activity art. `DAILY_BOOK_COUNT` and `/books` keep their existing names
 to avoid breaking your Railway configuration and download links.

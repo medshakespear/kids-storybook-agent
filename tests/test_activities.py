@@ -14,7 +14,7 @@ from core.activity_pdf import build_activity_html, build_activity_pdf
 from core.calendar_rules import find_active_events, event_period
 from core.pipeline import load_grade_config, generate_book
 from core.theme_picker import pick_daily_book_specs
-from tests.activity_fixtures import sample_pack
+from tests.activity_fixtures import sample_pack, attach_test_art
 
 
 class ActivityTests(unittest.TestCase):
@@ -29,6 +29,7 @@ class ActivityTests(unittest.TestCase):
         for band, config in self.grades.items():
             with self.subTest(band=band), tempfile.TemporaryDirectory() as folder:
                 pack = sample_pack(band, config)
+                attach_test_art(pack, folder)
                 target = build_activity_pdf(pack, config, Path(folder) / "pack.pdf")
                 self.assertTrue(target.read_bytes().startswith(b"%PDF"))
 
@@ -36,6 +37,7 @@ class ActivityTests(unittest.TestCase):
         """An invented model answer cannot overwrite the computed arithmetic key."""
         band = "3rd-4th"
         pack = sample_pack(band, self.grades[band])
+        pack['pages'][0].update(type='arithmetic', items=[dict(a=12, b=3, op='+')] * 4)
         pack["pages"][0]["answers"] = ["999"] * 4
         fixed = validate_pack(pack, "test", band, self.grades[band])
         self.assertEqual(fixed["pages"][0]["answers"][0], "15")
@@ -44,6 +46,7 @@ class ActivityTests(unittest.TestCase):
         """Invalid numeric tasks and babyish upper-grade tasks are rejected."""
         band = "5th-6th"
         pack = sample_pack(band, self.grades[band])
+        pack['pages'][0].update(type='arithmetic', items=[dict(a=12, b=3, op='+')] * 4)
         pack["pages"][0]["items"][0] = {"a": 5, "b": 0, "op": "/"}
         with self.assertRaises(ValueError):
             validate_pack(pack, "test", band, self.grades[band])
@@ -55,17 +58,21 @@ class ActivityTests(unittest.TestCase):
         """Model text cannot inject images, scripts, or remote PDF resources."""
         pack = sample_pack("Pre-K-K", self.grades["Pre-K-K"])
         pack["title"] = '<script>alert("x")</script>'
-        markup = build_activity_html(pack, self.grades["Pre-K-K"])
+        with tempfile.TemporaryDirectory() as folder:
+            attach_test_art(pack, folder)
+            markup = build_activity_html(pack, self.grades["Pre-K-K"])
         self.assertNotIn("<script>", markup)
         self.assertIn("&lt;script&gt;", markup)
 
-    def test_pipeline_needs_no_cloudflare_or_story_api(self):
-        """New generation uses the worksheet renderer and no legacy illustration calls."""
+    def test_pipeline_generates_art_and_removes_temporary_paths(self):
+        """The shared pipeline requires illustrations and returns portable metadata."""
         band = "Pre-K-K"
-        with tempfile.TemporaryDirectory() as folder, patch("core.pipeline.text_provider_names"), patch("core.pipeline.generate_activity_pack", return_value=sample_pack(band, self.grades[band])):
+        with tempfile.TemporaryDirectory() as folder, patch("core.pipeline.text_provider_names"), patch('core.pipeline.image_provider_name'), patch('core.pipeline.generate_activity_images', side_effect=lambda pack, config, art_folder: attach_test_art(pack, art_folder)) as images, patch("core.pipeline.generate_activity_pack", return_value=sample_pack(band, self.grades[band])):
             pack, pdf = generate_book(theme="test", grade_band=band, output_dir=folder)
             self.assertEqual(pack["resource_type"], "activity_pack")
             self.assertTrue(pdf.is_file())
+            images.assert_called_once()
+            self.assertNotIn('art', pack['pages'][0])
 
     def test_generated_json_retry_and_groq_fallback(self):
         """Malformed Gemini output exhausts bounded attempts; Groq supplies the pack."""
@@ -90,6 +97,7 @@ class ActivityTests(unittest.TestCase):
         page.update(type="trace", items=[{"word": "WWWWWWWWWW"}] * 4)
         pack = validate_pack(pack, "test", band, self.grades[band])
         with tempfile.TemporaryDirectory() as folder:
+            attach_test_art(pack, folder)
             self.assertTrue(build_activity_pdf(pack, self.grades[band], Path(folder) / "trace.pdf").is_file())
 
 

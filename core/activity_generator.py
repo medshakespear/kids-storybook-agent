@@ -55,14 +55,12 @@ def validate_pack(raw: dict, theme: str, grade_band: str, config: dict) -> dict:
             raise ValueError(f"Page {number} uses an unsupported activity type")
         kind = page["type"]
         seen_types.add(kind)
-        for key, maximum in {"title": 55, "objective": 100, "instructions": 170,
-                             "teacher_tip": 180, "support": 130, "extension": 130}.items():
+        for key, maximum in {"title": 55, "instructions": 140}.items():
             page[key] = _text(page.get(key), key, maximum)
         if page["title"].casefold() in titles:
             raise ValueError("Page titles must be unique")
         titles.add(page["title"].casefold())
         page["page_number"] = number
-        page["minutes"] = _integer(page.get("minutes"), "minutes", 5, 25)
         items = page.get("items")
         if not isinstance(items, list):
             raise ValueError("Every page must have an items list")
@@ -80,12 +78,19 @@ def validate_pack(raw: dict, theme: str, grade_band: str, config: dict) -> dict:
         if kind == "draw":
             page["challenge"] = _text(page.get("challenge"), "challenge", 250)
             page["criteria"] = _strings(page.get("criteria"), "criteria", 2, 3, 100)
-            page["sample_response"] = _text(page.get("sample_response"), "sample_response", 350)
+            page["sample_response"] = _text(page.get("sample_response"), "sample_response", 180)
             page["answers"] = ["Open-ended. " + page["sample_response"]]
         else:
             page["answers"] = []
         for item in items:
-            if kind == "count":
+            if kind == "picture_choice":
+                item["question"] = _text(item.get("question"), "question", 100)
+                item["choices"] = _strings(item.get("choices"), "choices", 3, 3, 65)
+                if len(set(item["choices"])) != 3:
+                    raise ValueError("Choices must be distinct")
+                correct = _integer(item.get("correct"), "correct", 0, 2)
+                answer = chr(65 + correct)
+            elif kind == "count":
                 count = _integer(item.get("count"), "count", 1, 10)
                 if item.get("icon") not in ICONS:
                     raise ValueError("Count icon must be one of " + ", ".join(sorted(ICONS)))
@@ -113,7 +118,7 @@ def validate_pack(raw: dict, theme: str, grade_band: str, config: dict) -> dict:
                 answer = f"{item['label']} -> {page['categories'][category]}"
             elif kind == "reading":
                 item["question"] = _text(item.get("question"), "question", 120)
-                answer = _text(item.get("answer"), "answer", 180)
+                answer = _text(item.get("answer"), "answer", 100)
             elif kind == "trace":
                 word = _text(item.get("word"), "word", 10)
                 if not word.isascii() or not word.isalpha():
@@ -131,6 +136,20 @@ def validate_pack(raw: dict, theme: str, grade_band: str, config: dict) -> dict:
     return pack
 
 
+def validate_visuals(pack: dict) -> dict:
+    """Require original illustration briefs for every visual task before API spending."""
+    pack["character_description"] = _text(pack.get("character_description"), "character_description", 350)
+    for page in pack["pages"]:
+        if page["type"] in {"reading", "arithmetic", "draw"}:
+            page["image_prompt"] = _text(page.get("image_prompt"), "image_prompt", 650)
+        else:
+            for item in page["items"]:
+                fields = ("left_image_prompt", "right_image_prompt") if page["type"] == "matching" else ("image_prompt",)
+                for field in fields:
+                    item[field] = _text(item.get(field), field, 650)
+    return pack
+
+
 def _prompt(theme: str, grade_band: str, config: dict, source_context: str | None) -> str:
     """Describe the supported exercise contract and originality requirements."""
     return f"""Create an original print-and-go classroom ACTIVITY PACK, not a storybook.
@@ -138,8 +157,21 @@ Theme: {theme}. Grade band: {grade_band}. Skills: {config['skill_notes']}
 Return one JSON object with title, overview, materials (1-5 strings), objectives (2-4 strings), pages.
 Exactly {config['activity_pages']} student pages, each with exactly {config['items_per_page']} items
 except draw pages which have items: []. Use at least three types from {config['allowed_types']}.
-Every page: title (55 chars max), type, objective (100 chars), instructions (170 chars),
-teacher_tip (180 chars), support (130 chars), extension (130 chars), minutes (5-25), items.
+Every page: title (55 chars max), type, instructions (140 chars max), items.
+Do not write a teacher guide, teaching tips, support, extensions or lesson plans.
+Pack also needs character_description (<=350 chars): an original consistent cast and clothing.
+At least two pages must be picture_choice. Pictures must carry useful task information.
+picture_choice items: question <=100 chars, choices (three distinct strings <=65 chars),
+correct (zero-based index 0-2), image_prompt (<=650 chars, clearly depicts the scenario).
+Vary the correct answer position. Young grades: very short adult-read choices.
+ALL count/sort/trace items need image_prompt <=650 chars: one recognizable isolated object on white.
+Count: depict ONE object only, never a group; code repeats that image the exact count.
+Trace: depict precisely the concrete word. Sort: depict precisely the labeled object.
+ALL matching items need left_image_prompt AND right_image_prompt, <=650 chars each.
+Use visually unambiguous relationships (object/use, animal/home), not abstract text definitions.
+Reading/arithmetic/draw pages need page.image_prompt <=650 chars: a meaningful supporting scene.
+No image may contain text, numbers, labels, answer marks, a worksheet, or multiple panels.
+Frame the entire subject in the center with generous margins; illustration is fitted without cropping.
 Use only these item structures for their corresponding type:
 count: {{"count": 5, "icon": "leaf"}}. Icons: {sorted(ICONS)}. Counts 1-10. Actual icons are drawn by code.
 arithmetic: {{"a": 8, "op": "+", "b": 3}}. Operands 0-{config['max_operand']},
@@ -147,21 +179,21 @@ nonnegative answers at most {config['max_result']}, operations {config['operatio
 Division must be exact. Code calculates answers; directions must NOT reference unseen word problems.
 matching: {{"left": "word or idea", "right": "matching meaning or connection"}}. Both <=65 chars, all unique.
 sort: {{"label": "thing to sort", "category": 0}} plus page.categories: ["Category A", "Category B"].
-Use both categories (indexes 0 and 1). Items are printable cut-out cards with textual labels, not pictures.
+Use both categories (indexes 0 and 1). Items are illustrated cut-out cards with short labels.
 reading: {{"question": "Question based on the passage", "answer": "Complete answer"}} plus
 page.passage: a complete original informational passage, 40-110 words and <=750 chars.
-Questions <=120 chars, answers <=180 chars. Do not require external materials or links.
+Questions <=120 chars, answers <=100 chars. Do not require external materials or links.
 trace: {{"word": "leaf"}}. ASCII letters only, 1-10 characters, familiar short words. These are
 outlined uppercase tracing words, not student names. Never promise editable/personalized resources.
 draw: page.challenge <=250 chars, page.criteria 2-3 strings <=100 chars each,
-page.sample_response <=350 chars, items: []. Give a concrete creative task and meaningful criteria.
+page.sample_response <=180 chars, items: []. Give a concrete creative task and meaningful criteria.
 Overview <=350 chars, title <=80 chars, each objective <=110 chars, each material <=65 chars.
 Make tasks meaningfully different, scaffolded and relevant to the theme. Balance skill practice
 with creative thinking. Design older-grade tasks to require reasoning, not preschool exercises.
 All needed task content must be included. Do not say 'insert picture', 'use a text', or add placeholders.
-The renderer provides symbols, answer boxes, matching columns, cut cards, tracing and drawing areas.
-Do not ask students to use a visual that is not supplied by the supported type. Instructions for count
-must refer only to counting the printed shapes; matching uses text pairs; sort uses labeled cards.
+The renderer provides AI pictures, answer boxes, matching columns, cut cards, tracing and drawing areas.
+Use the supplied illustrations in the task. Quantities, precise diagrams and math must not depend
+on image-model accuracy; code draws counted objects and equations. Do not request invented charts.
 Use respectful, inclusive, accurate content; no stereotypes, invented historical claims, quotations,
 copyrighted characters, brands, hazardous activities, or promises of standards alignment.
 Adults read directions and text cards aloud for Pre-K-K. Never require personal information.
@@ -192,7 +224,10 @@ def generate_activity_pack(theme: str, grade_band: str, grade_config: dict, *,
                     content = response.choices[0].message.content
                     if not content:
                         raise ValueError("Empty response")
-                    return validate_pack(json.loads(content), theme, grade_band, config)
+                    pack = validate_visuals(validate_pack(json.loads(content), theme, grade_band, config))
+                    if sum(p['type'] == 'picture_choice' for p in pack['pages']) < 2:
+                        raise ValueError("Include at least two picture_choice pages")
+                    return pack
                 except (ValueError, TypeError, KeyError, IndexError) as exc:
                     error = f"{provider}: invalid activity content ({exc})"
                     feedback = f"\nCorrect this validation failure and regenerate the complete JSON: {exc}"

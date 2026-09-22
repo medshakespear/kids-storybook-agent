@@ -37,6 +37,15 @@ def lines(count: int = 2) -> str:
     return '<div class="writing-line"></div>' * count
 
 
+def art(target: dict, field: str = 'art', css: str = 'task-art') -> str:
+    """Embed only locally generated PNG bytes; never load model-provided URLs."""
+    path = target.get(field)
+    if not path:
+        raise ValueError('Missing required activity illustration')
+    data = base64.b64encode(Path(path).read_bytes()).decode('ascii')
+    return f'<img class="{css}" src="data:image/png;base64,{data}" alt=""/>'
+
+
 def _trace_svg(word: str) -> str:
     """Render outlined uppercase practice letters with a dashed stroke and guide."""
     font_size = min(62, 570 / (len(word) * 1.1))
@@ -51,37 +60,43 @@ def _student_content(page: dict, config: dict) -> str:
     """Render complete task data with answers absent from the student page."""
     kind, items = page["type"], page["items"]
     color = config["accent"]
+    if kind == 'picture_choice':
+        cards = []
+        for index, item in enumerate(items, 1):
+            choices = ''.join(f'<div class="choice">&#9711; {chr(65+i)}. {esc(choice)}</div>' for i, choice in enumerate(item['choices']))
+            cards.append(f'<div class="scene-card">{art(item)}<div class="scene-question"><b>{index}. {esc(item["question"])}</b>{choices}</div></div>')
+        return '<div class="scene-list">' + ''.join(cards) + '</div>'
     if kind == "count":
         rows = []
         for i, item in enumerate(items, 1):
-            shapes = ''.join(svg_image(icon_svg(item["icon"], color if j % 2 == 0 else config["secondary"])) for j in range(item["count"]))
+            shapes = ''.join(art(item, css='count-art') for j in range(item["count"]))
             rows.append(f'<div class="count-row"><b>{i}.</b><div class="objects">{shapes}</div><div class="answer-box"></div></div>')
         return '<p class="action">Count each group. Write the total in the box.</p>' + ''.join(rows)
     if kind == "arithmetic":
         symbols = {"+": "+", "-": "−", "*": "×", "/": "÷"}
-        return '<p class="action">Solve each calculation. Show your thinking below it.</p>' + ''.join(
+        return art(page, css='banner-art') + '<p class="action">Solve each calculation. Show your thinking below it.</p>' + ''.join(
             f'<div class="math-row"><span class="item-no">{i}.</span><b>{v["a"]} {symbols[v["op"]]} {v["b"]} = </b><span class="answer-box"></span>{lines(1)}</div>'
             for i, v in enumerate(items, 1))
     if kind == "matching":
         # Reverse/rotate deterministically so the pairs are not aligned in answer order.
         order = list(range(1, len(items))) + [0]
-        rows = ''.join(f'<tr><td class="match-card">{i+1}. {esc(items[i]["left"])}</td><td class="connector"></td>'
-                       f'<td class="match-card">{chr(65+i)}. {esc(items[j]["right"])}</td></tr>' for i, j in enumerate(order))
+        rows = ''.join(f'<tr><td class="match-card">{art(items[i], "left_art")}<div>{i+1}. {esc(items[i]["left"])}</div></td><td class="connector"></td>'
+                       f'<td class="match-card">{art(items[j], "right_art")}<div>{chr(65+i)}. {esc(items[j]["right"])}</div></td></tr>' for i, j in enumerate(order))
         return '<p class="action">Draw a line to connect each matching pair.</p><table class="matching">' + rows + '</table>'
     if kind == "sort":
         categories = ''.join(f'<td class="sort-bin"><strong>{esc(c)}</strong><div class="bin-space"></div></td>' for c in page["categories"])
-        cards = ''.join(f'<td class="cut-card">{esc(item["label"])}</td>' for item in items)
+        cards = ''.join(f'<td class="cut-card">{art(item)}<div>{esc(item["label"])}</div></td>' for item in items)
         return ('<p class="action">Cut out the cards. Place each card in its group. An adult can help with cutting.</p>'
                 f'<table class="bins"><tr>{categories}</tr></table><p class="mini">CUT-OUT CARDS</p><table class="cards"><tr>{cards}</tr></table>')
     if kind == "reading":
-        return f'<div class="passage">{esc(page["passage"])}</div>' + ''.join(
+        return art(page, css='banner-art') + f'<div class="passage">{esc(page["passage"])}</div>' + ''.join(
             f'<div class="question"><b>{i}. {esc(item["question"])}</b>{lines(2)}</div>' for i, item in enumerate(items, 1))
     if kind == "trace":
         return '<p class="action">Trace the outlined word. Then write it yourself on the next line.</p>' + ''.join(
-            f'<div class="trace-row">{svg_image(_trace_svg(item["word"]), "trace-art")}{lines(1)}</div>' for item in items)
+            f'<div class="trace-row">{art(item)}<div class="trace-work">{svg_image(_trace_svg(item["word"]), "trace-art")}{lines(1)}</div></div>' for item in items)
     if kind == "draw":
         criteria = ''.join(f'<li>{esc(c)}</li>' for c in page["criteria"])
-        return (f'<div class="challenge">{esc(page["challenge"])}</div><ul class="criteria">{criteria}</ul>'
+        return (art(page, css='banner-art') + f'<div class="challenge">{esc(page["challenge"])}</div><ul class="criteria">{criteria}</ul>'
                 '<div class="drawing-frame"><span>MY DESIGN / DRAWING</span></div>'
                 + ('<p class="mini">Explain your idea, or tell an adult.</p>' if config['color_level'] >= 2 else '<p class="mini">Explain your design choices using the criteria.</p>') + lines(3))
     raise ValueError(f"Unsupported activity type: {kind}")
@@ -93,47 +108,36 @@ def _sheet(body: str, footer: str, css_class: str = "") -> str:
 
 
 def build_activity_html(pack: dict, config: dict) -> str:
-    """Compose a cover, teacher plan, student pages and separate teaching keys."""
+    """Compose illustrated worksheets and exactly one final answer page."""
     total = len(pack["pages"])
     level = config["color_level"]
     accent, wash = config["accent"], config["wash"]
-    decorations = ''.join(svg_image(icon_svg(k, accent if i % 2 == 0 else config["secondary"]), "cover-symbol")
-                          for i, k in enumerate(["book", "star", "leaf", "triangle"][:max(1, level + 1)]))
+    first = pack['pages'][0]
+    subject = first if first['type'] in {'reading', 'arithmetic', 'draw'} else first['items'][0]
+    decorations = art(subject, 'left_art' if first['type'] == 'matching' else 'art', 'cover-art')
     cover = (f'<p class="eyebrow">THE CLASSROOM ACTIVITY COLLECTION</p><div class="cover-icons">{decorations}</div>'
              f'<h1>{esc(pack["title"])}</h1><p class="grade-pill">{esc(pack["grade_band"])} · PRINT &amp; PRACTICE</p>'
              f'<p class="overview">{esc(pack["overview"])}</p><div class="cover-summary">'
-             f'<strong>{total} student activities</strong><br>Teacher plan · Answer keys · Support and stretch ideas</div>'
+             f'<strong>{total} student activities</strong><br>Illustrated exercises · One final answer page</div>'
              '<p class="cover-note">Read. Think. Make. Explain.</p>')
     sheets = [_sheet(cover, "Original classroom exercises | A4 portrait", "cover")]
-    objectives = ''.join(f'<li>{esc(v)}</li>' for v in pack["objectives"])
-    plan = ''.join(f'<tr><td>{p["page_number"]}</td><td><strong>{esc(p["title"])}</strong></td><td>{p["minutes"]} min</td></tr>' for p in pack["pages"])
-    teacher = (f'<p class="eyebrow">TEACHER COPY</p><h2>Your teaching plan</h2><h3>Learning goals</h3><ul>{objectives}</ul>'
-               f'<h3>Materials</h3><p>{esc(", ".join(pack["materials"]))}</p>'
-               '<p>Choose individual pages or use them as a sequence. Read directions aloud as needed. '
-               'Keep the answer-key pages for the teacher. Print at actual size (100%).</p>'
-               f'<table class="plan"><thead><tr><th>Task</th><th>Focus</th><th>Time</th></tr></thead><tbody>{plan}</tbody></table>'
-               '<p class="review-note">Before classroom use or sale: review factual accuracy, reading level, cultural context, '
-               'and answer keys. Open-ended responses may vary. These are static printable pages, not editable forms.</p>')
-    sheets.append(_sheet(teacher, "Teacher plan | " + pack["grade_band"], "teacher"))
     for page in pack["pages"]:
         body = (f'<div class="topline"><span>ACTIVITY {page["page_number"]:02d}</span><span>{esc(pack["grade_band"])}</span></div>'
                 f'<h2>{esc(page["title"])}</h2><div class="name-line">Name: ____________________ &nbsp; Date: __________</div>'
                 f'<div class="directions">{esc(page["instructions"])}</div>' + _student_content(page, config))
         sheets.append(_sheet(body, f"Student page {page['page_number']} of {total} | {pack['title']}", f'student {page["type"]}'))
+    keys = []
     for page in pack["pages"]:
         if page["type"] == "matching":
             n = len(page["items"])
-            answers = [f"{i+1} -> {chr(65 + (i - 1) % n)}: {a}" for i, a in enumerate(page["answers"])]
+            answers = [f"{i+1}: {chr(65 + (i-1) % n)}" for i in range(n)]
+        elif page["type"] == "trace":
+            answers = [item["word"] for item in page["items"]]
         else:
             answers = page["answers"]
-        answer_list = ''.join(f'<li>{esc(answer)}</li>' for answer in answers)
-        body = (f'<p class="eyebrow">TEACHER COPY · KEY {page["page_number"]:02d}</p><h2>{esc(page["title"])}</h2>'
-                f'<p><strong>Goal:</strong> {esc(page["objective"])}</p><h3>Answers / sample responses</h3><ol class="answers">{answer_list}</ol>'
-                f'<h3>Teaching tip</h3><p>{esc(page["teacher_tip"])}</p>'
-                f'<div class="teacher-panel"><h3>Support</h3><p>{esc(page["support"])}</p>'
-                f'<h3>Stretch</h3><p>{esc(page["extension"])}</p></div>'
-                '<h3>Quick observation</h3><p>What can the student do independently? What needs another model or example?</p>' + lines(4))
-        sheets.append(_sheet(body, f"Answer key {page['page_number']} | Do not distribute with student worksheets", "teacher"))
+        answers_html = ''.join(f'<li>{esc(a)}</li>' for a in answers)
+        keys.append(f'<div class="key-block"><h3>{page["page_number"]}. {esc(page["title"])}</h3><ol>{answers_html}</ol></div>')
+    sheets.append(_sheet('<h2>Answer Key</h2><p class="key-note">Numbers refer to student activity pages. Creative responses may vary.</p><div class="key-grid">' + ''.join(keys) + '</div>', 'Answers | ' + pack["title"], "answer-sheet"))
     css = f"""
     @page {{size:A4; margin:14mm;}}
     * {{box-sizing:border-box;}} body {{margin:0;color:#233544;font-family:'DejaVu Sans',sans-serif;overflow-wrap:break-word;}}
@@ -149,10 +153,10 @@ def build_activity_html(pack: dict, config: dict) -> str:
     .name-line {{font-size:10pt;margin:5mm 0;}} .action {{font-size:11pt;margin:3mm 0 5mm;}}
     footer {{position:absolute;bottom:0;left:0;right:0;border-top:.3mm solid #bacbd2;padding-top:3mm;font-size:8pt;color:#526775;}}
     .cover {{border-top:{3+level}mm solid {accent};padding:8mm;}}
-    .cover-icons {{margin-top:14mm;}} .cover-symbol {{width:22mm;height:22mm;margin-right:6mm;}}
+    .cover-icons {{margin-top:4mm;}} .cover-art {{width:100%;height:70mm;object-fit:contain;}}
     .grade-pill {{display:inline-block;background:{wash};padding:3mm 5mm;border-radius:3mm;font-size:11pt;font-weight:bold;color:{accent};}}
-    .overview {{font-size:14pt;line-height:1.6;}} .cover-summary {{background:{wash};padding:7mm;margin-top:12mm;font-size:13pt;line-height:1.8;}}
-    .cover-note {{font-size:12pt;margin-top:14mm;color:{accent};}}
+    .overview {{font-size:12pt;line-height:1.4;}} .cover-summary {{background:{wash};padding:4mm;margin-top:5mm;font-size:12pt;line-height:1.5;}}
+    .cover-note {{font-size:12pt;margin-top:5mm;color:{accent};}}
     table {{width:100%;border-collapse:separate;border-spacing:3mm;table-layout:fixed;}}
     .plan {{border-collapse:collapse;font-size:9pt;}} .plan td,.plan th {{padding:2.4mm;border-bottom:.3mm solid #dce4e7;text-align:left;}}
     .plan th:first-child,.plan td:first-child {{width:12mm;}} .plan th:last-child,.plan td:last-child {{width:20mm;}}
@@ -172,6 +176,44 @@ def build_activity_html(pack: dict, config: dict) -> str:
     .drawing-frame {{height:84mm;border:.5mm solid {accent};border-radius:3mm;margin:5mm 0;padding:3mm;}}
     .drawing-frame span {{font-size:8pt;color:#78909c;}} .answers li {{margin:4mm 0;font-size:11pt;}}
     .teacher-panel {{background:{wash};padding:2mm 5mm;margin-top:5mm;}}
+    .student h2 {{font-size:22pt;margin:3mm 0;}}
+    .student .topline {{border-radius:3mm 3mm 0 0;}}
+    .name-line {{margin:3mm 0;}}
+    .directions {{margin:3mm 0;padding:3mm;font-size:11pt;}}
+    .task-art {{display:block;width:100%;height:29mm;object-fit:contain;background:white;}}
+    .banner-art {{display:block;width:100%;height:33mm;object-fit:contain;}}
+    .count-art {{width:20mm;height:20mm;object-fit:contain;display:inline-block;}}
+    .count-row {{min-height:46mm;margin:4mm 0;}}
+    .objects {{width:136mm;padding:1mm;}}
+    .scene-card {{display:flex;align-items:center;border:.6mm solid {accent};border-radius:4mm;margin:3mm 0;padding:2mm;background:{wash};min-height:{48 if total == 6 and config['items_per_page'] == 3 else 39}mm;}}
+    .scene-card:nth-child(even) {{border-color:{config['secondary']};background:white;}}
+    .scene-card > .task-art {{width:{43 if level >= 1 else 33}%;height:{44 if config['items_per_page'] == 3 else 36}mm;flex-shrink:0;}}
+    .scene-question {{padding:2mm 3mm;width:{57 if level >= 1 else 67}%;font-size:{13 if level == 3 else 12 if level == 2 else 10.5}pt;line-height:1.25;}}
+    .choice {{margin-top:2mm;font-size:{12 if level == 3 else 11 if level == 2 else 10}pt;}}
+    .match-card {{padding:2mm;font-size:10pt;height:40mm;text-align:center;background:white;border-radius:3mm;}}
+    .matching {{border-spacing:2mm;}}
+    .cut-card {{padding:2mm;}}
+    .cut-card .task-art {{height:33mm;}}
+    .bin-space {{height:58mm;}}
+    .trace-row {{display:flex;align-items:center;margin:4mm 0;border:.4mm solid {accent};border-radius:3mm;padding:3mm;}}
+    .trace-row > .task-art {{width:28%;height:30mm;}}
+    .trace-work {{width:72%;}}
+    .trace-art {{height:20mm;}}
+    .math-row {{min-height:29mm;padding:2mm 0;font-size:20pt;}}
+    .math-row .writing-line {{height:7mm;}}
+    .passage {{font-size:10.5pt;line-height:1.35;padding:3mm;margin:2mm 0;}}
+    .question {{margin-top:2mm;font-size:10pt;}}
+    .question .writing-line {{height:6mm;}}
+    .drawing-frame {{height:65mm;}}
+    .draw .writing-line {{height:7mm;}}
+    .challenge {{font-size:11pt;padding:3mm;}}
+    .criteria {{font-size:10pt;margin:2mm 0;}}
+    .key-note {{font-size:10pt;}}
+    .key-grid {{column-count:2;column-gap:7mm;}}
+    .key-block {{break-inside:avoid;border-top:.5mm solid {accent};padding:2mm 0;margin-bottom:3mm;}}
+    .key-block h3 {{font-size:10pt;margin:1mm 0;}}
+    .key-block ol {{margin:2mm 0;padding-left:5mm;}}
+    .key-block li {{font-size:9pt;line-height:1.3;margin:1mm 0;}}
     """
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><style>' + css + '</style></head><body>' + ''.join(sheets) + '</body></html>'
 
@@ -179,7 +221,7 @@ def build_activity_html(pack: dict, config: dict) -> str:
 def build_activity_pdf(pack: dict, config: dict, output_path: str | Path) -> Path:
     """Render and reject unexpected pagination instead of silently clipping worksheets."""
     document = HTML(string=build_activity_html(pack, config)).render()
-    expected = 2 + 2 * len(pack["pages"])
+    expected = 2 + len(pack["pages"])
     if len(document.pages) != expected:
         raise ValueError(f"Worksheet pagination overflow: expected {expected}, got {len(document.pages)} pages")
     # Every non-footer text line must remain inside the usable worksheet area.

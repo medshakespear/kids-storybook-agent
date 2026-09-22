@@ -25,7 +25,13 @@ STYLE_LOCK = (
 def _image_prompt(story: dict, page: dict, style: str, limit: int = 2048) -> str:
     """Fit Cloudflare's prompt limit while retaining the full character description."""
     description = story["character_description"]
-    prefix = f"CHARACTER: {description}\nSTYLE: {style}\n{STYLE_LOCK}\nSCENE: "
+    lock = STYLE_LOCK
+    if story.get('resource_type') == 'activity_pack':
+        lock = ('Original educational illustration, consistent teal coral yellow palette and clean outlines. '
+                'Use the cast only when people are requested. Isolated objects contain no people. '
+                'No words, letters, numbers, logos, borders, labels or answer marks. '
+                'One composition, no panels. Full subject visible with generous white margins, no cropping.')
+    prefix = f"CHARACTER: {description}\nSTYLE: {style}\n{lock}\nSCENE: "
     scene = page["image_prompt"].replace(description, "").strip(" .\n")
     available = limit - len(prefix)
     if available < 100:

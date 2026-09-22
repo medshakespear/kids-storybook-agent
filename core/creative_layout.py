@@ -20,7 +20,12 @@ PROPERTIES = {'color', 'background-color', 'border', 'border-color', 'border-wid
               'max-width', 'font-size', 'font-weight', 'font-style', 'line-height',
               'text-align', 'vertical-align', 'display', 'flex-direction', 'flex-wrap',
               'align-items', 'justify-content', 'flex-basis', 'flex-grow', 'flex-shrink',
-              'border-collapse', 'border-spacing', 'table-layout', 'letter-spacing'}
+              'border-collapse', 'border-spacing', 'table-layout', 'letter-spacing',
+              'background', 'font-family', 'box-sizing', 'text-transform',
+              'text-decoration', 'object-fit', 'object-position', 'overflow-wrap',
+              'word-wrap', 'min-width', 'align-self', 'flex', 'list-style-type',
+              'list-style-position', 'border-top-left-radius', 'border-top-right-radius',
+              'border-bottom-left-radius', 'border-bottom-right-radius'}
 
 
 def clean_style(value: str) -> str:
@@ -30,10 +35,13 @@ def clean_style(value: str) -> str:
     declarations = tinycss2.parse_declaration_list(value, skip_comments=True, skip_whitespace=True)
     result = []
     for decl in declarations:
-        if decl.type != 'declaration' or decl.lower_name not in PROPERTIES or decl.important:
-            raise ValueError('Use only supported inline print styles')
+        if decl.type != 'declaration':
+            raise ValueError('Malformed inline CSS: use property:value declarations separated by semicolons')
+        if decl.lower_name not in PROPERTIES:
+            raise ValueError(f'Unsupported CSS property "{decl.lower_name}"; remove it or use a listed print property')
+        # Priority flags are unnecessary in these isolated fragments; keep the value.
         rendered = tinycss2.serialize(decl.value).strip()
-        if re.search(r'(^|[\s,(])-\d|\b(none|hidden)\b', rendered, re.I):
+        if re.search(r'(^|[\s,(])-\d|\bhidden\b', rendered, re.I) or (decl.lower_name == 'display' and rendered.lower() == 'none'):
             raise ValueError('Do not hide content or use negative dimensions')
         if decl.lower_name == 'font-size':
             match = re.fullmatch(r'(\d+(?:\.\d+)?)pt', rendered)

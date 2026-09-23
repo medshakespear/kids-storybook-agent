@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from core.creative_generator import _normalize_asset_prompt, _synchronize_asset_references, ask_json, validate_design, generate_creative_pack, compact_answers
-from core.creative_layout import check_page, build_creative_pdf, fragment
+from core.creative_layout import clean_style, check_page, build_creative_pdf, fragment
 from core.pipeline import load_grade_config, generate_book
 from tests.activity_fixtures import attach_test_art
 
@@ -93,6 +93,13 @@ class CreativeTests(unittest.TestCase):
             page['html'] = body
             with self.subTest(body=body), self.assertRaises(ValueError):
                 fragment(page, preview=True)
+
+    def test_line_height_is_normalized_instead_of_failing_generation(self):
+        """Low, percentage, and normal line-heights are converted to safe numeric values."""
+        self.assertIn('line-height:1.15', clean_style('line-height:1'))
+        self.assertIn('line-height:1.15', clean_style('line-height:1.1'))
+        self.assertIn('line-height:1.15', clean_style('line-height:110%'))
+        self.assertIn('line-height:1.3', clean_style('line-height:normal'))
 
     def test_overflow_rejected_before_image_spending(self):
         """An oversized page is sent for repair rather than silently clipped."""

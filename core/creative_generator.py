@@ -120,6 +120,39 @@ def validate_plan(raw: dict, count: int) -> dict:
     return plan
 
 
+def _synchronize_asset_references(html: str, ids: list[str]) -> str:
+    """Repair simple model mistakes between images[].id and HTML data-asset references."""
+    refs = re.findall(r"<img\\b[^>]*\\bdata-asset=['\"]([^'\"]+)['\"]", html, re.I)
+    declared = list(ids)
+    declared_set, referenced_set = set(declared), set(refs)
+
+    unknown = [ref for ref in refs if ref not in declared_set]
+    missing = [asset_id for asset_id in declared if asset_id not in referenced_set]
+
+    # If the model used the right number of image slots but invented different IDs,
+    # bind those slots to the declared assets instead of spending another LLM retry.
+    if unknown and len(unknown) == len(missing):
+        mapping = dict(zip(dict.fromkeys(unknown), missing))
+        for old, new in mapping.items():
+            html = re.sub(
+                rf"(\\bdata-asset=['\"]){re.escape(old)}(['\"])",
+                rf"\\g<1>{new}\\g<2>", html, flags=re.I)
+        refs = re.findall(r"<img\\b[^>]*\\bdata-asset=['\"]([^'\"]+)['\"]", html, re.I)
+        referenced_set = set(refs)
+        missing = [asset_id for asset_id in declared if asset_id not in referenced_set]
+
+    # The most common failure is a valid image manifest with no matching <img>.
+    # Add only the missing declared assets, using conservative printable dimensions.
+    if missing:
+        injected = ''.join(
+            f"<img data-asset='{asset_id}' style='width:80mm;height:55mm'/>"
+            for asset_id in missing
+        )
+        html = html + injected
+
+    return html
+
+
 def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
     """Require complete art-backed HTML and preflight it at actual print dimensions."""
     if not isinstance(raw, dict):
@@ -137,17 +170,22 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
         detail = ', '.join(sorted(html_refs)) or 'none'
         raise ValueError(f'Each page needs 1-4 purposeful original illustrations; HTML references IDs: {detail}')
     ids = set()
+    ordered_ids = []
     for asset in images:
         if not isinstance(asset, dict) or not re.fullmatch(r'[a-z][a-z0-9_]{0,30}', str(asset.get('id', ''))):
             raise ValueError('Image IDs must be short lowercase identifiers')
         if asset['id'] in ids:
             raise ValueError('Image IDs must be unique within the page')
         ids.add(asset['id'])
+        ordered_ids.append(asset['id'])
         asset['prompt'] = _text(asset.get('prompt'), 'illustration prompt', 650)
+
+    design['html'] = _synchronize_asset_references(design['html'], ordered_ids)
+    html_refs = set(re.findall(r"<img\\b[^>]*\\bdata-asset=['\"]([^'\"]+)['\"]", design['html'], re.I))
     if html_refs != ids:
         declared = ', '.join(sorted(ids)) or 'none'
         referenced = ', '.join(sorted(html_refs)) or 'none'
-        raise ValueError(f'Image asset mismatch: declared IDs [{declared}]; HTML data-asset IDs [{referenced}]')
+        raise ValueError(f'Image asset mismatch after deterministic repair: declared IDs [{declared}]; HTML data-asset IDs [{referenced}]')
     check_page(design, font, cover=cover)
     return design
 

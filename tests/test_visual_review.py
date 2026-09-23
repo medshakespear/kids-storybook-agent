@@ -170,6 +170,21 @@ class VisualReviewTests(unittest.TestCase):
         self.assertIn('solid wall or ceiling plane', prompt)
         self.assertIn('never dangling from a wire', prompt)
 
+    def test_second_repair_hard_resets_peer_scale_failures(self):
+        """Repeated giant-character errors force peers onto one believable scale and ground plane."""
+        bad = {'approved': False,
+               'issues': [
+                   'The badger on the right is giant and towering over the other classroom characters like a monster.'
+               ],
+               'replacement_prompt': 'Three animal classmates standing together in a classroom.'}
+        prompt = _generation_repair_prompt('Three animal classmates in a classroom.', bad, 2)
+        self.assertIn('HARD RESET AFTER FAILED SCALE REPAIR', prompt)
+        self.assertIn('believable relative scale', prompt)
+        self.assertIn('same ground plane', prompt)
+        self.assertIn('no foreground character enlarged by perspective', prompt)
+        self.assertIn('No character may tower over the group', prompt)
+        self.assertIn('monster-sized', prompt)
+
     def test_final_rejection_reports_defect_and_actual_pdf_page(self):
         """Persistent failures explain their location instead of returning only image IDs."""
         with patch('core.image_review.review_batch', side_effect=[{1: verdict(), 2: verdict(False)},

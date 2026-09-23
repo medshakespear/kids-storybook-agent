@@ -60,7 +60,18 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         repair += (' Repair JSON serialization only: check missing commas, unescaped double quotes '
                                    'inside the html string, and literal line breaks. Use single-quoted HTML attributes. '
                                    'Preserve the exercise and design rather than inventing a different page.')
-                    if 'overflow' in str(exc).lower() or 'printable bounds' in str(exc).lower():
+                    asset_error = str(exc).lower()
+                    if ('illustration' in asset_error or 'data-asset' in asset_error or
+                            'asset mismatch' in asset_error):
+                        repair += (
+                            ' Repair the image manifest and HTML together. Return images as a JSON list of 1-4 '
+                            'objects, each exactly {"id":"short_lowercase_id","prompt":"complete visual prompt"}. '
+                            'Every <img> in html must use data-asset with EXACTLY one of those declared IDs. '
+                            'Every declared image ID must appear in html at least once. Do not use src attributes. '
+                            'Do not rename an ID on only one side: synchronize images[].id and every data-asset '
+                            'reference in the same response. Keep the existing activity content and layout.'
+                        )
+                    if 'overflow' in asset_error or 'printable bounds' in asset_error:
                         repair += (' Recompose this same activity more compactly. Budget at most 245mm of content '
                                    'height including headings, margins, borders and response spaces. Keep total '
                                    'table widths including cell padding and spacing below 186mm. Avoid explicit '
@@ -115,8 +126,10 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
             answers = '; '.join(answers)
         design['answers'] = _text(answers, 'answers', 4000)
     images = design.get('images')
+    html_refs = set(re.findall(r"<img\\b[^>]*\\bdata-asset=['\"]([^'\"]+)['\"]", design['html'], re.I))
     if not isinstance(images, list) or not 1 <= len(images) <= 4:
-        raise ValueError('Each page needs 1-4 purposeful original illustrations')
+        detail = ', '.join(sorted(html_refs)) or 'none'
+        raise ValueError(f'Each page needs 1-4 purposeful original illustrations; HTML references IDs: {detail}')
     ids = set()
     for asset in images:
         if not isinstance(asset, dict) or not re.fullmatch(r'[a-z][a-z0-9_]{0,30}', str(asset.get('id', ''))):
@@ -125,6 +138,10 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
             raise ValueError('Image IDs must be unique within the page')
         ids.add(asset['id'])
         asset['prompt'] = _text(asset.get('prompt'), 'illustration prompt', 650)
+    if html_refs != ids:
+        declared = ', '.join(sorted(ids)) or 'none'
+        referenced = ', '.join(sorted(html_refs)) or 'none'
+        raise ValueError(f'Image asset mismatch: declared IDs [{declared}]; HTML data-asset IDs [{referenced}]')
     check_page(design, font, cover=cover)
     return design
 

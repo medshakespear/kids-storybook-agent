@@ -15,7 +15,7 @@ from PIL import Image
 from core.providers import validate_providers, text_provider_names, text_client
 from core.credential_pool import reset_credential_pools
 from core.story_generator import generate_story, StoryGenerationError
-from core.image_generator import generate_images, ImageGenerationError, _image_prompt
+from core.image_generator import generate_images, ImageGenerationError, _image_prompt, _sanitize_cloudflare_prompt
 
 ENV = {"GEMINI_API_KEY": "test-gemini", "GROQ_API_KEY": "test-groq",
        "CLOUDFLARE_API_TOKEN": "test-cloudflare", "CLOUDFLARE_ACCOUNT_ID": "a" * 32}
@@ -79,6 +79,27 @@ class ProviderTests(unittest.TestCase):
             self.assertNotIn("secret", str(error.exception))
             self.assertEqual(post.call_count, 1)
             self.assertEqual(list(Path(folder).iterdir()), [])
+
+    @patch.dict(os.environ, ENV, clear=True)
+    def test_cloudflare_400_retries_with_sanitized_prompt(self):
+        """A bad-request image prompt is normalized once before failing the page."""
+        data = io.BytesIO()
+        Image.new("RGB", (512, 512), "coral").save(data, format="PNG")
+        bad = Mock(status_code=400, headers={})
+        good = Mock(status_code=200)
+        good.json.return_value = {"success": True, "result": {"image": base64.b64encode(data.getvalue()).decode()}}
+        long_story = dict(STORY, pages=[dict(STORY["pages"][0],
+            image_prompt=("Scene with\x00 control spacing. " * 120))])
+        with tempfile.TemporaryDirectory() as folder, patch(
+                "core.image_generator.requests.post", side_effect=[bad, good]) as post:
+            paths = generate_images(long_story, CONFIG, folder, max_retries=2)
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(post.call_count, 2)
+        first_prompt = post.call_args_list[0].kwargs["json"]["prompt"]
+        second_prompt = post.call_args_list[1].kwargs["json"]["prompt"]
+        self.assertNotEqual(first_prompt, second_prompt)
+        self.assertEqual(second_prompt, _sanitize_cloudflare_prompt(first_prompt))
+        self.assertLessEqual(len(second_prompt), 1800)
 
     @patch.dict(os.environ, ENV, clear=True)
     def test_cloudflare_rate_limit_has_bounded_retries(self):

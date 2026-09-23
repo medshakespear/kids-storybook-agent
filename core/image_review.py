@@ -120,19 +120,42 @@ def review_batch(pack: dict, images: list[dict], paths: dict[int, Path]) -> dict
 
 
 def _generation_repair_prompt(original: str, verdict: dict, attempt: int) -> str:
-    """Strengthen later repairs with the concrete defect the image model must avoid."""
+    """Escalate repeated repairs by simplifying the composition instead of adding clutter."""
     replacement = verdict['replacement_prompt'].strip()
     if attempt < 2:
         return replacement
+
     issues = '; '.join(verdict.get('issues', []))
-    correction = (
-        f"{replacement} HARD CORRECTION: The previous render was wrong: {issues}. "
-        "Depict the required subject using its physical shape, proportions, material, texture and distinctive parts. "
-        "Do not include the mistaken form or parts described above."
+    issue_text = issues.casefold()
+    anatomy_terms = (
+        'anatom', 'detached', 'floating hand', 'floating arm', 'floating limb',
+        'distorted', 'proportion', 'neck', 'torso', 'limb', 'hand', 'arm'
     )
-    # Image providers can accept a larger scene than the activity-authoring schema,
-    # but keep the corrective request compact enough to leave room for style locks.
-    return correction[:1100]
+    structure_terms = ('ceiling', 'wire', 'hanging', 'unsupported', 'floating')
+
+    if any(term in issue_text for term in anatomy_terms):
+        correction = (
+            f"{replacement} HARD RESET AFTER FAILED ANATOMY REPAIR: {issues}. "
+            "Simplify the composition aggressively. Keep only subjects that are essential to the original task; "
+            "remove decorative or unnecessary characters. If a character is essential, show a full intact body in "
+            "a simple neutral standing or seated pose, with both arms visibly connected at the shoulders, hands "
+            "attached to wrists, normal neck and torso proportions, and no overlapping limbs. Avoid reaching, "
+            "grabbing, twisting, foreshortening, cropped limbs, or characters interacting physically with props. "
+            "Place task-critical objects separately with clear space around them."
+        )
+        if any(term in issue_text for term in structure_terms):
+            correction += (
+                " Any mounted safety device must be attached flush to a clearly visible solid wall or ceiling plane, "
+                "never dangling from a wire or floating in open space."
+            )
+    else:
+        correction = (
+            f"{replacement} HARD CORRECTION: The previous render was wrong: {issues}. "
+            "Depict the required subject using its physical shape, proportions, material, texture and distinctive parts. "
+            "Do not include the mistaken form or parts described above."
+        )
+
+    return correction[:1400]
 
 
 def review_and_repair_images(pack: dict, config: dict, images: list[dict], paths: list[Path], folder) -> dict:

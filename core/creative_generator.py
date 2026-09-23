@@ -136,6 +136,66 @@ def _normalize_asset_prompt(value, asset_id: str, *, cover: bool = False) -> str
     )[:650]
 
 
+def _consolidate_image_manifest(design: dict, *, cover: bool = False) -> tuple[list[dict], str]:
+    """Limit a model-authored page to four usable assets without another LLM retry."""
+    html = design['html']
+    refs = list(dict.fromkeys(
+        re.findall(r"<img\b[^>]*\bdata-asset=['\"]([^'\"]+)['\"]", html, re.I)
+    ))
+    raw_images = design.get('images')
+    valid = []
+    if isinstance(raw_images, list):
+        for asset in raw_images:
+            if not isinstance(asset, dict):
+                continue
+            asset_id = str(asset.get('id', ''))
+            if not re.fullmatch(r'[a-z][a-z0-9_]{0,30}', asset_id):
+                continue
+            if any(existing['id'] == asset_id for existing in valid):
+                continue
+            valid.append({
+                'id': asset_id,
+                'prompt': _normalize_asset_prompt(asset.get('prompt'), asset_id, cover=cover)
+            })
+
+    # Prefer assets actually referenced by the HTML, then any remaining valid
+    # manifest entries. If Gemini omitted the manifest, synthesize from HTML IDs.
+    by_id = {asset['id']: asset for asset in valid}
+    ordered = []
+    for asset_id in refs:
+        if asset_id in by_id:
+            ordered.append(by_id[asset_id])
+        else:
+            ordered.append({
+                'id': asset_id,
+                'prompt': _normalize_asset_prompt('', asset_id, cover=cover)
+            })
+    for asset in valid:
+        if asset['id'] not in {item['id'] for item in ordered}:
+            ordered.append(asset)
+
+    if not ordered:
+        fallback_id = 'cover_art' if cover else 'scene'
+        ordered = [{
+            'id': fallback_id,
+            'prompt': _normalize_asset_prompt('', fallback_id, cover=cover)
+        }]
+
+    retained = ordered[:4]
+    retained_ids = [asset['id'] for asset in retained]
+
+    # Remap excess HTML slots onto retained assets in stable round-robin order.
+    excess = [asset_id for asset_id in refs if asset_id not in set(retained_ids)]
+    if excess:
+        for index, old in enumerate(excess):
+            new = retained_ids[index % len(retained_ids)]
+            html = re.sub(
+                rf"(\bdata-asset=['\"]){re.escape(old)}(['\"])",
+                rf"\g<1>{new}\g<2>", html, flags=re.I)
+
+    return retained, html
+
+
 def _synchronize_asset_references(html: str, ids: list[str]) -> str:
     """Repair simple model mistakes between images[].id and HTML data-asset references."""
     refs = re.findall(r"<img\b[^>]*\bdata-asset=['\"]([^'\"]+)['\"]", html, re.I)
@@ -180,21 +240,10 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
         if isinstance(answers, list) and 1 <= len(answers) <= 30 and all(isinstance(a, str) and a.strip() for a in answers):
             answers = '; '.join(answers)
         design['answers'] = _text(answers, 'answers', 4000)
-    images = design.get('images')
-    html_refs = set(re.findall(r"<img\b[^>]*\bdata-asset=['\"]([^'\"]+)['\"]", design['html'], re.I))
-    if not isinstance(images, list) or not 1 <= len(images) <= 4:
-        detail = ', '.join(sorted(html_refs)) or 'none'
-        raise ValueError(f'Each page needs 1-4 purposeful original illustrations; HTML references IDs: {detail}')
-    ids = set()
-    ordered_ids = []
-    for asset in images:
-        if not isinstance(asset, dict) or not re.fullmatch(r'[a-z][a-z0-9_]{0,30}', str(asset.get('id', ''))):
-            raise ValueError('Image IDs must be short lowercase identifiers')
-        if asset['id'] in ids:
-            raise ValueError('Image IDs must be unique within the page')
-        ids.add(asset['id'])
-        ordered_ids.append(asset['id'])
-        asset['prompt'] = _normalize_asset_prompt(asset.get('prompt'), asset['id'], cover=cover)
+    images, design['html'] = _consolidate_image_manifest(design, cover=cover)
+    design['images'] = images
+    ids = {asset['id'] for asset in images}
+    ordered_ids = [asset['id'] for asset in images]
 
     design['html'] = _synchronize_asset_references(design['html'], ordered_ids)
     html_refs = set(re.findall(r"<img\b[^>]*\bdata-asset=['\"]([^'\"]+)['\"]", design['html'], re.I))

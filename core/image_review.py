@@ -189,17 +189,26 @@ def _generation_repair_prompt(original: str, verdict: dict, attempt: int) -> str
         'anatom', 'detached', 'floating hand', 'floating arm', 'floating limb',
         'distorted', 'proportion', 'neck', 'torso', 'limb', 'hand', 'arm'
     )
+    scale_terms = (
+        'giant', 'massive', 'towering', 'oversized', 'overwhelmingly', 'too large',
+        'too big', 'scale', 'relative size', 'monster'
+    )
     structure_terms = ('ceiling', 'wire', 'hanging', 'unsupported', 'floating')
 
-    if any(term in issue_text for term in anatomy_terms):
+    if any(term in issue_text for term in anatomy_terms + scale_terms):
+        reset_label = ('FAILED SCALE REPAIR' if any(term in issue_text for term in scale_terms)
+                       else 'FAILED ANATOMY REPAIR')
         correction = (
-            f"{replacement} HARD RESET AFTER FAILED ANATOMY REPAIR: {issues}. "
+            f"{replacement} HARD RESET AFTER {reset_label}: {issues}. "
             "Simplify the composition aggressively. Keep only subjects that are essential to the original task; "
-            "remove decorative or unnecessary characters. If a character is essential, show a full intact body in "
-            "a simple neutral standing or seated pose, with both arms visibly connected at the shoulders, hands "
-            "attached to wrists, normal neck and torso proportions, and no overlapping limbs. Avoid reaching, "
-            "grabbing, twisting, foreshortening, cropped limbs, or characters interacting physically with props. "
-            "Place task-critical objects separately with clear space around them."
+            "remove decorative or unnecessary characters. If characters are essential, show full intact bodies in "
+            "simple neutral standing or seated poses, with normal anatomy and no overlapping limbs. "
+            "All peer characters must share a believable relative scale: similar body-height range for comparable "
+            "animal/child peers, aligned on the same ground plane, and no foreground character enlarged by perspective. "
+            "No character may tower over the group, appear giant, monster-sized, or dominate more than about one-third "
+            "of the composition height unless the original prompt explicitly requires that size difference. "
+            "Avoid reaching, grabbing, twisting, foreshortening, cropped limbs, or characters interacting physically "
+            "with props. Place task-critical objects separately with clear space around them."
         )
         if any(term in issue_text for term in structure_terms):
             correction += (

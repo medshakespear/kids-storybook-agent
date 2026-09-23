@@ -124,6 +124,25 @@ class CreativeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r'declared IDs \[scene\].*HTML data-asset IDs \[missing\]'):
             validate_design(page, 15)
 
+    def test_cover_asset_mismatch_gets_cover_specific_repair(self):
+        """A declared cover image with no matching img receives cover-specific repair guidance."""
+        api = Mock()
+        bad = cover_fixture()
+        bad['images'] = [dict(id='cover_illustration', prompt='A bold original fire-safety illustration.')]
+        bad['html'] = '<h1>Fire Prevention Week</h1><p>Grades 5-6</p>'
+        good = cover_fixture()
+        def response(value):
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(value)))])
+        api.chat.completions.create.side_effect = [response(bad), response(good)]
+        with patch('core.creative_generator.text_provider_names', return_value=['gemini']), patch(
+                'core.creative_generator.text_client', return_value=(api, 'test')), patch(
+                'core.creative_generator.time.sleep'):
+            result = ask_json('Create a cover.', lambda raw: validate_design(raw, 15, cover=True), 'Cover design')
+        self.assertEqual(result['images'][0]['id'], 'scene')
+        repair = api.chat.completions.create.call_args_list[1].kwargs['messages'][-1]['content']
+        self.assertIn('This is a COVER', repair)
+        self.assertIn('Do not solve the mismatch by deleting the image element', repair)
+
     def test_asset_validation_gets_manifest_sync_repair(self):
         """Image-manifest failures receive exact instructions to synchronize HTML and images."""
         api = Mock()

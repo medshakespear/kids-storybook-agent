@@ -80,9 +80,14 @@ def review_batch(pack: dict, images: list[dict], paths: dict[int, Path]) -> dict
         'HTML supplies labels, answer spaces, diagrams and repeated copies. Do not reject a single object '
         'because the HTML repeats it for counting, or demand that it contains the whole worksheet. '
         'Do not reject harmless palette/style differences. Reject missing task-critical visual information. '
-        'If a prior repair failed, give a DIFFERENT clearer replacement prompt: simpler composition, '
-        'explicit subject/action/spatial relationships, fewer decorative elements, while retaining '
-        'EVERY essential requirement. Do not repeat the previous unsuccessful prompt.'
+        'If a prior repair failed because an object was visually misidentified, do NOT merely repeat its uncommon '
+        'name or a synonym. Rewrite the replacement prompt around concrete visual anatomy: overall silhouette, '
+        'orientation, proportions, material, surface texture, distinctive parts, and how it is held or used when '
+        'relevant. Explicitly exclude the mistaken shapes/parts named in previous_issues (for example: not round, '
+        'no strings, no tuning pegs). Prefer common descriptive words over specialist vocabulary. '
+        'For any prior repair failure, give a DIFFERENT clearer replacement prompt with simpler composition, '
+        'explicit subject/action/spatial relationships and fewer decorative elements while retaining EVERY '
+        'essential requirement. Do not repeat the previous unsuccessful prompt.'
     )}]
     for item in images:
         number = item['page_number']
@@ -114,6 +119,22 @@ def review_batch(pack: dict, images: list[dict], paths: dict[int, Path]) -> dict
         api.close()
 
 
+def _generation_repair_prompt(original: str, verdict: dict, attempt: int) -> str:
+    """Strengthen later repairs with the concrete defect the image model must avoid."""
+    replacement = verdict['replacement_prompt'].strip()
+    if attempt < 2:
+        return replacement
+    issues = '; '.join(verdict.get('issues', []))
+    correction = (
+        f"{replacement} HARD CORRECTION: The previous render was wrong: {issues}. "
+        "Depict the required subject using its physical shape, proportions, material, texture and distinctive parts. "
+        "Do not include the mistaken form or parts described above."
+    )
+    # Image providers can accept a larger scene than the activity-authoring schema,
+    # but keep the corrective request compact enough to leave room for style locks.
+    return correction[:1100]
+
+
 def review_and_repair_images(pack: dict, config: dict, images: list[dict], paths: list[Path], folder) -> dict:
     """Repair rejected assets within a small budget and report remaining concrete issues."""
     started = time.monotonic()
@@ -134,14 +155,16 @@ def review_and_repair_images(pack: dict, config: dict, images: list[dict], paths
             for item in rejected:
                 LOGGER.warning('Illustration %s rejected by visual review: %s', item['page_number'],
                                '; '.join(verdicts[item['page_number']]['issues']))
-            replacements = [dict(item, image_prompt=verdicts[item['page_number']]['replacement_prompt']) for item in rejected]
+            replacements = [dict(item, image_prompt=_generation_repair_prompt(
+                item['image_prompt'], verdicts[item['page_number']], attempt)) for item in rejected]
             repaired_paths = generate_images(dict(pack, pages=replacements), config, folder)
             if [Path(p) for p in repaired_paths] != [by_id[item['page_number']] for item in rejected]:
                 raise ImageReviewError('Regeneration returned an incomplete or mismatched illustration set')
             regenerations += len(rejected)
             # Preserve original requirements, but show the reviewer what was
             # actually attempted so it can improve a second repair instead of looping.
-            rejected = [dict(item, latest_generation_prompt=verdicts[item['page_number']]['replacement_prompt'],
+            rejected = [dict(item, latest_generation_prompt=_generation_repair_prompt(
+                                 item['image_prompt'], verdicts[item['page_number']], attempt),
                              previous_issues=verdicts[item['page_number']]['issues'], repair_attempt=attempt)
                         for item in rejected]
             verdicts = review_batch(pack, rejected, by_id)

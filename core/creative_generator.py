@@ -120,6 +120,22 @@ def validate_plan(raw: dict, count: int) -> dict:
     return plan
 
 
+def _normalize_asset_prompt(value, asset_id: str, *, cover: bool = False) -> str:
+    """Recover harmless missing/oversized model prompts without another provider retry."""
+    if isinstance(value, str):
+        prompt = ' '.join(value.split())
+    else:
+        prompt = ''
+    if prompt:
+        return prompt[:650]
+    role = 'cover' if cover else 'classroom activity'
+    return (
+        f"Original purposeful educational illustration for this {role}, asset {asset_id}. "
+        "Use the page context and art direction to depict one clear age-appropriate visual subject. "
+        "No text, letters, numbers, logos, labels, borders, answer marks or worksheet layout."
+    )[:650]
+
+
 def _synchronize_asset_references(html: str, ids: list[str]) -> str:
     """Repair simple model mistakes between images[].id and HTML data-asset references."""
     refs = re.findall(r"<img\\b[^>]*\\bdata-asset=['\"]([^'\"]+)['\"]", html, re.I)
@@ -178,7 +194,7 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
             raise ValueError('Image IDs must be unique within the page')
         ids.add(asset['id'])
         ordered_ids.append(asset['id'])
-        asset['prompt'] = _text(asset.get('prompt'), 'illustration prompt', 650)
+        asset['prompt'] = _normalize_asset_prompt(asset.get('prompt'), asset['id'], cover=cover)
 
     design['html'] = _synchronize_asset_references(design['html'], ordered_ids)
     html_refs = set(re.findall(r"<img\\b[^>]*\\bdata-asset=['\"]([^'\"]+)['\"]", design['html'], re.I))

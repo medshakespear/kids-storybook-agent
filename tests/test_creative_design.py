@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from core.creative_generator import ask_json, validate_design, generate_creative_pack, compact_answers
+from core.creative_generator import _synchronize_asset_references, ask_json, validate_design, generate_creative_pack, compact_answers
 from core.creative_layout import check_page, build_creative_pdf, fragment
 from core.pipeline import load_grade_config, generate_book
 from tests.activity_fixtures import attach_test_art
@@ -123,6 +123,21 @@ class CreativeTests(unittest.TestCase):
         page['html'] = page['html'].replace('data-asset="scene"', 'data-asset="missing"')
         with self.assertRaisesRegex(ValueError, r'declared IDs \[scene\].*HTML data-asset IDs \[missing\]'):
             validate_design(page, 15)
+
+    def test_missing_declared_asset_is_injected_without_llm_retry(self):
+        """A declared cover image omitted from HTML is inserted deterministically."""
+        page = cover_fixture()
+        page['images'] = [dict(id='cover_main', prompt='An original classroom cover illustration.')]
+        page['html'] = '<h1>Indigenous Peoples\' Day</h1><p>Grades 1-2</p>'
+        validated = validate_design(page, 15, cover=True)
+        self.assertIn("data-asset=\"cover_main\"", validated['html'].replace("'", '"'))
+
+    def test_wrong_single_asset_id_is_rebound_to_declared_id(self):
+        """One invented HTML asset ID is rebound to the one declared manifest ID."""
+        html = '<h1>Title</h1><img data-asset="wrong_name" style="width:80mm;height:55mm"/>'
+        fixed = _synchronize_asset_references(html, ['cover_main'])
+        self.assertIn('data-asset="cover_main"', fixed)
+        self.assertNotIn('wrong_name', fixed)
 
     def test_cover_asset_mismatch_gets_cover_specific_repair(self):
         """A declared cover image with no matching img receives cover-specific repair guidance."""

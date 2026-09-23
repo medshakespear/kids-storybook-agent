@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from core.creative_generator import _synchronize_asset_references, ask_json, validate_design, generate_creative_pack, compact_answers
+from core.creative_generator import _normalize_asset_prompt, _synchronize_asset_references, ask_json, validate_design, generate_creative_pack, compact_answers
 from core.creative_layout import check_page, build_creative_pdf, fragment
 from core.pipeline import load_grade_config, generate_book
 from tests.activity_fixtures import attach_test_art
@@ -124,6 +124,22 @@ class CreativeTests(unittest.TestCase):
         validated = validate_design(page, 15)
         self.assertIn('data-asset="scene"', validated['html'])
         self.assertNotIn('data-asset="missing"', validated['html'])
+
+    def test_empty_cover_prompt_and_missing_html_asset_recover_together(self):
+        """One malformed cover response is normalized and synchronized in a single local pass."""
+        page = cover_fixture()
+        page['images'] = [dict(id='cover_illustration', prompt='')]
+        page['html'] = '<h1>Hispanic Heritage Month</h1><p>Grades 1-2</p>'
+        validated = validate_design(page, 15, cover=True)
+        self.assertTrue(validated['images'][0]['prompt'].strip())
+        self.assertLessEqual(len(validated['images'][0]['prompt']), 650)
+        self.assertIn('data-asset="cover_illustration"', validated['html'].replace("'", '"'))
+
+    def test_asset_prompt_normalization_truncates_and_fills(self):
+        """Prompt normalization handles blank, non-string and oversized provider values locally."""
+        self.assertTrue(_normalize_asset_prompt('', 'scene'))
+        self.assertTrue(_normalize_asset_prompt(None, 'scene'))
+        self.assertEqual(len(_normalize_asset_prompt('x' * 900, 'scene')), 650)
 
     def test_missing_declared_asset_is_injected_without_llm_retry(self):
         """A declared cover image omitted from HTML is inserted deterministically."""

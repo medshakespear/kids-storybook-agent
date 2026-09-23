@@ -89,11 +89,18 @@ def clean_style(value: str) -> str:
             # Normalize typography before measuring layout; never scale the whole PDF.
             rendered = f'{max(11, min(40, points)):g}pt'
         if decl.lower_name == 'line-height':
-            try:
-                if float(rendered) < 1.15:
-                    raise ValueError('Line height must be at least 1.15')
-            except ValueError:
-                raise ValueError('Use a numeric line-height of at least 1.15') from None
+            # Line-height is cosmetic and safe to normalize locally. Do not spend
+            # another model call because Gemini returned 1.0, "normal", or 110%.
+            value = rendered.strip().lower()
+            if value == 'normal':
+                rendered = '1.3'
+            elif re.fullmatch(r'\d+(?:\.\d+)?%', value):
+                rendered = f'{max(1.15, float(value[:-1]) / 100):g}'
+            else:
+                try:
+                    rendered = f'{max(1.15, float(value)):g}'
+                except ValueError:
+                    raise ValueError('Use a numeric line-height, percentage, or normal') from None
         result.append(f'{decl.lower_name}:{rendered}')
     return ';'.join(result)
 

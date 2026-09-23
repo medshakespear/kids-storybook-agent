@@ -1,8 +1,7 @@
 # Classroom Activity Pack Agent
 
 Generates original **printable classroom exercise packs**, not storybooks.
-Gemini plans the activities AND authors their page layouts; optional Groq fallback
-handles text failures. Cloudflare supplies original illustrations. Python/WeasyPrint
+Gemini plans the activities AND authors their page layouts. Cloudflare supplies original illustrations. Python/WeasyPrint
 validates and assembles the model-authored designs as A4 PDFs. There is no database.
 
 ## What each pack includes
@@ -22,7 +21,7 @@ calls author the cover and each student page using restricted HTML/inline CSS,
 with a pack-specific palette and 1-4 original illustration briefs per page.
 Python supplies page boundaries, checks supported markup and printable bounds,
 embeds artwork without cropping, and adds the single consolidated answer page.
-Cloudflare produces the artwork; Gemini/Groq decides what the art should show.
+Cloudflare produces the artwork; Gemini decides what the art should show.
 Identical briefs are reused within a pack. Expect 8-10 text calls before retries
 and up to 28-36 image calls, depending on grade and design. Provider quotas
 apply; free daily capacity is not guaranteed. Missing art fails the pack explicitly.
@@ -38,18 +37,19 @@ correctness are model-authored and require human review; the former fixed-type
 arithmetic checker is not used. Layout checks cannot detect every visual or
 educational flaw. No standards alignment is claimed.
 
-## Daily selection: today, not upcoming events
+## Daily selection: random events in the next 30 days
 
-1. Resolve today's date in `BOOK_TIMEZONE` (default `UTC`).
-2. Match only calendar events whose inclusive start/end dates contain today.
-3. If multiple events are active, vary the selected themes across the batch.
-4. If none is active, select original evergreen classroom challenges.
-5. Shuffle grade bands in groups of four, giving random order and balanced coverage.
-6. Avoid recently used theme/grade pairs where possible; permit reuse when exhausted.
+1. Resolve today in `BOOK_TIMEZONE` (default UTC).
+2. Include event periods overlapping today through today + 30 days, inclusive.
+   This includes an ongoing month/week and events starting within the window.
+3. Randomly choose an eligible event, then one of its theme angles, per book.
+   Events with more angles do not receive extra selection weight.
+4. Avoid recently used theme/grade pairs where possible and shuffle grade bands
+   in balanced groups of four.
+5. If the entire window has no eligible events, use creative evergreen activities.
 
-For example, September 22 can match Hispanic Heritage Month (September 15-October 15),
-but not October's Fire Prevention Week. There is no 1-4-week lookahead or nearest-event
-fallback. Daily count remains `DAILY_BOOK_COUNT` (default random 6-8; allowed 1-20).
+Year boundaries and movable holidays are handled by calendar rules.
+Daily count remains `DAILY_BOOK_COUNT` (default 6-8; allowed 1-20).
 
 `calendar.json` now contains exact schedule rules:
 - `fixed`: actual annual month/day, not a substitute federal day.
@@ -96,16 +96,16 @@ Set on BOTH services:
 - `CLOUDFLARE_ACCOUNT_ID`: your 32-character account ID, not an API token.
 - `CLOUDFLARE_API_TOKEN`: a token with Workers AI permission for that account.
 - `CLOUDFLARE_IMAGE_STEPS=4` (default, permitted 1-8).
-- `GROQ_API_KEY`: optional; enables Groq fallback.
-- `GROQ_TEXT_MODEL=openai/gpt-oss-20b` (default; runs on Groq, not OpenAI).
-- `TEXT_FALLBACK_PROVIDER=none` to disable the optional Groq fallback.
 - `BOOK_TIMEZONE=UTC`, or e.g. `Africa/Casablanca` / `America/New_York`.
   Set the same value on web and cron. Railway's cron schedule is still in UTC.
 
-`TEXT_PROVIDER=groq` can use Groq directly without a Gemini key.
+Groq has been removed. Delete `GROQ_API_KEY`, `GROQ_TEXT_MODEL`, and
+`TEXT_FALLBACK_PROVIDER` from Railway; set `TEXT_PROVIDER=gemini` on both services.
+Old Groq/fallback variables are ignored. This version uses one Gemini key and one
+Cloudflare account/token pair; it does not rotate credentials after quota errors.
 Paid OpenAI text is opt-in with `TEXT_PROVIDER=openai` and `OPENAI_API_KEY`;
 there is no automatic paid OpenAI fallback. Free quotas depend on your provider account.
-The OpenAI Python SDK also transports Gemini/Groq requests; installing it does not
+The OpenAI Python SDK also transports Gemini requests; installing it does not
 mean they go to OpenAI. Provider/model errors do not log raw response bodies or keys.
 Explicit Railway model variables override code defaults; update old values on both services.
 
@@ -205,7 +205,7 @@ later page needs correction. Python assigns page order. All pages are print-chec
 with fixed-size preview image boxes before illustration spending. Final PDFs are
 checked again with real art. Model-authored code is never executed; scripts, file
 links, external resource loads, and unsupported layout declarations are rejected.
-HTTP 429 switches to the configured fallback without immediate same-provider retries.
+Gemini HTTP 429 stops the current generation rather than rotating credentials.
 This does not remove quotas or guarantee recovery during outages. Interrupted runs
 do not retain unfinished pages across container restarts.
 
@@ -216,7 +216,7 @@ do not retain unfinished pages across container restarts.
 - `core/creative_generator.py`: AI activity planning, page design, repair and illustrations.
 - `core/creative_layout.py`: restricted HTML/CSS, print preflight, final PDF and answer page.
 - `core/pipeline.py`: shared activity generation and atomic PDF output.
-- `core/providers.py`: Gemini/Groq/OpenAI text routing and sanitized errors.
+- `core/providers.py`: Gemini/OpenAI text routing and sanitized errors.
 - `core/book_library.py`, `core/delivery.py`, `core/state_manager.py`: storage.
 - `cron_job.py`, `webhook_server.py`: scheduled and on-demand entry points.
 

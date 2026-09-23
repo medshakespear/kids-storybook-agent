@@ -1,4 +1,4 @@
-"""Choose today's active events or original evergreen classroom activities."""
+"""Choose random events within 30 days or original evergreen classroom activities."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import re
 from datetime import date, datetime, timedelta
 from typing import Any
 from urllib.parse import unquote, urlparse
-from core.calendar_rules import find_active_events, today_in_timezone
+from core.calendar_rules import find_active_events, find_events_in_window, today_in_timezone
 
 
 GRADE_BANDS = ["Pre-K-K", "1st-2nd", "3rd-4th", "5th-6th"]
@@ -48,13 +48,13 @@ def pick_daily_book_specs(
     today: date | None = None,
     rng: random.Random | None = None,
 ) -> list[dict[str, str]]:
-    """Choose active-event packs or evergreen packs, with shuffled grade coverage."""
+    """Randomly choose events in the next 30 days, with balanced shuffled grades."""
 
     if not 1 <= count <= 20:
         raise ValueError("count must be between 1 and 20")
     reference = today or today_in_timezone()
     randomizer = rng or random.SystemRandom()
-    events = find_active_events(calendar, today=reference)
+    events = find_events_in_window(calendar, today=reference, days=30)
     if not events:
         topics = ["classroom supply shop", "garden detectives", "animal rescue planning",
                   "invention workshop", "weather observers", "community kindness lab",
@@ -80,12 +80,12 @@ def pick_daily_book_specs(
                     "event_name": event["event_name"],
                     "event_date": event["occurs_on"],
                     "event_end": event.get("ends_on", event["occurs_on"]),
-                    "selection_mode": "evergreen" if event.get("evergreen") else "active_event",
+                    "selection_mode": "evergreen" if event.get("evergreen") else "upcoming_event",
                     "theme": angle,
                 }
             )
     if not candidates:
-        raise ValueError("Active calendar events contain no theme angles")
+        raise ValueError("Eligible calendar events contain no theme angles")
     randomizer.shuffle(candidates)
 
     selections: list[dict[str, str]] = []
@@ -100,7 +100,11 @@ def pick_daily_book_specs(
         pool = eligible or [
             item for item in candidates if (item["theme"], grade_band) not in used_in_batch
         ]
-        choice = randomizer.choice(pool or candidates)
+        pool = pool or candidates
+        # Sample the event first so events with more angles do not dominate.
+        names = sorted({(c['event_name'], c['event_date']) for c in pool})
+        selected_event = randomizer.choice(names)
+        choice = randomizer.choice([c for c in pool if (c['event_name'], c['event_date']) == selected_event])
         selection = dict(choice)
         selection["grade_band"] = grade_band
         selections.append(selection)

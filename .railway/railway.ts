@@ -17,7 +17,6 @@ export default defineRailway(() => {
     healthcheckTimeout: 300,
     env: {
       GEMINI_API_KEY: preserve(),
-      GROQ_API_KEY: preserve(),
       TEXT_PROVIDER: "gemini",
       IMAGE_PROVIDER: "cloudflare",
       CLOUDFLARE_ACCOUNT_ID: preserve(),
@@ -36,7 +35,6 @@ export default defineRailway(() => {
     start: "python cron_job.py",
     env: {
       GEMINI_API_KEY: preserve(),
-      GROQ_API_KEY: preserve(),
       TEXT_PROVIDER: "gemini",
       IMAGE_PROVIDER: "cloudflare",
       CLOUDFLARE_ACCOUNT_ID: preserve(),

@@ -60,3 +60,18 @@ def find_active_events(calendar: dict, *, today: date | None = None) -> list[dic
                                "ends_on": period[1].isoformat(), "days_away": 0})
                 break
     return sorted(active, key=lambda item: (item["occurs_on"] != reference.isoformat(), item["event_name"]))
+
+
+def find_events_in_window(calendar: dict, *, today: date | None = None, days: int = 30) -> list[dict]:
+    """Find event periods overlapping today through today+days, including year rollover."""
+    reference = today or today_in_timezone()
+    end = reference + timedelta(days=days)
+    events = []
+    for event in calendar.get('events', []):
+        for year in range(reference.year - 1, end.year + 1):
+            period = event_period(event, year)
+            if period and period[0] <= end and period[1] >= reference and event.get('theme_angles'):
+                events.append({**event, 'occurs_on': period[0].isoformat(),
+                               'ends_on': period[1].isoformat(),
+                               'days_away': max(0, (period[0] - reference).days)})
+    return events

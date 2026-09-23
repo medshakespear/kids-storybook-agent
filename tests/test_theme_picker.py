@@ -11,6 +11,8 @@ from core.theme_picker import (
     pick_daily_book_specs,
     pick_grade_bands,
 )
+from core.calendar_rules import find_events_in_window
+import random
 
 
 class ThemePickerTests(unittest.TestCase):
@@ -78,6 +80,28 @@ class ThemePickerTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             build_webhook_inspiration("not-a-url")
+
+    def test_window_boundaries_and_year_rollover(self):
+        """Include ongoing periods and day 30, but exclude day 31 and past events."""
+        events = [
+            {'event_name': name, 'schedule': {'kind':'fixed', 'month':month, 'day':day}, 'theme_angles':['A']}
+            for name, month, day in [('Past',12,19), ('Today',12,20), ('Boundary',1,19), ('Outside',1,20)]
+        ]
+        events.append({'event_name':'Ongoing', 'schedule':{'kind':'month','month':12}, 'theme_angles':['B']})
+        found = find_events_in_window({'events':events}, today=date(2026,12,20))
+        self.assertEqual({e['event_name'] for e in found}, {'Today','Boundary','Ongoing'})
+        self.assertEqual(next(e for e in found if e['event_name']=='Boundary')['occurs_on'], '2027-01-19')
+
+    def test_random_upcoming_selection(self):
+        """Different seeds can choose different events without preferring the nearest."""
+        calendar = {'events': [
+            {'event_name':name, 'schedule':{'kind':'fixed','month':2,'day':day}, 'theme_angles':['Angle '+name]}
+            for name,day in [('Near',1),('Later',15)]
+        ]}
+        choices = {pick_daily_book_specs(calendar, self.state, count=1, today=date(2026,1,25), rng=random.Random(seed))[0]['event_name'] for seed in range(20)}
+        self.assertEqual(choices, {'Near','Later'})
+        spec = pick_daily_book_specs(calendar, self.state, count=1, today=date(2026,1,25), rng=random.Random(0))[0]
+        self.assertEqual(spec['selection_mode'], 'upcoming_event')
 
 
 if __name__ == "__main__":

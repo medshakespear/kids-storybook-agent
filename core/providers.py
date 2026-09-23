@@ -8,8 +8,6 @@ from openai import OpenAI
 TEXT_PROVIDERS = {
     "gemini": ("GEMINI_API_KEY", "GEMINI_TEXT_MODEL", "gemini-3.5-flash-lite",
                "https://generativelanguage.googleapis.com/v1beta/openai/"),
-    "groq": ("GROQ_API_KEY", "GROQ_TEXT_MODEL", "openai/gpt-oss-20b",
-             "https://api.groq.com/openai/v1"),
     "openai": ("OPENAI_API_KEY", "OPENAI_TEXT_MODEL", "gpt-4.1-mini",
                "https://api.openai.com/v1"),
 }
@@ -25,16 +23,11 @@ class ProviderError(RuntimeError):
 
 
 def text_provider_names() -> list[str]:
-    """Select an explicit primary and optional Groq fallback; never auto-use OpenAI."""
+    """Select one provider; retired Groq/fallback environment variables are ignored."""
     primary = os.getenv("TEXT_PROVIDER", "gemini").strip().lower()
     if primary not in TEXT_PROVIDERS:
-        raise ValueError("TEXT_PROVIDER must be gemini, groq, or openai")
-    fallback = os.getenv("TEXT_FALLBACK_PROVIDER", "groq" if os.getenv("GROQ_API_KEY") else "none").strip().lower()
-    if fallback not in {"none", "groq"}:
-        raise ValueError("TEXT_FALLBACK_PROVIDER must be groq or none")
+        raise ValueError("TEXT_PROVIDER must be gemini or openai; Groq is no longer supported")
     names = [primary]
-    if fallback != "none" and fallback != primary:
-        names.append(fallback)
     for name in names:
         key = TEXT_PROVIDERS[name][0]
         if not os.getenv(key, "").strip():

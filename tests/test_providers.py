@@ -34,7 +34,7 @@ class ProviderTests(unittest.TestCase):
     def test_defaults_need_no_openai_key(self):
         """New defaults validate with only the new credentials."""
         validate_providers()
-        self.assertEqual(text_provider_names(), ["gemini", "groq"])
+        self.assertEqual(text_provider_names(), ["gemini"])
         api, model = text_client("gemini")
         self.assertEqual(str(api.base_url), "https://generativelanguage.googleapis.com/v1beta/openai/")
         self.assertEqual(model, "gemini-3.5-flash-lite")
@@ -45,33 +45,6 @@ class ProviderTests(unittest.TestCase):
         """An old key cannot silently override the new provider selection."""
         with self.assertRaisesRegex(ValueError, "GEMINI_API_KEY"):
             validate_providers()
-
-    @patch.dict(os.environ, ENV, clear=True)
-    def test_gemini_auth_error_falls_back_to_groq(self):
-        """An auth failure skips retries and Groq returns a locally validated story."""
-        requests_seen = []
-
-        def handler(request):
-            """Simulate real SDK wire responses and record selected endpoints."""
-            requests_seen.append(request)
-            if request.url.host == "generativelanguage.googleapis.com":
-                return httpx.Response(401, json={"error": {"message": "private-response-secret"}})
-            body = json.loads(request.content)
-            self.assertEqual(body["response_format"], {"type": "json_object"})
-            return httpx.Response(200, json={"choices": [{"index": 0, "finish_reason": "stop",
-                "message": {"role": "assistant", "content": json.dumps(STORY)}}]})
-
-        def make_client(name):
-            """Construct compatible clients on a mock HTTP transport."""
-            host = "generativelanguage.googleapis.com" if name == "gemini" else "api.groq.com"
-            return OpenAI(api_key="test", base_url=f"https://{host}/v1/", max_retries=0,
-                          http_client=httpx.Client(transport=httpx.MockTransport(handler))), "model"
-
-        with patch("core.story_generator.text_client", side_effect=make_client), patch("core.story_generator.time.sleep") as sleep:
-            result = generate_story("Sharing", "Pre-K-K", {"Pre-K-K": CONFIG})
-        self.assertEqual(len(requests_seen), 2)
-        sleep.assert_not_called()
-        self.assertIn(STORY["character_description"], result["pages"][0]["image_prompt"])
 
     @patch.dict(os.environ, ENV, clear=True)
     def test_cloudflare_jpeg_to_png(self):
@@ -137,25 +110,10 @@ class ProviderTests(unittest.TestCase):
         sleep.assert_not_called()
 
     @patch.dict(os.environ, {**ENV, "TEXT_PROVIDER": "groq"}, clear=True)
-    def test_groq_default_routes_to_groq(self):
-        """GPT-OSS requests use Groq's credential and endpoint, not OpenAI's."""
-        seen = []
-
-        def handler(request):
-            """Return a valid story through the Groq-compatible wire format."""
-            seen.append(request)
-            return httpx.Response(200, json={"choices": [{"index": 0, "finish_reason": "stop",
-                "message": {"role": "assistant", "content": json.dumps(STORY)}}]})
-
-        def sdk_client(**kwargs):
-            """Retain actual provider routing while preventing network traffic."""
-            return OpenAI(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
-
-        with patch("core.providers.OpenAI", side_effect=sdk_client):
-            generate_story("Sharing", "Pre-K-K", {"Pre-K-K": CONFIG})
-        self.assertEqual(str(seen[0].url), "https://api.groq.com/openai/v1/chat/completions")
-        self.assertEqual(json.loads(seen[0].content)["model"], "openai/gpt-oss-20b")
-        self.assertEqual(seen[0].headers["authorization"], "Bearer test-groq")
+    def test_retired_groq_is_not_used(self):
+        """Old Groq credentials never cause fallback or routing."""
+        with self.assertRaisesRegex(ValueError, "no longer supported"):
+            text_provider_names()
 
     @patch.dict(os.environ, {**ENV, "GEMINI_TEXT_MODEL": " models/gemini-3.5-flash-lite "}, clear=True)
     def test_gemini_model_name_normalization(self):

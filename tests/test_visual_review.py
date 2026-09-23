@@ -105,15 +105,24 @@ class VisualReviewTests(unittest.TestCase):
         self.assertEqual(self.pack['image_review']['status'], 'passed')
         self.assertEqual(self.pack['pages'][0]['images'][0]['path'], str(self.paths[0]))
 
-    def test_review_schema_failure_is_bounded(self):
-        """Bad review JSON gets one correction attempt, then fails closed."""
+    def test_invalid_batch_verdicts_fall_back_to_single_image_reviews(self):
+        """Two malformed batch responses recover through validated singleton reviews."""
         api = Mock()
-        api.chat.completions.create.return_value = SimpleNamespace(choices=[SimpleNamespace(
+        invalid = SimpleNamespace(choices=[SimpleNamespace(
             message=SimpleNamespace(content='{"reviews": []}'), finish_reason='stop')])
-        with patch('core.image_review.text_provider_names', return_value=['gemini']), patch('core.image_review.text_client', return_value=(api, 'test')):
-            with self.assertRaisesRegex(ImageReviewError, 'invalid verdicts twice'):
-                review_batch(self.pack, self.images, dict(zip((1, 2), self.paths)))
-        self.assertEqual(api.chat.completions.create.call_count, 2)
+        single1 = SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content=json.dumps({'reviews': [dict(image_id=1, **verdict())]})),
+            finish_reason='stop')])
+        single2 = SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content=json.dumps({'reviews': [dict(image_id=2, **verdict())]})),
+            finish_reason='stop')])
+        api.chat.completions.create.side_effect = [invalid, invalid, single1, single2]
+        with patch('core.image_review.text_provider_names', return_value=['gemini']), patch(
+                'core.image_review.text_client', return_value=(api, 'test')):
+            result = review_batch(self.pack, self.images, dict(zip((1, 2), self.paths)))
+        self.assertEqual(set(result), {1, 2})
+        self.assertTrue(all(row['approved'] for row in result.values()))
+        self.assertEqual(api.chat.completions.create.call_count, 4)
         api.close.assert_called_once()
 
     def test_second_repair_uses_latest_feedback_and_keeps_approved_assets(self):

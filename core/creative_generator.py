@@ -138,7 +138,7 @@ def _normalize_asset_prompt(value, asset_id: str, *, cover: bool = False) -> str
 
 def _synchronize_asset_references(html: str, ids: list[str]) -> str:
     """Repair simple model mistakes between images[].id and HTML data-asset references."""
-    refs = re.findall(r"<img\\b[^>]*\\bdata-asset=['\"]([^'\"]+)['\"]", html, re.I)
+    refs = re.findall(r"<img\b[^>]*\bdata-asset=['\"]([^'\"]+)['\"]", html, re.I)
     declared = list(ids)
     declared_set, referenced_set = set(declared), set(refs)
 
@@ -151,9 +151,9 @@ def _synchronize_asset_references(html: str, ids: list[str]) -> str:
         mapping = dict(zip(unknown, missing))
         for old, new in mapping.items():
             html = re.sub(
-                rf"(\\bdata-asset=['\"]){re.escape(old)}(['\"])",
+                rf"(\bdata-asset=['\"]){re.escape(old)}(['\"])",
                 rf"\\g<1>{new}\\g<2>", html, flags=re.I)
-        refs = re.findall(r"<img\\b[^>]*\\bdata-asset=['\"]([^'\"]+)['\"]", html, re.I)
+        refs = re.findall(r"<img\b[^>]*\bdata-asset=['\"]([^'\"]+)['\"]", html, re.I)
         referenced_set = set(refs)
         missing = [asset_id for asset_id in declared if asset_id not in referenced_set]
 
@@ -181,7 +181,7 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
             answers = '; '.join(answers)
         design['answers'] = _text(answers, 'answers', 4000)
     images = design.get('images')
-    html_refs = set(re.findall(r"<img\\b[^>]*\\bdata-asset=['\"]([^'\"]+)['\"]", design['html'], re.I))
+    html_refs = set(re.findall(r"<img\b[^>]*\bdata-asset=['\"]([^'\"]+)['\"]", design['html'], re.I))
     if not isinstance(images, list) or not 1 <= len(images) <= 4:
         detail = ', '.join(sorted(html_refs)) or 'none'
         raise ValueError(f'Each page needs 1-4 purposeful original illustrations; HTML references IDs: {detail}')
@@ -197,7 +197,7 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
         asset['prompt'] = _normalize_asset_prompt(asset.get('prompt'), asset['id'], cover=cover)
 
     design['html'] = _synchronize_asset_references(design['html'], ordered_ids)
-    html_refs = set(re.findall(r"<img\\b[^>]*\\bdata-asset=['\"]([^'\"]+)['\"]", design['html'], re.I))
+    html_refs = set(re.findall(r"<img\b[^>]*\bdata-asset=['\"]([^'\"]+)['\"]", design['html'], re.I))
     if html_refs != ids:
         declared = ', '.join(sorted(ids)) or 'none'
         referenced = ', '.join(sorted(html_refs)) or 'none'

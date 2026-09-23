@@ -125,6 +125,19 @@ class CreativeTests(unittest.TestCase):
         self.assertIn('data-asset="scene"', validated['html'])
         self.assertNotIn('data-asset="missing"', validated['html'])
 
+    def test_two_missing_cover_assets_are_injected_and_detected(self):
+        """Multiple declared cover assets omitted from HTML are inserted and then recognized."""
+        page = cover_fixture()
+        page['images'] = [
+            dict(id='cover_art_1', prompt='A fire-safety classroom scene.'),
+            dict(id='cover_art_2', prompt='A smoke alarm and family escape-plan visual.')
+        ]
+        page['html'] = '<h1>Fire Prevention Week</h1><p>Grades 1-2</p>'
+        validated = validate_design(page, 15, cover=True)
+        normalized = validated['html'].replace("'", '"')
+        self.assertIn('data-asset="cover_art_1"', normalized)
+        self.assertIn('data-asset="cover_art_2"', normalized)
+
     def test_empty_cover_prompt_and_missing_html_asset_recover_together(self):
         """One malformed cover response is normalized and synchronized in a single local pass."""
         page = cover_fixture()

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import math
+import random
 import threading
 import time
 from dataclasses import dataclass, field
@@ -72,7 +73,7 @@ def retry_after_seconds(headers=None, body=None) -> float | None:
 
 
 class CredentialPool:
-    """Keep using a healthy slot, advancing only on quota or credential failures."""
+    """Keep a healthy slot; fail over after quota, auth, or repeated transient errors."""
 
     def __init__(self, provider: str, credentials: tuple[Credential, ...], cooldown: float) -> None:
         """Initialize a pool without contacting any external service."""
@@ -99,8 +100,8 @@ class CredentialPool:
     def _block(self, index: int, error: ProviderError) -> None:
         """Apply quota cooldowns to known shared groups and disable rejected keys."""
         with self._lock:
-            until = (time.monotonic() + max(self.cooldown, error.retry_after or 0)
-                     if error.status_code == 429 else math.inf)
+            until = (math.inf if error.status_code in {401, 403}
+                     else time.monotonic() + max(self.cooldown, error.retry_after or 0))
             group = self.credentials[index].quota_group
             for other, credential in enumerate(self.credentials):
                 if other == index or (error.status_code == 429 and group and credential.quota_group == group):
@@ -113,7 +114,7 @@ class CredentialPool:
             earliest = min(self._blocked_until)
         if math.isfinite(earliest):
             wait = max(1, math.ceil(earliest - time.monotonic()))
-            hint = f"Retry in at least {wait} seconds; provider quotas may require longer."
+            hint = f"Retry in at least {wait} seconds; provider limits or outages may require longer."
         else:
             hint = "All configured credentials were rejected; check keys and permissions, then restart."
         details = (" " + "; ".join(failures)) if failures else ""
@@ -121,22 +122,36 @@ class CredentialPool:
         return ProviderError(f"{self.provider}: no credential slots available. {hint}{details}")
 
     def run(self, operation: Callable[[Credential], T]) -> T:
-        """Try each available slot at most once, forwarding the unchanged request."""
+        """Visit each slot once, with at most three attempts for transient failures."""
         attempted, failures = set(), []
         while (index := self._select(attempted)) is not None:
             attempted.add(index)
             credential = self.credentials[index]
-            try:
-                result = operation(credential)
-                LOGGER.info("%s: using %s", self.provider, credential.label)
-                return result
-            except ProviderError as error:
-                if not error.rotate:
-                    raise
-                self._block(index, error)
-                failure = f"{credential.label}: {error}"
-                failures.append(failure)
-                LOGGER.warning("%s; trying the next available slot", failure)
+            for attempt in range(3):
+                try:
+                    result = operation(credential)
+                    LOGGER.info("%s: using %s", self.provider, credential.label)
+                    return result
+                except ProviderError as error:
+                    if not error.rotate:
+                        raise
+                    transient = error.retryable and error.status_code not in {401, 403, 429}
+                    if transient and attempt < 2 and (error.retry_after or 0) <= 10:
+                        delay = max(2 ** (attempt + 1) + random.random(), error.retry_after or 0)
+                        LOGGER.warning("%s: %s; retrying this slot in %.1fs (%s/3)",
+                                       credential.label, error, delay, attempt + 2)
+                        time.sleep(delay)
+                        with self._lock:
+                            ready = self._blocked_until[index] <= time.monotonic()
+                        if ready:
+                            continue
+                    # Do not block the worker on a long Retry-After or permanently
+                    # disable a key just because its provider had a temporary outage.
+                    self._block(index, error)
+                    failure = f"{credential.label}: {error}"
+                    failures.append(failure)
+                    LOGGER.warning("%s; trying the next available slot", failure)
+                    break
         raise self._exhausted(failures) from None
 
 

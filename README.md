@@ -142,7 +142,12 @@ available slot. Successful text designs and illustrations already in that runnin
 pack are retained. Rejected credentials (401/403) are skipped until configuration
 changes or the process restarts. Validation errors repair the same design using
 the healthy key; invalid prompts/models do not cycle through all credentials.
-Temporary network/5xx errors retain bounded exponential-backoff retries.
+For Gemini connection/timeouts, HTTP 408/409, and 5xx errors (including 503), retry
+the same slot up to three total attempts with exponential backoff and jitter, then
+cool it down and try the next configured slot with the unchanged request. There
+are at most 12 HTTP attempts per completion with four slots; the content-repair
+loop does not restart an exhausted pool. Cloudflare network/5xx errors retain
+their existing bounded retries. No new environment variables are needed.
 
 `API_KEY_COOLDOWN_SECONDS` defaults to **60** (allowed 1-86400). A longer provider
 `Retry-After` or Gemini `RetryInfo` delay takes precedence. Cloudflare's explicit
@@ -151,6 +156,12 @@ unavailable, generation returns a clear error; it never loops through keys forev
 or silently switches to paid OpenAI. Cooldowns are shared by requests within one
 process, but are not persisted or coordinated between web and cron. Restarting a
 process does not reset the provider's quota. Each run has a fresh local pool.
+For Gemini temporary errors, a server delay longer than 10 seconds cools that slot
+immediately instead of holding the worker asleep; shorter server delays are
+honored before its next retry. A 503 does not permanently disable a key. A
+provider-wide outage can affect every key, so failover cannot guarantee success;
+if all slots fail, retry the run later. See Google's
+[retry guidance](https://ai.google.dev/gemini-api/docs/troubleshooting#retry-strategy).
 
 **More keys do not guarantee more quota.** Gemini limits apply per project; if
 multiple keys belong to the same project, set matching `GEMINI_PROJECT_ID_1` through

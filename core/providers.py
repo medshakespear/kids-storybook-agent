@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import re
 from types import SimpleNamespace
-from openai import OpenAI
+from openai import APIConnectionError, OpenAI
 from core.credential_pool import Credential, ProviderError, credential_pool, retry_after_seconds
 
 TEXT_PROVIDERS = {
@@ -153,6 +153,8 @@ def safe_api_error(provider: str, exc: Exception, model: str | None = None) -> P
         return exc
     status = getattr(exc, "status_code", None)
     code = getattr(exc, "code", None)
+    response = getattr(exc, "response", None)
+    delay = retry_after_seconds(getattr(response, "headers", None), getattr(exc, "body", None))
     if status == 404:
         model_env = TEXT_PROVIDERS.get(provider, (None, "model setting"))[1]
         selected = f" for model {model!r}" if model else ""
@@ -162,8 +164,6 @@ def safe_api_error(provider: str, exc: Exception, model: str | None = None) -> P
             "Railway model variables override code defaults."
         )
     if status == 429:
-        response = getattr(exc, "response", None)
-        delay = retry_after_seconds(getattr(response, "headers", None), getattr(exc, "body", None))
         return ProviderError(f"{provider}: rate limit or quota reached; check your provider dashboard.",
                              code not in {"insufficient_quota", "credit_balance_exhausted"},
                              status_code=429, rotate=provider == "gemini", retry_after=delay)
@@ -171,6 +171,14 @@ def safe_api_error(provider: str, exc: Exception, model: str | None = None) -> P
         return ProviderError(f"{provider}: authentication or permission denied; check its API key and access.",
                              status_code=status, rotate=provider == "gemini")
     if status is not None:
+        if status in {408, 409} or 500 <= status <= 599:
+            hint = ("service temporarily unavailable or overloaded" if status == 503
+                    else "temporary server or request failure")
+            return ProviderError(f"{provider}: HTTP {status}; {hint}. Retry later if all slots fail.",
+                                 True, status_code=status, rotate=provider == "gemini", retry_after=delay)
         return ProviderError(f"{provider}: HTTP {status}; check model availability and provider settings.",
-                             status in {408, 409} or status >= 500)
+                             status_code=status)
+    if isinstance(exc, APIConnectionError):
+        return ProviderError(f"{provider}: temporary connection failure or timeout.",
+                             True, rotate=provider == "gemini")
     return ProviderError(f"{provider}: request failed ({type(exc).__name__}).", True)

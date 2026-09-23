@@ -90,26 +90,80 @@ Use **Never** as cron's restart policy. Keep one web replica and one Gunicorn wo
 
 Set on BOTH services:
 - `TEXT_PROVIDER=gemini`
-- `GEMINI_API_KEY`: Google AI Studio key.
+- `GEMINI_API_KEY_1`: Google AI Studio key (legacy `GEMINI_API_KEY` also works).
 - `GEMINI_TEXT_MODEL=gemini-3.5-flash-lite` (default).
 - `IMAGE_PROVIDER=cloudflare` (default).
-- `CLOUDFLARE_ACCOUNT_ID`: your 32-character account ID, not an API token.
-- `CLOUDFLARE_API_TOKEN`: a token with Workers AI permission for that account.
+- `CLOUDFLARE_ACCOUNT_ID_1`: your 32-character account ID, not an API token.
+- `CLOUDFLARE_API_TOKEN_1`: a token with Workers AI permission for that account.
+  Legacy unnumbered Cloudflare variables also work.
 - `CLOUDFLARE_IMAGE_STEPS=4` (default, permitted 1-8).
 - `BOOK_TIMEZONE=UTC`, or e.g. `Africa/Casablanca` / `America/New_York`.
   Set the same value on web and cron. Railway's cron schedule is still in UTC.
 
 Groq has been removed. Delete `GROQ_API_KEY`, `GROQ_TEXT_MODEL`, and
 `TEXT_FALLBACK_PROVIDER` from Railway; set `TEXT_PROVIDER=gemini` on both services.
-Old Groq/fallback variables are ignored. This version uses one Gemini key and one
-Cloudflare account/token pair; it does not rotate credentials after quota errors.
+Old Groq/fallback variables are ignored. Up to four Gemini keys and four Cloudflare
+account/token pairs are supported; see the slot setup below.
 Paid OpenAI text is opt-in with `TEXT_PROVIDER=openai` and `OPENAI_API_KEY`;
 there is no automatic paid OpenAI fallback. Free quotas depend on your provider account.
 The OpenAI Python SDK also transports Gemini requests; installing it does not
 mean they go to OpenAI. Provider/model errors do not log raw response bodies or keys.
 Explicit Railway model variables override code defaults; update old values on both services.
 
-Storage and delivery:
+### Four credential slots on Railway
+
+On **each** service (`web` and `cron`), open **Variables** and add these variables.
+Enter actual secret values in Railway only, never in a committed file.
+
+| Slot | Gemini key | Cloudflare token | Matching Cloudflare account ID |
+| --- | --- | --- | --- |
+| 1 | `GEMINI_API_KEY_1` | `CLOUDFLARE_API_TOKEN_1` | `CLOUDFLARE_ACCOUNT_ID_1` |
+| 2 | `GEMINI_API_KEY_2` | `CLOUDFLARE_API_TOKEN_2` | `CLOUDFLARE_ACCOUNT_ID_2` |
+| 3 | `GEMINI_API_KEY_3` | `CLOUDFLARE_API_TOKEN_3` | `CLOUDFLARE_ACCOUNT_ID_3` |
+| 4 | `GEMINI_API_KEY_4` | `CLOUDFLARE_API_TOKEN_4` | `CLOUDFLARE_ACCOUNT_ID_4` |
+
+1. Set `TEXT_PROVIDER=gemini` and `IMAGE_PROVIDER=cloudflare` on both services.
+2. Add the slots you have; one through four are supported, and gaps are allowed.
+   A token's Cloudflare account ID must belong to the account it can access.
+3. Remove `GROQ_API_KEY`, `GROQ_TEXT_MODEL`, and `TEXT_FALLBACK_PROVIDER`.
+4. Deploy both services with the latest GitHub commit and saved variable changes.
+5. Keep `DAILY_BOOK_COUNT=1` on cron for the first run. Trigger one run and check
+   for slot labels, `SUCCESS`, and `DELIVERED`; then open `/books` to download it.
+
+The existing unnumbered Gemini key and Cloudflare token serve as **slot 1 aliases**.
+An explicit `_1` key/token takes precedence, so the old value is not a fifth slot.
+A common `CLOUDFLARE_ACCOUNT_ID` may supply the account for any token missing an
+explicit numbered account ID. Otherwise every configured token needs its paired ID.
+Duplicate Gemini keys or identical Cloudflare token/account pairs are used once.
+
+Each process starts at the first configured slot and keeps using a healthy slot.
+An HTTP 429 puts it on cooldown and retries the **same API request** with the next
+available slot. Successful text designs and illustrations already in that running
+pack are retained. Rejected credentials (401/403) are skipped until configuration
+changes or the process restarts. Validation errors repair the same design using
+the healthy key; invalid prompts/models do not cycle through all credentials.
+Temporary network/5xx errors retain bounded exponential-backoff retries.
+
+`API_KEY_COOLDOWN_SECONDS` defaults to **60** (allowed 1-86400). A longer provider
+`Retry-After` or Gemini `RetryInfo` delay takes precedence. Cloudflare's explicit
+daily-allocation error waits until its midnight UTC reset. If every slot is
+unavailable, generation returns a clear error; it never loops through keys forever
+or silently switches to paid OpenAI. Cooldowns are shared by requests within one
+process, but are not persisted or coordinated between web and cron. Restarting a
+process does not reset the provider's quota. Each run has a fresh local pool.
+
+**More keys do not guarantee more quota.** Gemini limits apply per project; if
+multiple keys belong to the same project, set matching `GEMINI_PROJECT_ID_1` through
+`GEMINI_PROJECT_ID_4` values so the pool cools those keys together. These are optional
+project identifiers, not secrets. Cloudflare tokens for the same account always
+share its cooldown automatically. Use credentials and capacity you are authorized
+to use; slot rotation does not increase a provider's allowance.
+See [Gemini rate limits](https://ai.google.dev/gemini-api/docs/rate-limits) and
+[Cloudflare Workers AI limits](https://developers.cloudflare.com/workers-ai/platform/limits/).
+Logs identify only the provider and slot number, never the credential values.
+
+### Storage and delivery
+
 1. Attach a persistent Volume to **web** at `/data`; set `DATA_DIR=/data`.
 2. Set `DELIVERY_TOKEN` to the same long random secret on web and cron.
 3. Generate a public domain for web in its networking settings.
@@ -205,7 +259,7 @@ later page needs correction. Python assigns page order. All pages are print-chec
 with fixed-size preview image boxes before illustration spending. Final PDFs are
 checked again with real art. Model-authored code is never executed; scripts, file
 links, external resource loads, and unsupported layout declarations are rejected.
-Gemini HTTP 429 stops the current generation rather than rotating credentials.
+Gemini and Cloudflare HTTP 429 move the failed request to the next available slot.
 This does not remove quotas or guarantee recovery during outages. Interrupted runs
 do not retain unfinished pages across container restarts.
 
@@ -217,6 +271,7 @@ do not retain unfinished pages across container restarts.
 - `core/creative_layout.py`: restricted HTML/CSS, print preflight, final PDF and answer page.
 - `core/pipeline.py`: shared activity generation and atomic PDF output.
 - `core/providers.py`: Gemini/OpenAI text routing and sanitized errors.
+- `core/credential_pool.py`: four-slot failover, cooldowns, and shared-quota handling.
 - `core/book_library.py`, `core/delivery.py`, `core/state_manager.py`: storage.
 - `cron_job.py`, `webhook_server.py`: scheduled and on-demand entry points.
 

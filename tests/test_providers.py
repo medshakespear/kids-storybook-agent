@@ -13,6 +13,7 @@ from openai import OpenAI
 from PIL import Image
 
 from core.providers import validate_providers, text_provider_names, text_client
+from core.credential_pool import reset_credential_pools
 from core.story_generator import generate_story, StoryGenerationError
 from core.image_generator import generate_images, ImageGenerationError, _image_prompt
 
@@ -29,6 +30,10 @@ CONFIG = {"page_count": {"min": 1, "max": 1}, "words_per_page": {"min": 3, "max"
 
 class ProviderTests(unittest.TestCase):
     """Exercise provider boundaries and avoid accidental paid fallback."""
+
+    def setUp(self):
+        """Keep process-local cooldowns independent between test scenarios."""
+        reset_credential_pools()
 
     @patch.dict(os.environ, ENV, clear=True)
     def test_defaults_need_no_openai_key(self):
@@ -77,12 +82,12 @@ class ProviderTests(unittest.TestCase):
 
     @patch.dict(os.environ, ENV, clear=True)
     def test_cloudflare_rate_limit_has_bounded_retries(self):
-        """Rate limits back off but cannot create an endless cron run."""
+        """An exhausted pool exits without retrying a credential during cooldown."""
         with tempfile.TemporaryDirectory() as folder, patch("core.image_generator.requests.post", return_value=Mock(status_code=429)) as post, patch("core.image_generator.time.sleep") as sleep:
             with self.assertRaises(ImageGenerationError):
                 generate_images(STORY, CONFIG, folder, max_retries=2)
-            self.assertEqual(post.call_count, 2)
-            sleep.assert_called_once()
+            self.assertEqual(post.call_count, 1)
+            sleep.assert_not_called()
 
     @patch.dict(os.environ, {**ENV, "TEXT_FALLBACK_PROVIDER": "none"}, clear=True)
     def test_404_identifies_model_and_uses_real_gemini_route(self):

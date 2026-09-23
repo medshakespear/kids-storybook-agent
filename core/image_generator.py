@@ -7,12 +7,14 @@ import logging
 import os
 import random
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import requests
 from PIL import Image
-from core.providers import ProviderError, image_provider_name, safe_api_error
+from core.providers import ProviderError, get_provider_pool, image_provider_name, safe_api_error
+from core.credential_pool import Credential, retry_after_seconds
 
 STYLE_LOCK = (
     "Children's book illustration. Consistent warm teal, coral, golden yellow palette; "
@@ -40,13 +42,18 @@ def _image_prompt(story: dict, page: dict, style: str, limit: int = 2048) -> str
 
 
 def _cloudflare_image(prompt: str) -> bytes:
+    """Repeat the identical image request on the next available credential slot."""
+    return get_provider_pool("cloudflare").run(lambda credential: _cloudflare_request(prompt, credential))
+
+
+def _cloudflare_request(prompt: str, credential: Credential) -> bytes:
     """Request FLUX through the REST API and decode its JSON base64 result."""
-    account = os.environ["CLOUDFLARE_ACCOUNT_ID"]
+    account = credential.account_id
     url = f"https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     try:
         response = requests.post(
             url,
-            headers={"Authorization": f"Bearer {os.environ['CLOUDFLARE_API_TOKEN']}"},
+            headers={"Authorization": f"Bearer {credential.api_key}"},
             json={"prompt": prompt, "steps": int(os.getenv("CLOUDFLARE_IMAGE_STEPS", "4"))},
             timeout=(15, 180),
         )
@@ -54,8 +61,21 @@ def _cloudflare_image(prompt: str) -> bytes:
         raise ProviderError("Cloudflare: network request failed.", True) from None
     if response.status_code != 200:
         status = response.status_code
+        delay = retry_after_seconds(response.headers)
+        if status == 429:
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = {}
+            errors = payload.get("errors", []) if isinstance(payload, dict) else []
+            if isinstance(errors, list) and any(isinstance(error, dict) and str(error.get("code")) == "3036" for error in errors):
+                # Workers AI's daily neuron allocation resets at midnight UTC.
+                now = datetime.now(timezone.utc)
+                reset = datetime.combine(now.date() + timedelta(days=1), datetime.min.time(), timezone.utc)
+                delay = max(delay or 0, (reset - now).total_seconds())
         hint = "quota/rate limit reached" if status == 429 else "check API token, permissions and account ID"
-        raise ProviderError(f"Cloudflare: HTTP {status}; {hint}.", status == 429 or status >= 500)
+        raise ProviderError(f"Cloudflare: HTTP {status}; {hint}.", status >= 500 or status == 408,
+                            status_code=status, rotate=status in {401, 403, 429}, retry_after=delay)
     try:
         payload = response.json()
         if payload.get("success") is not True:

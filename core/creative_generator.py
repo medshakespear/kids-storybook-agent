@@ -126,13 +126,13 @@ def _synchronize_asset_references(html: str, ids: list[str]) -> str:
     declared = list(ids)
     declared_set, referenced_set = set(declared), set(refs)
 
-    unknown = [ref for ref in refs if ref not in declared_set]
+    unknown = list(dict.fromkeys(ref for ref in refs if ref not in declared_set))
     missing = [asset_id for asset_id in declared if asset_id not in referenced_set]
 
     # If the model used the right number of image slots but invented different IDs,
     # bind those slots to the declared assets instead of spending another LLM retry.
     if unknown and len(unknown) == len(missing):
-        mapping = dict(zip(dict.fromkeys(unknown), missing))
+        mapping = dict(zip(unknown, missing))
         for old, new in mapping.items():
             html = re.sub(
                 rf"(\\bdata-asset=['\"]){re.escape(old)}(['\"])",

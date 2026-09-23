@@ -71,6 +71,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'Do not rename an ID on only one side: synchronize images[].id and every data-asset '
                             'reference in the same response. Keep the existing activity content and layout.'
                         )
+                        if label == 'Cover design':
+                            repair += (
+                                ' This is a COVER: keep at least one purposeful illustration and place it visibly '
+                                'in the cover HTML with <img data-asset=...>. Do not solve the mismatch by deleting '
+                                'the image element or returning an unused images entry.'
+                            )
                     if 'overflow' in asset_error or 'printable bounds' in asset_error:
                         repair += (' Recompose this same activity more compactly. Budget at most 245mm of content '
                                    'height including headings, margins, borders and response spaces. Keep total '

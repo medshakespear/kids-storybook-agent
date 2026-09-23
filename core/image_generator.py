@@ -26,20 +26,23 @@ STYLE_LOCK = (
 
 
 def _image_prompt(story: dict, page: dict, style: str, limit: int = 2048) -> str:
-    """Fit Cloudflare's prompt limit while retaining the full character description."""
+    """Fit provider limits while keeping activity assets free of unrelated cast leakage."""
     description = story["character_description"]
     lock = STYLE_LOCK
     if story.get('resource_type') == 'activity_pack':
         lock = ('Original educational illustration; follow the supplied pack palette and rendering style consistently. '
-                'Use the cast only when people are requested. Isolated objects contain no people. '
+                'The SCENE is authoritative. Never add story cast, mascots, people, animals, faces, or extra subjects '
+                'unless the SCENE explicitly requests them. Isolated objects and environment-only assets must remain '
+                'strictly solitary with no characters in foreground or background. '
                 'No words, letters, numbers, logos, borders, labels or answer marks. '
                 'One composition, no panels. Full subject visible with generous white margins, no cropping.')
-        # Task-critical scene details (especially corrections near the end) must
-        # never be truncated to make room for decorative style instructions.
-        required = f"SCENE: {page['image_prompt']}\nCHARACTER: {description}\n{lock}\nSTYLE: "
+        # Activity assets are self-contained. Injecting the pack-wide character
+        # description into every request can leak recurring cast into object-only
+        # art. If a character is required, the asset's own SCENE must request it.
+        required = f"SCENE: {page['image_prompt']}\n{lock}\nSTYLE: "
         available = limit - len(required)
         if available < 0:
-            raise ValueError('Scene and character requirements exceed the image prompt limit')
+            raise ValueError('Scene requirements exceed the image prompt limit')
         return required + style[:available]
     prefix = f"CHARACTER: {description}\nSTYLE: {style}\n{lock}\nSCENE: "
     scene = page["image_prompt"].replace(description, "").strip(" .\n")

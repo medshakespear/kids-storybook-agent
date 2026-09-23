@@ -150,4 +150,31 @@ class VisualReviewTests(unittest.TestCase):
         prompt = _image_prompt(pack, {'image_prompt': scene}, 'S' * 650)
         self.assertLessEqual(len(prompt), 2048)
         self.assertIn(scene, prompt)
-        self.assertIn(pack['character_description'], prompt)
+        self.assertNotIn(pack['character_description'], prompt)
+        self.assertIn('Never add story cast', prompt)
+
+    def test_activity_asset_prompt_does_not_leak_named_cast(self):
+        """Object-only activity art never inherits recurring story characters."""
+        pack = dict(self.pack, character_description='Pip the fox and Barnaby the scholarly owl')
+        prompt = _image_prompt(pack, {'image_prompt': 'A simple wooden bridge alone on white.'},
+                               'Warm watercolor classroom art.')
+        self.assertIn('A simple wooden bridge alone on white.', prompt)
+        self.assertNotIn('Pip', prompt)
+        self.assertNotIn('Barnaby', prompt)
+        self.assertIn('no characters in foreground or background', prompt)
+
+    def test_reviewer_treats_original_prompt_as_subject_authority(self):
+        """Repair guidance cannot use the pack-wide cast to populate solitary assets."""
+        api = Mock()
+        raw = {'reviews': [dict(image_id=i, **verdict()) for i in (1, 2)]}
+        api.chat.completions.create.return_value = SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content=json.dumps(raw)), finish_reason='stop')])
+        self.pack['character_description'] = 'Pip the fox and Barnaby the scholarly owl'
+        with patch('core.image_review.text_provider_names', return_value=['gemini']), patch(
+                'core.image_review.text_client', return_value=(api, 'test')):
+            review_batch(self.pack, self.images, dict(zip((1, 2), self.paths)))
+        instructions = api.chat.completions.create.call_args.kwargs['messages'][0]['content'][0]['text']
+        self.assertNotIn('Pip the fox', instructions)
+        self.assertNotIn('Barnaby', instructions)
+        self.assertIn('original_prompt is the authority', instructions)
+        self.assertIn('MUST NOT introduce any subject or character absent from original_prompt', instructions)

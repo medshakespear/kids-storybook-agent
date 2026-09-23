@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from core.image_review import ImageReviewError, review_batch, review_and_repair_images, validate_reviews
+from core.image_review import ImageReviewError, _generation_repair_prompt, review_batch, review_and_repair_images, validate_reviews
 from core.image_generator import _image_prompt
 from core.creative_generator import generate_creative_images
 from core.pipeline import generate_book, load_grade_config
@@ -131,6 +131,17 @@ class VisualReviewTests(unittest.TestCase):
         self.assertEqual(checked['latest_generation_prompt'], second['replacement_prompt'])
         self.assertEqual(checked['previous_issues'], second['issues'])
         self.assertEqual(checked['repair_attempt'], 2)
+
+    def test_second_repair_turns_misidentification_into_shape_constraints(self):
+        """Repeated object confusion gets a concrete physical correction, not another vague retry."""
+        wrong = {'approved': False,
+                 'issues': ['The guiro is a flat round disk with strings and tuning pegs.'],
+                 'replacement_prompt': 'An isolated guiro percussion instrument on white.'}
+        prompt = _generation_repair_prompt('A guiro instrument.', wrong, 2)
+        self.assertIn('flat round disk', prompt)
+        self.assertIn('strings and tuning pegs', prompt)
+        self.assertIn('physical shape, proportions, material, texture and distinctive parts', prompt)
+        self.assertIn('Do not include the mistaken form or parts described above', prompt)
 
     def test_final_rejection_reports_defect_and_actual_pdf_page(self):
         """Persistent failures explain their location instead of returning only image IDs."""

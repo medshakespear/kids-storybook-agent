@@ -171,6 +171,9 @@ writing/cutting/drawing space appropriate to the activity. Never refer to missin
 Use normal document flow and leave breathing room; aim for 245mm total content height.
 Include padding, margins, borders and table spacing in the 186mm width budget.
 Prefer auto-width table cells; percentage cell widths plus padding may overflow.
+Use white-space:normal, pre-wrap or pre-line if needed. Long text and answer lines must wrap.
+Python can reflow oversized table columns and reduce excessive paragraph/cell spacing,
+but it will not shrink text, remove questions, or reduce explicit response-area heights.
 Do not fill the sheet with tiny text.
 No teacher guide, teaching tips, answer page, or teacher instructions in this fragment.'''
 

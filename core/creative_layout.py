@@ -44,7 +44,7 @@ PROPERTIES = {'color', 'background-color', 'border', 'border-color', 'border-wid
               'word-wrap', 'min-width', 'align-self', 'flex', 'list-style-type',
               'list-style-position', 'border-top-left-radius', 'border-top-right-radius',
               'border-bottom-left-radius', 'border-bottom-right-radius',
-              'gap', 'row-gap', 'column-gap'}
+              'gap', 'row-gap', 'column-gap', 'white-space'}
 
 
 def clean_style(value: str) -> str:
@@ -61,6 +61,12 @@ def clean_style(value: str) -> str:
         # Priority flags are unnecessary in these isolated fragments; keep the value.
         rendered = tinycss2.serialize(decl.value).strip()
         name = decl.lower_name
+        if name == 'white-space':
+            choices = {'normal': 'normal', 'nowrap': 'normal', 'pre': 'pre-wrap',
+                       'pre-wrap': 'pre-wrap', 'pre-line': 'pre-line', 'break-spaces': 'pre-wrap'}
+            if rendered.lower() not in choices:
+                raise ValueError('Use white-space:normal, pre-wrap or pre-line')
+            rendered = choices[rendered.lower()]
         if name == 'display' and rendered.lower() == 'none':
             raise ValueError('CSS display:none hides worksheet content; remove that declaration')
         negative = r'(?<![\w.])-\d*\.?\d+(?:[a-zA-Z]+|%)?'
@@ -161,7 +167,13 @@ def fragment(page: dict, preview: bool = False) -> str:
     parser.close()
     if parser.stack or parser.used != set(assets):
         raise ValueError('Close every HTML tag and use every declared illustration')
-    return ''.join(parser.parts)
+    mode = page.get('print_layout', '')
+    classes = 'design'
+    if mode in {'reflow', 'compact'}:
+        classes += ' design-reflow'
+    if mode == 'compact':
+        classes += ' design-compact'
+    return f'<div class="{classes}">' + ''.join(parser.parts) + '</div>'
 
 
 def data_only_fetcher(url: str, *args, **kwargs):
@@ -182,6 +194,13 @@ def document_markup(bodies: list[str], font: int = 13) -> str:
     .store-logo img {{width:88mm;height:88mm;max-width:none;position:relative;top:-25mm;}}
     h4,h5,h6 {{font-size:1em;}}
     table {{width:100%;table-layout:fixed;}} td,th {{vertical-align:top;}}
+    .design {{width:100%;overflow-wrap:anywhere;}}
+    .design-reflow * {{box-sizing:border-box!important;min-width:0!important;max-width:100%!important;overflow-wrap:anywhere!important;}}
+    .design-reflow table {{width:100%!important;table-layout:fixed!important;margin-left:0!important;margin-right:0!important;}}
+    .design-reflow td,.design-reflow th {{width:auto!important;}}
+    .design-compact p,.design-compact h1,.design-compact h2,.design-compact h3,
+    .design-compact h4,.design-compact h5,.design-compact h6 {{margin-top:0!important;margin-bottom:2mm!important;}}
+    .design-compact td,.design-compact th {{padding:2mm!important;}}
     .key {{column-count:2;column-gap:8mm;font-size:10pt;}}
     .key section {{break-inside:avoid;margin:0 0 5mm;border-top:1mm solid #188a91;padding-top:2mm;}}
     .key h3 {{font-size:11pt;}} .key p {{font-size:10pt;}}
@@ -209,10 +228,21 @@ def check_document(document, expected: int) -> None:
 
 
 def check_page(page: dict, font: int, *, cover: bool = False) -> None:
-    """Preflight AI layout before spending image quota using identical image dimensions."""
-    markup = document_markup([cover_fragment(page, True) if cover else fragment(page, True)], font)
+    """Try measured local reflow before requesting another model-authored design."""
+    page.pop('print_layout', None)
     with RENDER_LOCK:
-        check_document(HTML(string=markup, url_fetcher=data_only_fetcher).render(), 1)
+        for mode in ('', 'reflow', 'compact'):
+            if mode:
+                page['print_layout'] = mode
+            markup = document_markup([cover_fragment(page, True) if cover else fragment(page, True)], font)
+            doc = HTML(string=markup, url_fetcher=data_only_fetcher).render()
+            try:
+                check_document(doc, 1)
+                return
+            except ValueError:
+                if mode == 'compact':
+                    page.pop('print_layout', None)
+                    raise
 
 
 def pack_markup(pack: dict, config: dict, preview: bool = False) -> str:

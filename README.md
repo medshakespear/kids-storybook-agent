@@ -324,6 +324,15 @@ do not spend API credits. Offline PDF tests check all four grade layouts. Layout
 overflow is rejected rather than silently hiding content. Live content and account
 quotas must still be tested after deployment.
 
+Before requesting a redesigned page, Python tries measured local layout repairs:
+wrapping-safe `white-space` styles, bounded table/child widths and auto-width cells,
+then tighter paragraph spacing and cell padding if necessary. `nowrap` becomes
+`normal`; `pre` becomes `pre-wrap` so text is not forced outside the page. Any
+successful repair mode is stored on that page and used in both preview and final
+PDF rendering. These adjustments preserve every question, font size, and explicit
+response-area height; they never clip content or scale the whole page. Pages that
+still overflow after local repair go back to Gemini with measured feedback.
+
 Each creative unit (plan, cover, or one student page) has bounded retries with
 validation feedback. Long answer keys are condensed separately after the student
 layout passes; this never asks the model to redesign a valid worksheet. Short keys

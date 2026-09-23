@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import re
 import tempfile
+import logging
+import time
 from uuid import uuid4
 from pathlib import Path
 from typing import Any
@@ -46,15 +48,21 @@ def generate_book(
     image_provider_name()
     ensure_runtime_directories()
     config = grade_config or load_grade_config()
+    started = time.monotonic()
     story = generate_activity_pack(
         theme,
         grade_band,
         config,
         source_context=source_context,
     )
+    designed = time.monotonic()
+    logging.getLogger(__name__).info('Design stage complete: %.1fs', designed - started)
+    story['page_count'] = len(story['pages']) + 2
     story["generated_on"] = today_in_timezone().isoformat()
     with tempfile.TemporaryDirectory(prefix="activity-pack-") as art_folder:
         generate_activity_images(story, config[grade_band], art_folder)
+        illustrated = time.monotonic()
+        logging.getLogger(__name__).info('Illustration and review stage complete: %.1fs', illustrated - designed)
         filename = (
             f"{today_in_timezone().isoformat()}_{slugify(grade_band)}_{slugify(story['title'])}-{uuid4().hex[:12]}.pdf"
         )
@@ -68,4 +76,7 @@ def generate_book(
         finally:
             staged.unlink(missing_ok=True)
             strip_local_art(story)
+    story['generation_seconds'] = round(time.monotonic() - started, 1)
+    logging.getLogger(__name__).info('PDF complete: %s pages; PDF stage %.1fs; total %.1fs',
+                                   story['page_count'], time.monotonic() - illustrated, story['generation_seconds'])
     return story, target

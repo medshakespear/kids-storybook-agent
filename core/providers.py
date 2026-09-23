@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from types import SimpleNamespace
 from openai import APIConnectionError, OpenAI
 from core.credential_pool import Credential, ProviderError, credential_pool, retry_after_seconds
+from core.runtime import int_setting
 
 TEXT_PROVIDERS = {
     "gemini": ("GEMINI_API_KEY", "GEMINI_TEXT_MODEL", "gemini-3.5-flash-lite",
@@ -76,11 +78,16 @@ class GeminiPoolClient:
         """Retry the same completion on another available key after a limit error."""
         if self._closed:
             raise RuntimeError("Text client is closed")
+        deadline = time.monotonic() + int_setting('GEMINI_CALL_BUDGET_SECONDS', 90, 15, 300)
+        timeout = int_setting('GEMINI_REQUEST_TIMEOUT_SECONDS', 45, 10, 120)
 
         def request(credential):
             """Close every SDK transport, including those returning errors."""
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ProviderError('gemini: request retry time budget exhausted; retry later.')
             api = OpenAI(api_key=credential.api_key, base_url=self.base_url,
-                         timeout=120, max_retries=0)
+                         timeout=min(timeout, remaining), max_retries=0)
             try:
                 return api.chat.completions.create(**kwargs)
             except Exception as exc:
@@ -88,7 +95,7 @@ class GeminiPoolClient:
             finally:
                 api.close()
 
-        return self.pool.run(request)
+        return self.pool.run(request, deadline=deadline)
 
     def close(self) -> None:
         """Close the facade; transports are already closed after each request."""

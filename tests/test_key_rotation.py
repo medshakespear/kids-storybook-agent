@@ -21,6 +21,7 @@ from core.providers import configured_credentials, text_client, validate_provide
 from tests.test_providers import STORY, CONFIG
 
 SLOTS = {
+    "IMAGE_WORKERS": "1",
     **{f"GEMINI_API_KEY_{i}": f"fake-text-secret-{i}" for i in range(1, 5)},
     **{f"CLOUDFLARE_API_TOKEN_{i}": f"fake-image-secret-{i}" for i in range(1, 5)},
     **{f"CLOUDFLARE_ACCOUNT_ID_{i}": str(i) * 32 for i in range(1, 5)},
@@ -98,8 +99,9 @@ class KeyRotationTests(unittest.TestCase):
         self.assertEqual([auth for auth, _ in seen], [f"Bearer fake-text-secret-{i}" for i in (1, 2, 3, 4, 4)])
         self.assertTrue(all(body == seen[0][1] for _, body in seen[:4]))
         self.assertNotIn("private upstream content", str(logs.output))
-        for value in SLOTS.values():
-            self.assertNotIn(value, str(logs.output))
+        for key, value in SLOTS.items():
+            if key != 'IMAGE_WORKERS':
+                self.assertNotIn(value, str(logs.output))
 
     def test_gemini_validation_repair_does_not_rotate(self):
         """Invalid JSON is a content repair, not an excuse to exhaust more keys."""

@@ -1,5 +1,6 @@
 """Offline checks for freeform AI design, rendering boundaries, and pipeline routing."""
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,7 +29,16 @@ def creative_fixture(band='Pre-K-K'):
     return dict(title='Garden Makers', overview='Investigate, invent and explain.', theme='Garden',
                 grade_band=band, resource_type='activity_pack', character_description='Original garden objects.',
                 art_direction='Teal, orange and yellow educational art.', design_engine='creative_html_v1',
-                cover=design_fixture(0), pages=[design_fixture(i) for i in range(cfg['activity_pages'])])
+                cover=cover_fixture(), pages=[design_fixture(i) for i in range(cfg['activity_pages'])])
+
+
+def cover_fixture():
+    """Provide a proper cover with reserved space for the real store logo."""
+    return dict(html='<h1 style="color:#0b787a;text-align:center;font-size:30pt">Garden Makers</h1>'
+                '<p style="text-align:center;color:#d56e44;font-size:17pt">Investigate • Invent • Explain</p>'
+                '<img data-asset="scene" style="width:180mm;height:125mm"/>'
+                '<p style="text-align:center;background-color:#dff4ef;padding:5mm">Creative classroom challenges</p>',
+                images=[dict(id='scene', prompt='An original potted plant on white.')])
 
 
 def attach_creative_test_art(pack, config, folder):
@@ -120,9 +130,9 @@ class CreativeTests(unittest.TestCase):
         def response(value):
             """Wrap fixture JSON as a chat completion without contacting a provider."""
             return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(value)))])
-        api.chat.completions.create.side_effect = [response(plan), response(design_fixture()),
+        api.chat.completions.create.side_effect = [response(plan), response(cover_fixture()),
                                                   response(design_fixture(1)), response(invalid), response(design_fixture(2))]
-        with patch('core.creative_generator.text_provider_names', return_value=['gemini']), patch('core.creative_generator.text_client', return_value=(api, 'test')), patch('core.creative_generator.time.sleep'):
+        with patch.dict(os.environ, {'DESIGN_WORKERS': '1'}), patch('core.creative_generator.text_provider_names', return_value=['gemini']), patch('core.creative_generator.text_client', return_value=(api, 'test')), patch('core.creative_generator.time.sleep'):
             pack = generate_creative_pack('Garden', 'Pre-K-K', config, source_context='Invent a garden tool.')
         self.assertEqual(pack['pages'][0]['html'], design_fixture(1)['html'])
         self.assertEqual(pack['pages'][1]['html'], design_fixture(2)['html'])

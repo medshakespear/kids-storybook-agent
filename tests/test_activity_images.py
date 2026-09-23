@@ -58,7 +58,7 @@ class IllustrationTests(unittest.TestCase):
             self.assertEqual(markup.count('class="sheet answer-sheet"'), 1)
             self.assertEqual(markup.count('class="key-block"'), len(self.pack['pages']))
             document = HTML(string=markup).render()
-            self.assertEqual(len(document.pages), 8)
+            self.assertEqual(len(document.pages), self.config["activity_pages"] + 2)
 
     def test_matching_picture_layout(self):
         """Four illustrated matching rows fit and answer letters reflect shuffling."""
@@ -70,4 +70,4 @@ class IllustrationTests(unittest.TestCase):
             attach_test_art(pack, folder)
             markup = build_activity_html(pack, config)
             self.assertIn('1: D', markup)
-            self.assertEqual(len(HTML(string=markup).render().pages), 8)
+            self.assertEqual(len(HTML(string=markup).render().pages), config["activity_pages"] + 2)

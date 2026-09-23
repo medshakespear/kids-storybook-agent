@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Callable, TypeVar
+from core.runtime import int_setting
 
 LOGGER = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -121,13 +122,16 @@ class CredentialPool:
         # Non-retryable here prevents the caller's content-repair loop from hammering the pool.
         return ProviderError(f"{self.provider}: no credential slots available. {hint}{details}")
 
-    def run(self, operation: Callable[[Credential], T]) -> T:
-        """Visit each slot once, with at most three attempts for transient failures."""
+    def run(self, operation: Callable[[Credential], T], *, deadline: float | None = None) -> T:
+        """Visit each slot once with bounded transient retries and an optional deadline."""
         attempted, failures = set(), []
+        attempts = int_setting('GEMINI_TRANSIENT_ATTEMPTS', 2, 1, 3) if self.provider == 'gemini' else 2
         while (index := self._select(attempted)) is not None:
             attempted.add(index)
             credential = self.credentials[index]
-            for attempt in range(3):
+            for attempt in range(attempts):
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise ProviderError(f'{self.provider}: request retry time budget exhausted; retry later.')
                 try:
                     result = operation(credential)
                     LOGGER.info("%s: using %s", self.provider, credential.label)
@@ -136,10 +140,13 @@ class CredentialPool:
                     if not error.rotate:
                         raise
                     transient = error.retryable and error.status_code not in {401, 403, 429}
-                    if transient and attempt < 2 and (error.retry_after or 0) <= 10:
+                    if transient and attempt < attempts - 1 and (error.retry_after or 0) <= 10:
                         delay = max(2 ** (attempt + 1) + random.random(), error.retry_after or 0)
-                        LOGGER.warning("%s: %s; retrying this slot in %.1fs (%s/3)",
-                                       credential.label, error, delay, attempt + 2)
+                        if deadline is not None and time.monotonic() + delay >= deadline:
+                            self._block(index, error)
+                            raise ProviderError(f'{self.provider}: request retry time budget exhausted; retry later.') from None
+                        LOGGER.warning("%s: %s; retrying this slot in %.1fs (%s/%s)",
+                                       credential.label, error, delay, attempt + 2, attempts)
                         time.sleep(delay)
                         with self._lock:
                             ready = self._blocked_until[index] <= time.monotonic()

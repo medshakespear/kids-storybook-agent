@@ -13,6 +13,7 @@ from core.activity_generator import ActivityGenerationError, _text
 from core.creative_layout import check_page, preflight_pack, PROPERTIES, TAGS
 from core.image_generator import generate_images
 from core.providers import text_provider_names, text_client, safe_api_error
+from core.runtime import int_setting, ordered_parallel
 
 LOGGER = logging.getLogger(__name__)
 
@@ -65,6 +66,8 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                                    'table widths including cell padding and spacing below 186mm. Avoid explicit '
                                    'percentage widths on table cells; use equal auto-width cells or a stacked layout. '
                                    'Do not hide overflow, remove questions, shrink text below 11pt or remove essential response space.')
+                        if label == 'Cover design':
+                            repair += ' The cover also reserves 41mm for the real store logo: keep YOUR fragment below 215mm, ideally 205mm.'
                     messages.append({'role': 'user', 'content': repair})
                 except Exception as exc:
                     failure = safe_api_error(provider, exc, model=model)
@@ -122,7 +125,7 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
             raise ValueError('Image IDs must be unique within the page')
         ids.add(asset['id'])
         asset['prompt'] = _text(asset.get('prompt'), 'illustration prompt', 650)
-    check_page(design, font)
+    check_page(design, font, cover=cover)
     return design
 
 
@@ -200,11 +203,16 @@ cover_brief <=800, pages exactly {count}: each title <=80, learning_goal <=650,
 activity_concept <=650, layout_brief <=650. No teacher guide.'''
     plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count), 'Creative plan', 6000)
     context = json.dumps({k: plan[k] for k in ('title', 'art_direction', 'character_description')})
-    cover = ask_json(f'Create an illustrated cover for {grade_band}. {context}\n{plan["cover_brief"]}\n'
-                     + layout_contract(font) + '\nThis is the cover: omit student tasks and answers. Include the pack title and grade.',
+    def design_unit(number):
+        """Author one independent page while preserving caller-owned page numbering."""
+        if number == 0:
+            return ask_json(f'Create an illustrated cover for {grade_band}. {context}\n{plan["cover_brief"]}\n'
+                     + layout_contract(font) + '\nThis is the cover: omit student tasks and answers. Include the pack title and grade. '
+                     'Python places the REAL store logo in a separate 41mm header above your content. '
+                     'Do not draw a logo or repeat the store name. Override the full-page height: '
+                     'YOUR cover fragment must be at most 215mm high; aim for 205mm including all spacing.',
                      lambda raw: validate_design(raw, font, cover=True), 'Cover design')
-    pages = []
-    for number, brief in enumerate(plan['pages'], 1):
+        brief = plan['pages'][number - 1]
         prompt = (f'Author student activity {number} for {grade_band}. Theme: {theme}. '
                   f'User context: {source_context or theme}. Skills: {config["skill_notes"]}.\n'
                   f'Art direction: {context}\nThis page brief: {json.dumps(brief)}\n'
@@ -213,7 +221,10 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
         page = ask_json(prompt, lambda raw: validate_design(raw, font), f'Activity design {number}')
         page = compact_answers(page, number)
         page.update(title=brief['title'], page_number=number)
-        pages.append(page)
+        LOGGER.info('Activity design %s/%s complete', number, count)
+        return page
+    designs = ordered_parallel(design_unit, range(count + 1), int_setting('DESIGN_WORKERS', 3, 1, 4))
+    cover, pages = designs[0], designs[1:]
     pack = dict(title=plan['title'], overview=plan['overview'], theme=theme, grade_band=grade_band,
                 character_description=plan['character_description'], art_direction=plan['art_direction'],
                 resource_type='activity_pack', design_engine='creative_html_v1', cover=cover, pages=pages)
@@ -222,18 +233,26 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
 
 
 def generate_creative_images(pack: dict, config: dict, folder) -> None:
-    """Generate the model's declared assets with one consistent, pack-specific style."""
+    """Generate original assets, then visually review and selectively repair them."""
+    from core.image_review import review_and_repair_images
+    started = time.monotonic()
     assets = [a for page in [pack['cover'], *pack['pages']] for a in page['images']]
     unique, indexes = [], {}
-    for asset in assets:
-        if asset['prompt'] not in indexes:
-            indexes[asset['prompt']] = len(unique)
-            unique.append({'page_number': len(unique) + 1, 'image_prompt': asset['prompt']})
+    for page in [pack['cover'], *pack['pages']]:
+        for asset in page['images']:
+            if asset['prompt'] not in indexes:
+                indexes[asset['prompt']] = len(unique)
+                unique.append({'page_number': len(unique) + 1, 'image_prompt': asset['prompt'], 'contexts': []})
+            unique[indexes[asset['prompt']]]['contexts'].append({
+                'asset_id_on_page': asset['id'], 'worksheet_html': page['html'],
+                'answers': page.get('answers', ''), 'page_number': page.get('page_number', 0)})
     image_pack = dict(pack, pages=unique)
     styles = dict(config, illustration_style=pack['art_direction'])
     paths = generate_images(image_pack, styles, folder)
     if len(paths) != len(unique):
         raise ValueError('Incomplete creative illustration set')
+    LOGGER.info('Image generation complete: %s unique illustrations in %.1fs', len(paths), time.monotonic() - started)
+    pack['image_review'] = review_and_repair_images(pack, styles, unique, paths, folder)
     for asset in assets:
         asset['path'] = str(paths[indexes[asset['prompt']]])
 

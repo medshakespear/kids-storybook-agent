@@ -6,9 +6,27 @@ import html
 import re
 from html.parser import HTMLParser
 from pathlib import Path
+from threading import RLock
+from functools import lru_cache
 
 import tinycss2
 from weasyprint import HTML, default_url_fetcher
+from core.paths import BASE_DIR
+
+RENDER_LOCK = RLock()
+
+
+@lru_cache(maxsize=1)
+def brand_header() -> str:
+    """Embed the original store logo; CSS removes only its surrounding white margin."""
+    data = base64.b64encode((BASE_DIR / 'assets' / 'store-logo.png').read_bytes()).decode()
+    return ('<div class="store-logo"><img alt="The Classroom Activity Collection" '
+            f'src="data:image/png;base64,{data}"/></div>')
+
+
+def cover_fragment(page: dict, preview: bool = False) -> str:
+    """Reserve cover space for branding before the model-authored composition."""
+    return brand_header() + fragment(page, preview)
 
 TAGS = {'div', 'section', 'p', 'span', 'strong', 'b', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'br', 'img'}
@@ -160,6 +178,8 @@ def document_markup(bodies: list[str], font: int = 13) -> str:
     article {{width:186mm;min-height:268mm;break-after:page;}}
     article:last-child {{break-after:auto;}}
     img {{object-fit:contain;max-width:100%;}} h1,h2,h3,h4,h5,h6,p {{margin:0 0 3mm;}}
+    .store-logo {{height:36mm;overflow:hidden;text-align:center;margin-bottom:5mm;}}
+    .store-logo img {{width:88mm;height:88mm;max-width:none;position:relative;top:-25mm;}}
     h4,h5,h6 {{font-size:1em;}}
     table {{width:100%;table-layout:fixed;}} td,th {{vertical-align:top;}}
     .key {{column-count:2;column-gap:8mm;font-size:10pt;}}
@@ -188,15 +208,16 @@ def check_document(document, expected: int) -> None:
                          + '. Reflow within 186mm width and 265mm height: reduce panel/image heights, padding and margins; use auto-width table cells. Preserve readable text and response space.')
 
 
-def check_page(page: dict, font: int) -> None:
+def check_page(page: dict, font: int, *, cover: bool = False) -> None:
     """Preflight AI layout before spending image quota using identical image dimensions."""
-    markup = document_markup([fragment(page, preview=True)], font)
-    check_document(HTML(string=markup, url_fetcher=data_only_fetcher).render(), 1)
+    markup = document_markup([cover_fragment(page, True) if cover else fragment(page, True)], font)
+    with RENDER_LOCK:
+        check_document(HTML(string=markup, url_fetcher=data_only_fetcher).render(), 1)
 
 
 def pack_markup(pack: dict, config: dict, preview: bool = False) -> str:
     """Compose model-authored pages and the single answer sheet for either render pass."""
-    bodies = [fragment(pack['cover'], preview)] + [fragment(p, preview) for p in pack['pages']]
+    bodies = [cover_fragment(pack['cover'], preview)] + [fragment(p, preview) for p in pack['pages']]
     keys = ''.join(f'<section><h3>{i}. {html.escape(p["title"])}</h3><p>{html.escape(p["answers"])}</p></section>' for i, p in enumerate(pack['pages'], 1))
     bodies.append('<h1>Answer Key</h1><p>Activity numbers match the student pages. Creative answers may vary.</p><div class="key">' + keys + '</div>')
     return document_markup(bodies, config.get('student_font_pt', 13))
@@ -204,15 +225,17 @@ def pack_markup(pack: dict, config: dict, preview: bool = False) -> str:
 
 def preflight_pack(pack: dict, config: dict) -> None:
     """Check the assembled book including the answer sheet before image API spending."""
-    doc = HTML(string=pack_markup(pack, config, preview=True), url_fetcher=data_only_fetcher).render()
-    check_document(doc, len(pack['pages']) + 2)
+    with RENDER_LOCK:
+        doc = HTML(string=pack_markup(pack, config, preview=True), url_fetcher=data_only_fetcher).render()
+        check_document(doc, len(pack['pages']) + 2)
 
 
 def build_creative_pdf(pack: dict, config: dict, output_path: str | Path) -> Path:
     """Preserve AI-authored cover and student designs and append one compact answer key."""
-    doc = HTML(string=pack_markup(pack, config), url_fetcher=data_only_fetcher).render()
-    check_document(doc, len(pack['pages']) + 2)
-    target = Path(output_path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    doc.write_pdf(str(target))
+    with RENDER_LOCK:
+        doc = HTML(string=pack_markup(pack, config), url_fetcher=data_only_fetcher).render()
+        check_document(doc, len(pack['pages']) + 2)
+        target = Path(output_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        doc.write_pdf(str(target))
     return target

@@ -100,6 +100,9 @@ def generate() -> tuple[object, int] | object:
                 "grade_band": grade_band,
                 "pdf_path": f"/output/{pdf_path.name}",
                 "download_url": download_url,
+                "page_count": story.get("page_count"),
+                "image_review": story.get("image_review"),
+                "generation_seconds": story.get("generation_seconds"),
             }
         )
     except Exception as exc:

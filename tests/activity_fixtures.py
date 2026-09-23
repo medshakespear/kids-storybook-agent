@@ -28,7 +28,7 @@ def sample_pack(band: str, config: dict) -> dict:
     kinds = ["count", "matching", "sort", "draw", "trace", "count"] if young else ["arithmetic", "matching", "sort", "reading", "draw", "reading", "arithmetic", "draw"]
     pages = []
     for index in range(config["activity_pages"]):
-        kind = kinds[index]
+        kind = kinds[index % len(kinds)]
         page = dict(type=kind, title=f"Garden Lab {index+1}: {kind.title()}",
                     objective="Observe details and explain a useful connection.",
                     instructions="Look closely. Complete the task and share your thinking with a partner.",

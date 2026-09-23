@@ -49,14 +49,14 @@ class TransientFailoverTests(unittest.TestCase):
         self.assertGreaterEqual(self.sleep.call_args.args[0], 2)
 
     def test_repeated_503_reaches_fourth_key_without_changing_request(self):
-        """After three attempts per failed key, the fourth can finish the same plan."""
+        """After two attempts per failed key, the fourth can finish the same plan."""
         self.handler = lambda request: httpx.Response(200, json=completion()) if request.headers["authorization"].endswith("-4") else httpx.Response(503, json={"error": {"message": "sensitive body"}})
         with self.assertLogs("core.credential_pool", level="WARNING") as logs:
             self.assertTrue(self.generate()["ok"])
         self.assertEqual([key for key, _ in self.seen],
-                         [f"Bearer fake-text-secret-{i}" for i in (1, 1, 1, 2, 2, 2, 3, 3, 3, 4)])
+                         [f"Bearer fake-text-secret-{i}" for i in (1, 1, 2, 2, 3, 3, 4)])
         self.assertTrue(all(body == self.seen[0][1] for _, body in self.seen))
-        self.assertEqual(self.sleep.call_count, 6)
+        self.assertEqual(self.sleep.call_count, 3)
         self.assertNotIn("sensitive body", str(logs.output))
         self.assertNotIn("fake-text-secret", str(logs.output))
         self.assertTrue(self.generate()["ok"])
@@ -69,16 +69,16 @@ class TransientFailoverTests(unittest.TestCase):
             with self.assertRaisesRegex(ActivityGenerationError, "temporarily unavailable") as error:
                 self.generate()
             self.assertNotIn("model availability", str(error.exception))
-            self.assertEqual(len(self.seen), 12)
-            self.assertEqual(self.sleep.call_count, 8)
+            self.assertEqual(len(self.seen), 8)
+            self.assertEqual(self.sleep.call_count, 4)
             clock.return_value = 159
             with self.assertRaisesRegex(ActivityGenerationError, "no credential slots available"):
                 self.generate()
-            self.assertEqual(len(self.seen), 12)
+            self.assertEqual(len(self.seen), 8)
             clock.return_value = 161
             self.handler = lambda request: httpx.Response(200, json=completion())
             self.assertTrue(self.generate()["ok"])
-            self.assertEqual(len(self.seen), 13)
+            self.assertEqual(len(self.seen), 9)
 
     def test_long_server_delay_cools_slots_without_short_retry(self):
         """Retry-After takes precedence and does not cause a long worker sleep."""
@@ -112,9 +112,9 @@ class TransientFailoverTests(unittest.TestCase):
 
         self.handler = handler
         self.assertTrue(self.generate()["ok"])
-        self.assertEqual(len(self.seen), 4)
+        self.assertEqual(len(self.seen), 3)
         self.assertEqual(self.seen[-1][0], "Bearer fake-text-secret-2")
-        self.assertEqual(self.sleep.call_count, 2)
+        self.assertEqual(self.sleep.call_count, 1)
 
     def test_bad_requests_and_missing_models_never_rotate(self):
         """A content/configuration problem must not spend twelve requests."""
@@ -140,3 +140,16 @@ class TransientFailoverTests(unittest.TestCase):
         self.assertEqual([key for key, _ in self.seen],
                          [f"Bearer fake-text-secret-{i}" for i in (1, 1, 2)])
         self.sleep.assert_called_once()
+
+    def test_slow_failure_exhausts_call_budget_without_more_requests(self):
+        """A slow provider cannot multiply its long timeout across four keys."""
+        with patch('core.credential_pool.time.monotonic', return_value=100) as clock:
+            def handler(request):
+                """Simulate a call that has consumed the completion's retry budget."""
+                clock.return_value = 191
+                return httpx.Response(503, json={})
+            self.handler = handler
+            with self.assertRaisesRegex(ActivityGenerationError, 'time budget exhausted'):
+                self.generate()
+        self.assertEqual(len(self.seen), 1)
+        self.sleep.assert_not_called()

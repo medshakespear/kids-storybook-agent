@@ -15,6 +15,7 @@ import requests
 from PIL import Image
 from core.providers import ProviderError, get_provider_pool, image_provider_name, safe_api_error
 from core.credential_pool import Credential, retry_after_seconds
+from core.runtime import int_setting, ordered_parallel
 
 STYLE_LOCK = (
     "Children's book illustration. Consistent warm teal, coral, golden yellow palette; "
@@ -55,7 +56,7 @@ def _cloudflare_request(prompt: str, credential: Credential) -> bytes:
             url,
             headers={"Authorization": f"Bearer {credential.api_key}"},
             json={"prompt": prompt, "steps": int(os.getenv("CLOUDFLARE_IMAGE_STEPS", "4"))},
-            timeout=(15, 180),
+            timeout=(10, int_setting('IMAGE_REQUEST_TIMEOUT_SECONDS', 60, 15, 180)),
         )
     except requests.RequestException:
         raise ProviderError("Cloudflare: network request failed.", True) from None
@@ -114,7 +115,7 @@ def _save_png(data: bytes, destination: Path) -> None:
 
 def generate_images(story: dict[str, Any], grade_band_config: dict[str, Any],
                     temp_dir: str | Path, *, client: Any = None,
-                    max_retries: int = 4) -> list[Path]:
+                    max_retries: int = 2) -> list[Path]:
     """Generate each page with bounded retries, preserving one provider per book."""
     if max_retries < 1:
         raise ValueError("max_retries must be positive")
@@ -125,25 +126,25 @@ def generate_images(story: dict[str, Any], grade_band_config: dict[str, Any],
         api = OpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=180, max_retries=0)
     destination_dir = Path(temp_dir)
     destination_dir.mkdir(parents=True, exist_ok=True)
-    paths = []
+    def generate_page(page):
+        """Generate one distinct asset without mutating shared page ordering."""
+        prompt = _image_prompt(story, page, grade_band_config["illustration_style"])
+        destination = destination_dir / f"page_{int(page['page_number']):02d}.png"
+        for attempt in range(max_retries):
+            try:
+                data = _cloudflare_image(prompt) if provider == "cloudflare" else _openai_image(api, prompt)
+                _save_png(data, destination)
+                logging.getLogger(__name__).info("Illustration %s: %s", page['page_number'], provider)
+                return destination
+            except Exception as exc:
+                destination.unlink(missing_ok=True)
+                error = safe_api_error(provider, exc)
+                if not error.retryable or attempt == max_retries - 1:
+                    raise ImageGenerationError(f"Page {page['page_number']}: {error}") from None
+                time.sleep(min(2 ** attempt + random.random(), 30))
     try:
-        for page in story["pages"]:
-            prompt = _image_prompt(story, page, grade_band_config["illustration_style"])
-            destination = destination_dir / f"page_{int(page['page_number']):02d}.png"
-            for attempt in range(max_retries):
-                try:
-                    data = _cloudflare_image(prompt) if provider == "cloudflare" else _openai_image(api, prompt)
-                    _save_png(data, destination)
-                    paths.append(destination)
-                    logging.getLogger(__name__).info("Illustration %s/%s: %s", len(paths), len(story["pages"]), provider)
-                    break
-                except Exception as exc:
-                    destination.unlink(missing_ok=True)
-                    error = safe_api_error(provider, exc)
-                    if not error.retryable or attempt == max_retries - 1:
-                        raise ImageGenerationError(f"Page {page['page_number']}: {error}") from None
-                    time.sleep(min(2 ** attempt + random.random(), 30))
-        return paths
+        return ordered_parallel(generate_page, story['pages'],
+                                1 if client is not None else int_setting('IMAGE_WORKERS', 3, 1, 4))
     finally:
         if api is not None and client is None:
             api.close()

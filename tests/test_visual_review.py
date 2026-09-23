@@ -1,5 +1,6 @@
 """Review actual image inputs, selective repairs, and refusal to publish unchecked art."""
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from core.image_review import ImageReviewError, review_batch, review_and_repair_images, validate_reviews
+from core.image_generator import _image_prompt
 from core.creative_generator import generate_creative_images
 from core.pipeline import generate_book, load_grade_config
 from tests.test_creative_design import creative_fixture, attach_creative_test_art
@@ -28,7 +30,7 @@ class VisualReviewTests(unittest.TestCase):
         self.config = load_grade_config()['Pre-K-K']
         attach_creative_test_art(self.pack, self.config, self.folder)
         self.images = [{'page_number': i, 'image_prompt': f'Original requirement {i}',
-                        'contexts': [{'worksheet_html': '<p>Which plant needs water?</p>', 'answers': 'The dry plant.'}]}
+                        'contexts': [{'page_number': i, 'asset_id_on_page': 'plant', 'worksheet_html': '<p>Which plant needs water?</p>', 'answers': 'The dry plant.'}]}
                        for i in (1, 2)]
         data = (Path(self.folder) / 'test-plant.png').read_bytes()
         self.paths = [Path(self.folder) / f'page_{i:02d}.png' for i in (1, 2)]
@@ -77,7 +79,7 @@ class VisualReviewTests(unittest.TestCase):
 
     def test_repeated_rejection_or_incomplete_repair_stops(self):
         """There is exactly one regeneration round, and no silent acceptance."""
-        with patch('core.image_review.review_batch', side_effect=[{1: verdict(False), 2: verdict()}, {1: verdict(False)}]), patch('core.image_review.generate_images', return_value=[self.paths[0]]) as generate:
+        with patch.dict(os.environ, {'IMAGE_REPAIR_ATTEMPTS': '1'}), patch('core.image_review.review_batch', side_effect=[{1: verdict(False), 2: verdict()}, {1: verdict(False)}]), patch('core.image_review.generate_images', return_value=[self.paths[0]]) as generate:
             with self.assertRaisesRegex(ImageReviewError, 'still failed'):
                 review_and_repair_images(self.pack, self.config, self.images, self.paths, self.folder)
             generate.assert_called_once()
@@ -113,3 +115,39 @@ class VisualReviewTests(unittest.TestCase):
                 review_batch(self.pack, self.images, dict(zip((1, 2), self.paths)))
         self.assertEqual(api.chat.completions.create.call_count, 2)
         api.close.assert_called_once()
+
+    def test_second_repair_uses_latest_feedback_and_keeps_approved_assets(self):
+        """Two distinct targeted prompts can recover one image without restarting others."""
+        second = dict(verdict(False), issues=['The watering can is hidden behind the plant.'],
+                      replacement_prompt='Plant on the left and watering can clearly separated on the right.')
+        with patch('core.image_review.review_batch', side_effect=[{1: verdict(), 2: verdict(False)},
+                    {2: second}, {2: verdict()}]) as review, patch('core.image_review.generate_images', return_value=[self.paths[1]]) as generate:
+            summary = review_and_repair_images(self.pack, self.config, self.images, self.paths, self.folder)
+        self.assertEqual(summary['regenerated'], 2)
+        self.assertEqual(generate.call_count, 2)
+        self.assertEqual(generate.call_args.args[0]['pages'][0]['image_prompt'], second['replacement_prompt'])
+        checked = review.call_args.args[1][0]
+        self.assertEqual(checked['image_prompt'], 'Original requirement 2')
+        self.assertEqual(checked['latest_generation_prompt'], second['replacement_prompt'])
+        self.assertEqual(checked['previous_issues'], second['issues'])
+        self.assertEqual(checked['repair_attempt'], 2)
+
+    def test_final_rejection_reports_defect_and_actual_pdf_page(self):
+        """Persistent failures explain their location instead of returning only image IDs."""
+        with patch('core.image_review.review_batch', side_effect=[{1: verdict(), 2: verdict(False)},
+                    {2: verdict(False)}, {2: verdict(False)}]), patch('core.image_review.generate_images', return_value=[self.paths[1]]) as generate:
+            with self.assertRaises(ImageReviewError) as error:
+                review_and_repair_images(self.pack, self.config, self.images, self.paths, self.folder)
+        self.assertEqual(generate.call_count, 2)
+        self.assertIn('Missing the required watering can', str(error.exception))
+        self.assertIn('activity 2 (PDF page 3)', str(error.exception))
+        self.assertEqual(error.exception.failures[0]['pdf_pages'], [3])
+
+    def test_corrective_scene_never_truncated_by_style(self):
+        """The complete scene, including an essential final correction, reaches Cloudflare."""
+        scene = 'An original plant scene. ' * 26 + 'MUST SHOW ROOTS.'
+        pack = dict(self.pack, character_description='C' * 350)
+        prompt = _image_prompt(pack, {'image_prompt': scene}, 'S' * 650)
+        self.assertLessEqual(len(prompt), 2048)
+        self.assertIn(scene, prompt)
+        self.assertIn(pack['character_description'], prompt)

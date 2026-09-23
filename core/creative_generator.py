@@ -245,6 +245,7 @@ def generate_creative_images(pack: dict, config: dict, folder) -> None:
                 unique.append({'page_number': len(unique) + 1, 'image_prompt': asset['prompt'], 'contexts': []})
             unique[indexes[asset['prompt']]]['contexts'].append({
                 'asset_id_on_page': asset['id'], 'worksheet_html': page['html'],
+                'page_title': page.get('title', pack['title']),
                 'answers': page.get('answers', ''), 'page_number': page.get('page_number', 0)})
     image_pack = dict(pack, pages=unique)
     styles = dict(config, illustration_style=pack['art_direction'])

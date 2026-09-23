@@ -111,6 +111,7 @@ def generate() -> tuple[object, int] | object:
             {
                 "error": "Activity-pack generation failed.",
                 "detail": str(exc),
+                "image_review_failures": getattr(exc, 'failures', []),
             }
         ), 500
 

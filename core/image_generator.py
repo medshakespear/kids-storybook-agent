@@ -34,6 +34,13 @@ def _image_prompt(story: dict, page: dict, style: str, limit: int = 2048) -> str
                 'Use the cast only when people are requested. Isolated objects contain no people. '
                 'No words, letters, numbers, logos, borders, labels or answer marks. '
                 'One composition, no panels. Full subject visible with generous white margins, no cropping.')
+        # Task-critical scene details (especially corrections near the end) must
+        # never be truncated to make room for decorative style instructions.
+        required = f"SCENE: {page['image_prompt']}\nCHARACTER: {description}\n{lock}\nSTYLE: "
+        available = limit - len(required)
+        if available < 0:
+            raise ValueError('Scene and character requirements exceed the image prompt limit')
+        return required + style[:available]
     prefix = f"CHARACTER: {description}\nSTYLE: {style}\n{lock}\nSCENE: "
     scene = page["image_prompt"].replace(description, "").strip(" .\n")
     available = limit - len(prefix)

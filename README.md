@@ -25,8 +25,8 @@ embeds artwork without cropping, and adds the single consolidated answer page.
 Cloudflare produces the artwork; Gemini decides what the art should show.
 Identical briefs are reused within a pack. Expect 10-12 design calls before retries
 and up to 36-44 image calls, depending on grade and design, plus one visual-review
-call per batch of up to four distinct images. Rejected images get one regeneration
-and a second review. Provider quotas
+call per batch of up to four distinct images. Rejected images get up to two targeted
+regenerations by default, each followed by another review. Provider quotas
 apply; free daily capacity is not guaranteed. Missing art fails the pack explicitly.
 The same cast/style brief is sent on every request; exact character consistency is
 not guaranteed. Automated visual review catches some errors but is not proof of
@@ -51,11 +51,20 @@ default) receives the **actual PNG images**, original prompts, relevant workshee
 HTML, and answers. It checks scene/task agreement, objects, relationships, visible
 quantity mistakes, anatomy, unwanted lettering, cropped subjects, and age suitability.
 Images used on several pages include every usage context in their review. Checks
-run in batches of up to four images. Only rejected images are regenerated, once,
-using corrected prompts, then reviewed again against the original requirements.
+run in batches of up to four images. Only rejected images are regenerated, up to
+`IMAGE_REPAIR_ATTEMPTS` times (default 2), using the latest corrected prompt, then
+reviewed again against the original requirements. Approved assets are retained.
+The reviewer receives the previous attempt's prompt and defects to make subsequent
+corrections more specific. Task-critical scene instructions are never shortened
+to accommodate decorative style text. Each asset is assessed for its own role,
+without demanding that it contain other images or elements supplied by HTML.
 If review is unavailable, returns invalid verdicts twice, or still rejects an
 image after regeneration, the pack fails explicitly instead of publishing
-unchecked artwork. The selected text model must support image inputs. No new
+unchecked artwork. Remaining failures name the image ID, affected activities,
+PDF page numbers, and specific defects. Webhook errors also return an
+`image_review_failures` list with those details. The `image_review.regenerated`
+success count measures regeneration calls, including repeated repairs of one image.
+The selected text model must support image inputs. No new
 API service or API key is required. The webhook returns `image_review`,
 `page_count`, and `generation_seconds` along with its download link.
 
@@ -70,6 +79,7 @@ Optional performance variables on **both** Railway services:
 | `GEMINI_CALL_BUDGET_SECONDS` | `90` | 15-300 | Budget for starting/retrying one completion |
 | `GEMINI_TRANSIENT_ATTEMPTS` | `2` | 1-3 | Attempts per slot for temporary failures |
 | `IMAGE_REQUEST_TIMEOUT_SECONDS` | `60` | 15-180 | Cloudflare response timeout |
+| `IMAGE_REPAIR_ATTEMPTS` | `2` | 1-3 | Targeted regeneration rounds per rejected image |
 
 These defaults work without adding variables. If your project's small rate limit
 cannot support parallel calls, reduce the three worker settings to `1`.

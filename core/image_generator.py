@@ -52,6 +52,14 @@ def _image_prompt(story: dict, page: dict, style: str, limit: int = 2048) -> str
     return prefix + scene[:available]
 
 
+def _sanitize_cloudflare_prompt(prompt: str, limit: int = 1800) -> str:
+    """Normalize prompts that Workers AI may reject as malformed or oversized."""
+    value = ' '.join(str(prompt).replace('\x00', ' ').split())
+    # Strip control characters while preserving ordinary Unicode text.
+    value = ''.join(ch for ch in value if ch == '\n' or ord(ch) >= 32)
+    return value[:limit].strip()
+
+
 def _cloudflare_image(prompt: str) -> bytes:
     """Repeat the identical image request on the next available credential slot."""
     return get_provider_pool("cloudflare").run(lambda credential: _cloudflare_request(prompt, credential))
@@ -84,6 +92,8 @@ def _cloudflare_request(prompt: str, credential: Credential) -> bytes:
                 now = datetime.now(timezone.utc)
                 reset = datetime.combine(now.date() + timedelta(days=1), datetime.min.time(), timezone.utc)
                 delay = max(delay or 0, (reset - now).total_seconds())
+        if status == 400:
+            raise ProviderError("Cloudflare: HTTP 400; image request rejected.", False, status_code=400)
         hint = "quota/rate limit reached" if status == 429 else "check API token, permissions and account ID"
         raise ProviderError(f"Cloudflare: HTTP {status}; {hint}.", status >= 500 or status == 408,
                             status_code=status, rotate=status in {401, 403, 429}, retry_after=delay)
@@ -140,6 +150,7 @@ def generate_images(story: dict[str, Any], grade_band_config: dict[str, Any],
         """Generate one distinct asset without mutating shared page ordering."""
         prompt = _image_prompt(story, page, grade_band_config["illustration_style"])
         destination = destination_dir / f"page_{int(page['page_number']):02d}.png"
+        sanitized_retry_used = False
         for attempt in range(max_retries):
             try:
                 data = _cloudflare_image(prompt) if provider == "cloudflare" else _openai_image(api, prompt)
@@ -149,6 +160,15 @@ def generate_images(story: dict[str, Any], grade_band_config: dict[str, Any],
             except Exception as exc:
                 destination.unlink(missing_ok=True)
                 error = safe_api_error(provider, exc)
+                if provider == "cloudflare" and error.status_code == 400 and not sanitized_retry_used:
+                    sanitized = _sanitize_cloudflare_prompt(prompt)
+                    if sanitized and sanitized != prompt:
+                        prompt = sanitized
+                        sanitized_retry_used = True
+                        logging.getLogger(__name__).warning(
+                            "Illustration %s: Cloudflare rejected prompt; retrying sanitized request",
+                            page['page_number'])
+                        continue
                 if not error.retryable or attempt == max_retries - 1:
                     raise ImageGenerationError(f"Page {page['page_number']}: {error}") from None
                 time.sleep(min(2 ** attempt + random.random(), 30))

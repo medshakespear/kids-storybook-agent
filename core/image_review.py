@@ -113,8 +113,66 @@ def review_batch(pack: dict, images: list[dict], paths: dict[int, Path]) -> dict
                 return validate_reviews(parse_design_json(choice.message.content or ''), {i['page_number'] for i in images})
             except (ValueError, TypeError, KeyError, IndexError):
                 if attempt == 1:
-                    raise ImageReviewError('Image visual review returned invalid verdicts twice; no unchecked PDF was published.') from None
+                    break
                 messages.append({'role': 'user', 'content': 'Return valid complete JSON: one verdict per supplied image ID, boolean approved, issues list, and a full replacement_prompt for rejected images.'})
+
+        # Some multimodal providers intermittently fail the batched JSON contract
+        # even when the underlying image judgment is available. Fall back to one
+        # image at a time with a much smaller schema instead of aborting the pack.
+        single_results = {}
+        for item in images:
+            number = item['page_number']
+            single_content = [
+                {'type': 'text', 'text': (
+                    'Review exactly ONE classroom illustration. Return JSON only in this exact shape: '
+                    '{"reviews":[{"image_id":N,"approved":true,"issues":[],"replacement_prompt":""}]}. '
+                    'Use the supplied image_id exactly. approved must be a JSON boolean. If rejected, provide 1-6 '
+                    'short concrete issues and a complete corrected replacement_prompt <=650 chars. If approved, '
+                    'issues must be [] and replacement_prompt must be "". Judge against original_prompt and uses. '
+                    'Do not add subjects absent from original_prompt.'
+                )},
+                {'type': 'text', 'text': json.dumps({
+                    'image_id': number,
+                    'original_prompt': item['image_prompt'],
+                    'uses': item['contexts'],
+                    'latest_generation_prompt': item.get('latest_generation_prompt', item['image_prompt']),
+                    'previous_issues': item.get('previous_issues', []),
+                    'repair_attempt': item.get('repair_attempt', 0)
+                })},
+                {'type': 'image_url', 'image_url': {
+                    'url': 'data:image/png;base64,' + base64.b64encode(paths[number].read_bytes()).decode()
+                }}
+            ]
+            valid = None
+            for single_attempt in range(2):
+                try:
+                    response = api.chat.completions.create(
+                        model=model,
+                        messages=[{'role': 'user', 'content': single_content}],
+                        response_format={'type': 'json_object'},
+                        temperature=0.0,
+                        max_completion_tokens=700
+                    )
+                    choice = response.choices[0]
+                    if getattr(choice, 'finish_reason', None) == 'length':
+                        raise ValueError('Single-image review JSON was truncated')
+                    valid = validate_reviews(
+                        parse_design_json(choice.message.content or ''), {number}
+                    )
+                    break
+                except (ValueError, TypeError, KeyError, IndexError):
+                    if single_attempt == 0:
+                        single_content.append({'type': 'text', 'text': (
+                            f'Return exactly one valid review object for image_id {number}. '
+                            'Do not include commentary or any other image IDs.'
+                        )})
+            if valid is None:
+                raise ImageReviewError(
+                    f'Image visual review returned invalid verdicts for image {number} after batch and singleton retries; '
+                    'no unchecked PDF was published.'
+                ) from None
+            single_results.update(valid)
+        return single_results
     finally:
         api.close()
 

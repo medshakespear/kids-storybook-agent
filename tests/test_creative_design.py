@@ -1,13 +1,14 @@
 """Offline checks for freeform AI design, rendering boundaries, and pipeline routing."""
 import json
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from core.creative_generator import _normalize_asset_prompt, _synchronize_asset_references, ask_json, validate_design, generate_creative_pack, compact_answers
+from core.creative_generator import _consolidate_image_manifest, _normalize_asset_prompt, _synchronize_asset_references, ask_json, validate_design, generate_creative_pack, compact_answers
 from core.creative_layout import clean_style, check_page, build_creative_pdf, fragment
 from core.pipeline import load_grade_config, generate_book
 from tests.activity_fixtures import attach_test_art
@@ -131,6 +132,22 @@ class CreativeTests(unittest.TestCase):
         validated = validate_design(page, 15)
         self.assertIn('data-asset="scene"', validated['html'])
         self.assertNotIn('data-asset="missing"', validated['html'])
+
+    def test_six_html_assets_are_consolidated_to_four(self):
+        """Six model-authored image slots are remapped onto four generated assets locally."""
+        page = design_fixture()
+        ids = ['img_drum1', 'img_drum2', 'img_drum3', 'img_drum4', 'img_drum5', 'img_mali']
+        page['html'] = '<h1>Music Match</h1>' + ''.join(
+            f'<img data-asset="{asset_id}" style="width:30mm;height:30mm"/>'
+            for asset_id in ids
+        )
+        page['images'] = [dict(id=asset_id, prompt=f'Original object {asset_id}.') for asset_id in ids]
+        validated = validate_design(page, 15)
+        self.assertEqual(len(validated['images']), 4)
+        kept = {asset['id'] for asset in validated['images']}
+        refs = set(re.findall(r'data-asset="([^"]+)"', validated['html']))
+        self.assertEqual(refs, kept)
+        self.assertLessEqual(len(refs), 4)
 
     def test_two_missing_cover_assets_are_injected_and_detected(self):
         """Multiple declared cover assets omitted from HTML are inserted and then recognized."""

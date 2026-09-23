@@ -143,6 +143,24 @@ class VisualReviewTests(unittest.TestCase):
         self.assertIn('physical shape, proportions, material, texture and distinctive parts', prompt)
         self.assertIn('Do not include the mistaken form or parts described above', prompt)
 
+    def test_second_repair_simplifies_persistent_anatomy_failures(self):
+        """Repeated anatomy defects trigger a hard-reset composition instead of more complex prompting."""
+        bad = {'approved': False,
+               'issues': [
+                   "The dog's hand is detached and floating beside the pole.",
+                   "The mouse's arm is detached from its body.",
+                   "The dog's neck and torso are distorted.",
+                   "The smoke alarm is hanging on a wire with no solid ceiling."
+               ],
+               'replacement_prompt': 'A dog, mouse, pole, and smoke alarm in a fire-safety scene.'}
+        prompt = _generation_repair_prompt('Original fire-safety scene.', bad, 2)
+        self.assertIn('HARD RESET AFTER FAILED ANATOMY REPAIR', prompt)
+        self.assertIn('remove decorative or unnecessary characters', prompt)
+        self.assertIn('hands attached to wrists', prompt)
+        self.assertIn('Avoid reaching, grabbing, twisting', prompt)
+        self.assertIn('solid wall or ceiling plane', prompt)
+        self.assertIn('never dangling from a wire', prompt)
+
     def test_final_rejection_reports_defect_and_actual_pdf_page(self):
         """Persistent failures explain their location instead of returning only image IDs."""
         with patch('core.image_review.review_batch', side_effect=[{1: verdict(), 2: verdict(False)},

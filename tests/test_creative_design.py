@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from core.creative_generator import validate_design, generate_creative_pack, compact_answers
+from core.creative_generator import ask_json, validate_design, generate_creative_pack, compact_answers
 from core.creative_layout import check_page, build_creative_pdf, fragment
 from core.pipeline import load_grade_config, generate_book
 from tests.activity_fixtures import attach_test_art
@@ -116,6 +116,31 @@ class CreativeTests(unittest.TestCase):
             response = webhook_server.app.test_client().post('/generate', json={'description':'Create a colorful garden invention challenge.', 'grade_band':'Pre-K-K'})
         self.assertEqual(response.status_code, 200)
         self.assertIn('garden invention', generate.call_args.kwargs['source_context'])
+
+    def test_asset_mismatch_reports_both_sides(self):
+        """A bad data-asset reference reports declared and referenced IDs in one validation error."""
+        page = design_fixture()
+        page['html'] = page['html'].replace('data-asset="scene"', 'data-asset="missing"')
+        with self.assertRaisesRegex(ValueError, r'declared IDs \[scene\].*HTML data-asset IDs \[missing\]'):
+            validate_design(page, 15)
+
+    def test_asset_validation_gets_manifest_sync_repair(self):
+        """Image-manifest failures receive exact instructions to synchronize HTML and images."""
+        api = Mock()
+        bad = design_fixture()
+        bad['html'] = bad['html'].replace('data-asset="scene"', 'data-asset="missing"')
+        good = design_fixture()
+        def response(value):
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(value)))])
+        api.chat.completions.create.side_effect = [response(bad), response(good)]
+        with patch('core.creative_generator.text_provider_names', return_value=['gemini']), patch(
+                'core.creative_generator.text_client', return_value=(api, 'test')), patch(
+                'core.creative_generator.time.sleep'):
+            result = ask_json('Create one activity.', lambda raw: validate_design(raw, 15), 'Activity design 2')
+        self.assertEqual(result['images'][0]['id'], 'scene')
+        repair = api.chat.completions.create.call_args_list[1].kwargs['messages'][-1]['content']
+        self.assertIn('Repair the image manifest and HTML together', repair)
+        self.assertIn('synchronize images[].id and every data-asset reference', repair)
 
     def test_page_retry_keeps_plan_and_completed_designs(self):
         """An invalid layout repairs only that page while preserving prior creative work."""

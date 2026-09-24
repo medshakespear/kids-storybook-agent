@@ -4,6 +4,7 @@ import io
 import json
 import os
 import tempfile
+import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
@@ -220,6 +221,25 @@ class PoolMechanicsTests(unittest.TestCase):
             self.assertEqual(list(executor.map(lambda _: pool.run(request), range(8))), ["three"] * 8)
         self.assertNotIn("two", calls)
         self.assertNotIn("secret", repr(pool.credentials))
+
+    def test_concurrent_callers_use_different_idle_credentials(self):
+        """Parallel requests reserve separate keys instead of piling onto the sticky cursor."""
+        pool = CredentialPool("gemini", (
+            Credential("one", "secret-one"),
+            Credential("two", "secret-two"),
+        ), 60)
+        barrier = threading.Barrier(2)
+        used = []
+
+        def request(credential):
+            used.append(credential.label)
+            barrier.wait(timeout=5)
+            return credential.label
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(lambda _: pool.run(request), range(2)))
+        self.assertEqual(set(results), {"one", "two"})
+        self.assertEqual(set(used), {"one", "two"})
 
     def test_retry_after_supports_dates_and_google_retry_info(self):
         """The longest valid server delay is honored and malformed values are ignored."""

@@ -95,6 +95,28 @@ class CreativeTests(unittest.TestCase):
             with self.subTest(body=body), self.assertRaises(ValueError):
                 fragment(page, preview=True)
 
+    def test_i_tag_is_normalized_to_emphasis(self):
+        """Harmless italic markup from the model is accepted as semantic emphasis."""
+        page = design_fixture()
+        page['html'] = page['html'].replace('Look at the plant.', '<i>Look at the plant.</i>')
+        rendered = fragment(page, preview=True)
+        self.assertIn('<em >Look at the plant.</em>', rendered)
+        self.assertNotIn('<i', rendered)
+
+    def test_inline_formatting_misnest_is_repaired_but_structure_stays_strict(self):
+        """Inline emphasis may auto-balance, while structural tag mistakes still fail."""
+        page = design_fixture()
+        page['html'] = page['html'].replace(
+            'Look at the plant.',
+            '<strong><em>Look at the plant.</strong>'
+        )
+        rendered = fragment(page, preview=True)
+        self.assertIn('Look at the plant.', rendered)
+        broken = design_fixture()
+        broken['html'] = '<div><p>Broken</div></p><img data-asset="scene" style="width:80mm;height:55mm"/>'
+        with self.assertRaisesRegex(ValueError, 'balanced and correctly nested'):
+            fragment(broken, preview=True)
+
     def test_line_height_is_normalized_instead_of_failing_generation(self):
         """Low, percentage, and normal line-heights are converted to safe numeric values."""
         self.assertIn('line-height:1.15', clean_style('line-height:1'))

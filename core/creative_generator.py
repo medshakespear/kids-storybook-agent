@@ -29,37 +29,66 @@ def parse_design_json(content: str) -> dict:
 
 
 def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
-    """Retry one bounded creative unit with its previous draft; preserve completed pages."""
-    errors, messages = [], [{'role': 'system', 'content': 'You are an original elementary curriculum designer and print art director. Return valid JSON only. Use single quotes for HTML attribute values inside JSON strings; escape any embedded double quotes and line breaks. No trailing commas or Markdown fences.'}, {'role': 'user', 'content': prompt}]
+    """Retry validation defects separately from transient provider transport failures."""
+    errors = []
+    messages = [
+        {'role': 'system', 'content': (
+            'You are an original elementary curriculum designer and print art director. '
+            'Return valid JSON only. Use single quotes for HTML attribute values inside JSON strings; '
+            'escape any embedded double quotes and line breaks. No trailing commas or Markdown fences.'
+        )},
+        {'role': 'user', 'content': prompt},
+    ]
+    max_validation_attempts = 3
+    max_transport_failures = 3
+
     for provider in text_provider_names():
         api, model = text_client(provider)
         try:
-            for attempt in range(3):
+            validation_attempt = 0
+            transport_failures = 0
+            while validation_attempt < max_validation_attempts:
                 content = None
                 try:
-                    LOGGER.info('%s: %s / %s attempt %s', label, provider, model, attempt + 1)
-                    response = api.chat.completions.create(model=model, messages=messages,
-                        response_format={'type': 'json_object'}, temperature=0.3 if len(messages) > 2 else 0.8,
-                        max_completion_tokens=tokens)
+                    LOGGER.info('%s: %s / %s attempt %s', label, provider, model,
+                                validation_attempt + 1)
+                    response = api.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        response_format={'type': 'json_object'},
+                        temperature=0.3 if len(messages) > 2 else 0.8,
+                        max_completion_tokens=tokens,
+                    )
                     content = response.choices[0].message.content
                     if not content:
                         raise ValueError('Empty design response')
                     if getattr(response.choices[0], 'finish_reason', None) == 'length':
-                        raise ValueError('Response was truncated by the token limit; return a shorter complete design with concise markup')
-                    return validate(parse_design_json(content))
+                        raise ValueError(
+                            'Response was truncated by the token limit; return a shorter complete '
+                            'design with concise markup'
+                        )
+                    result = validate(parse_design_json(content))
+                    return result
                 except (ValueError, TypeError, KeyError, IndexError) as exc:
+                    validation_attempt += 1
+                    transport_failures = 0
                     reason = f'{label}: {provider}: {exc}'
                     errors.append(reason)
                     LOGGER.warning('%s', reason)
+                    if validation_attempt >= max_validation_attempts:
+                        break
+
                     # Keep only the latest draft/correction instead of an expanding conversation.
                     messages = messages[:2]
                     if content:
                         messages.append({'role': 'assistant', 'content': content[:36000]})
                     repair = f'Correct only this unit and return complete JSON. Validation: {exc}'
                     if isinstance(exc, json.JSONDecodeError):
-                        repair += (' Repair JSON serialization only: check missing commas, unescaped double quotes '
-                                   'inside the html string, and literal line breaks. Use single-quoted HTML attributes. '
-                                   'Preserve the exercise and design rather than inventing a different page.')
+                        repair += (
+                            ' Repair JSON serialization only: check missing commas, unescaped double quotes '
+                            'inside the html string, and literal line breaks. Use single-quoted HTML attributes. '
+                            'Preserve the exercise and design rather than inventing a different page.'
+                        )
                     asset_error = str(exc).lower()
                     if ('illustration' in asset_error or 'data-asset' in asset_error or
                             'asset mismatch' in asset_error):
@@ -78,26 +107,39 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                                 'the image element or returning an unused images entry.'
                             )
                     if 'overflow' in asset_error or 'printable bounds' in asset_error:
-                        repair += (' Recompose this same activity more compactly. Budget at most 245mm of content '
-                                   'height including headings, margins, borders and response spaces. Keep total '
-                                   'table widths including cell padding and spacing below 186mm. Avoid explicit '
-                                   'percentage widths on table cells; use equal auto-width cells or a stacked layout. '
-                                   'Do not hide overflow, remove questions, shrink text below 11pt or remove essential response space.')
+                        repair += (
+                            ' Recompose this same activity more compactly. Budget at most 245mm of content '
+                            'height including headings, margins, borders and response spaces. Keep total '
+                            'table widths including cell padding and spacing below 186mm. Avoid explicit '
+                            'percentage widths on table cells; use equal auto-width cells or a stacked layout. '
+                            'Do not hide overflow, remove questions, shrink text below 11pt or remove essential '
+                            'response space.'
+                        )
                         if label == 'Cover design':
-                            repair += ' The cover also reserves 41mm for the real store logo: keep YOUR fragment below 215mm, ideally 205mm.'
+                            repair += (
+                                ' The cover also reserves 41mm for the real store logo: keep YOUR fragment '
+                                'below 215mm, ideally 205mm.'
+                            )
                     messages.append({'role': 'user', 'content': repair})
+                    time.sleep(min(2 ** max(validation_attempt - 1, 0) + random.random(), 10))
                 except Exception as exc:
                     failure = safe_api_error(provider, exc, model=model)
                     errors.append(f'{label}: {failure}')
                     LOGGER.warning('%s', errors[-1])
-                    if not failure.retryable or getattr(exc, 'status_code', None) == 429:
+                    if not failure.retryable:
                         break
-                if attempt < 2:
-                    time.sleep(min(2 ** attempt + random.random(), 10))
+
+                    # Transport/provider failures do not consume a content-validation attempt.
+                    transport_failures += 1
+                    if transport_failures >= max_transport_failures:
+                        break
+                    LOGGER.info(
+                        '%s: retrying the same design attempt after transient provider failure (%s/%s)',
+                        label, transport_failures + 1, max_transport_failures)
+                    time.sleep(min(2 ** (transport_failures - 1) + random.random(), 10))
         finally:
             api.close()
     raise ActivityGenerationError('; '.join(dict.fromkeys(errors))) from None
-
 
 def validate_plan(raw: dict, count: int) -> dict:
     """Validate bounded art direction and distinct activity concepts without a type menu."""

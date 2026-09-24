@@ -127,6 +127,33 @@ class TransientFailoverTests(unittest.TestCase):
                 self.assertEqual(len(self.seen), 1)
                 self.sleep.assert_not_called()
 
+    def test_transient_failure_does_not_consume_validation_attempt(self):
+        """Two invalid designs plus a provider outage still allow the third logical repair."""
+        sequence = [
+            completion('{"value": 1}'),
+            completion('{"value": 2}'),
+            None,
+            completion('{"value": 3}'),
+        ]
+        calls = {'count': 0}
+
+        def handler(request):
+            index = calls['count']
+            calls['count'] += 1
+            if sequence[index] is None:
+                return httpx.Response(503, json={})
+            return httpx.Response(200, json=sequence[index])
+
+        self.handler = handler
+        def validate(value):
+            if value.get('value') != 3:
+                raise ValueError('design still invalid')
+            return value
+
+        result = ask_json('repair me', validate, 'Activity design 1')
+        self.assertEqual(result['value'], 3)
+        self.assertEqual(len(self.seen), 4)
+
     def test_rate_limit_during_transient_retry_immediately_rotates(self):
         """A subsequent 429 stops retries of that key even before three attempts."""
         def handler(request):

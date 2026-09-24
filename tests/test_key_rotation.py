@@ -241,6 +241,33 @@ class PoolMechanicsTests(unittest.TestCase):
         self.assertEqual(set(results), {"one", "two"})
         self.assertEqual(set(used), {"one", "two"})
 
+    def test_all_transient_failures_are_retryable_but_quota_exhaustion_is_not(self):
+        """Temporary provider outages may retry later; quota exhaustion stays fail-fast."""
+        transient_pool = CredentialPool("gemini", (
+            Credential("one", "secret-one"),
+            Credential("two", "secret-two"),
+        ), 60)
+
+        def outage(_credential):
+            raise ProviderError("temporary", True, status_code=503, rotate=True)
+
+        with self.assertRaises(ProviderError) as transient_error:
+            transient_pool.run(outage)
+        self.assertTrue(transient_error.exception.retryable)
+        self.assertLessEqual(transient_error.exception.retry_after or 99, 15)
+
+        quota_pool = CredentialPool("gemini", (
+            Credential("one", "secret-one"),
+            Credential("two", "secret-two"),
+        ), 60)
+
+        def quota(_credential):
+            raise ProviderError("quota", True, status_code=429, rotate=True, retry_after=120)
+
+        with self.assertRaises(ProviderError) as quota_error:
+            quota_pool.run(quota)
+        self.assertFalse(quota_error.exception.retryable)
+
     def test_retry_after_supports_dates_and_google_retry_info(self):
         """The longest valid server delay is honored and malformed values are ignored."""
         future = format_datetime(datetime.now(timezone.utc) + timedelta(seconds=180), usegmt=True)

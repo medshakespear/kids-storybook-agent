@@ -178,18 +178,23 @@ class KeyRotationTests(unittest.TestCase):
         self.assertIn("/accounts/" + "3" * 32 + "/", post.call_args.args[0])
 
     def test_cloudflare_auth_switches_but_bad_requests_do_not(self):
-        """Rejected tokens fail over; malformed requests are reported immediately."""
-        for status, count in ((401, 2), (403, 2), (400, 1), (404, 1)):
+        """Auth rotates slots; a sanitized 400 retry stays on the same credential."""
+        for status, count in ((401, 2), (403, 2), (400, 2), (404, 1)):
             with self.subTest(status=status):
                 reset_credential_pools()
                 bad = Mock(status_code=status, headers={}, json=Mock(return_value={}))
                 with tempfile.TemporaryDirectory() as folder, patch("core.image_generator.requests.post", side_effect=[bad, image_response()]) as post:
-                    if status in {401, 403}:
+                    if status in {401, 403, 400}:
                         generate_images(STORY, CONFIG, folder)
                     else:
                         with self.assertRaises(ImageGenerationError):
                             generate_images(STORY, CONFIG, folder)
                     self.assertEqual(post.call_count, count)
+                    if status == 400:
+                        self.assertEqual(post.call_args_list[0].kwargs['headers'],
+                                         post.call_args_list[1].kwargs['headers'])
+                        self.assertNotEqual(post.call_args_list[0].kwargs['json']['prompt'],
+                                            post.call_args_list[1].kwargs['json']['prompt'])
 
 
 class PoolMechanicsTests(unittest.TestCase):

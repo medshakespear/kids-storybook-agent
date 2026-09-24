@@ -42,17 +42,17 @@ def main() -> int:
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(levelname)s %(name)s: %(message)s")
     try:
         validate_providers()
-    except ValueError as exc:
-        print(f"ERROR: {exc}", flush=True)
+        with CALENDAR_PATH.open("r", encoding="utf-8") as handle:
+            calendar = json.load(handle)
+        grade_config = load_grade_config()
+        state = fetch_library_state() or load_state()
+        count = _daily_count()
+        today = today_in_timezone()
+        specs = pick_daily_book_specs(calendar, state, count=count, today=today)
+    except (ValueError, OSError) as exc:
+        print(f"ERROR: Daily run setup failed: {exc}", flush=True)
         return 2
 
-    with CALENDAR_PATH.open("r", encoding="utf-8") as handle:
-        calendar = json.load(handle)
-    grade_config = load_grade_config()
-    state = fetch_library_state() or load_state()
-    count = _daily_count()
-    today = today_in_timezone()
-    specs = pick_daily_book_specs(calendar, state, count=count, today=today)
     successes: list[dict[str, str]] = []
     failures: list[dict[str, str]] = []
 

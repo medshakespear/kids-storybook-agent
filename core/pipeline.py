@@ -62,7 +62,7 @@ def generate_book(
     with tempfile.TemporaryDirectory(prefix="activity-pack-") as art_folder:
         generate_activity_images(story, config[grade_band], art_folder)
         illustrated = time.monotonic()
-        logging.getLogger(__name__).info('Illustration and review stage complete: %.1fs', illustrated - designed)
+        logging.getLogger(__name__).info('Illustration stage complete: %.1fs', illustrated - designed)
         filename = (
             f"{today_in_timezone().isoformat()}_{slugify(grade_band)}_{slugify(story['title'])}-{uuid4().hex[:12]}.pdf"
         )

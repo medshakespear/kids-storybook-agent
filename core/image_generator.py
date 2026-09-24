@@ -99,6 +99,8 @@ def _cloudflare_request(prompt: str, credential: Credential) -> bytes:
                             status_code=status, rotate=status in {401, 403, 429}, retry_after=delay)
     try:
         payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("Expected an object")
         if payload.get("success") is not True:
             raise ProviderError("Cloudflare rejected the image request; check Workers AI dashboard.")
         return base64.b64decode(payload["result"]["image"], validate=True)
@@ -160,7 +162,8 @@ def generate_images(story: dict[str, Any], grade_band_config: dict[str, Any],
             except Exception as exc:
                 destination.unlink(missing_ok=True)
                 error = safe_api_error(provider, exc)
-                if provider == "cloudflare" and error.status_code == 400 and not sanitized_retry_used:
+                if (provider == "cloudflare" and error.status_code == 400
+                        and not sanitized_retry_used and attempt < max_retries - 1):
                     sanitized = _sanitize_cloudflare_prompt(prompt)
                     if sanitized and sanitized != prompt:
                         prompt = sanitized

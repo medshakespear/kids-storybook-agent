@@ -24,21 +24,19 @@ Python supplies page boundaries, checks supported markup and printable bounds,
 embeds artwork without cropping, and adds the single consolidated answer page.
 Cloudflare produces the artwork; Gemini decides what the art should show.
 Identical briefs are reused within a pack. Expect 10-12 design calls before retries
-and up to 36-44 image calls, depending on grade and design, plus one visual-review
-call per batch of up to four distinct images. Rejected images get up to two targeted
-regenerations by default, each followed by another review. Provider quotas
-apply; free daily capacity is not guaranteed. Missing art fails the pack explicitly.
-The same cast/style brief is sent on every request; exact character consistency is
-not guaranteed. Automated visual review catches some errors but is not proof of
-correctness. Review that pictures agree with questions before using or selling.
+and up to 36-44 image calls, depending on grade and design. There are no AI image
+review calls or review-driven regenerations. Provider quotas still apply; free
+daily capacity is not guaranteed. Missing art fails the pack explicitly.
+Each image receives its own scene instructions and the shared rendering style;
+the global cast is not injected into object-only assets. Exact character
+consistency is not guaranteed. Check that pictures agree with questions before use.
 
 ## Faster generation, branding, and image checks
 
 Independent cover/student designs run in parallel after a single shared plan.
 Illustrations also run in parallel and keep their original page/asset ordering.
 Default concurrency is deliberately limited, and PDF rendering is serialized to
-keep the font/layout libraries safe. Logs report design, image generation, visual
-review, PDF assembly, and total elapsed time so slow stages are visible.
+keep the font/layout libraries safe. Logs report design, image generation, PDF assembly, and total elapsed time so slow stages are visible.
 
 The original logo is bundled at `assets/store-logo.png` and embedded directly by
 Python. Its bytes are unchanged; trusted cover CSS trims the surrounding white
@@ -46,27 +44,17 @@ margin in the displayed layout. The AI does not redraw it. A 41mm header is
 reserved before the generated cover content, including during layout checks.
 Existing PDFs remain unchanged; these settings apply to newly generated packs.
 
-After Cloudflare generates illustrations, the configured text provider (Gemini by
-default) receives the **actual PNG images**, original prompts, relevant worksheet
-HTML, and answers. It checks scene/task agreement, objects, relationships, visible
-quantity mistakes, anatomy, unwanted lettering, cropped subjects, and age suitability.
-Images used on several pages include every usage context in their review. Checks
-run in batches of up to four images. Only rejected images are regenerated, up to
-`IMAGE_REPAIR_ATTEMPTS` times (default 2), using the latest corrected prompt, then
-reviewed again against the original requirements. Approved assets are retained.
-The reviewer receives the previous attempt's prompt and defects to make subsequent
-corrections more specific. Task-critical scene instructions are never shortened
-to accommodate decorative style text. Each asset is assessed for its own role,
-without demanding that it contain other images or elements supplied by HTML.
-If review is unavailable, returns invalid verdicts twice, or still rejects an
-image after regeneration, the pack fails explicitly instead of publishing
-unchecked artwork. Remaining failures name the image ID, affected activities,
-PDF page numbers, and specific defects. Webhook errors also return an
-`image_review_failures` list with those details. The `image_review.regenerated`
-success count measures regeneration calls, including repeated repairs of one image.
-The selected text model must support image inputs. No new
-API service or API key is required. The webhook returns `image_review`,
-`page_count`, and `generation_seconds` along with its download link.
+AI image review is removed. Cloudflare artwork goes directly through local file
+validation and into the PDF; Gemini is used only for activity planning, text and
+page design. No image is sent to Gemini for approval or review-driven regeneration.
+Python still rejects missing, corrupt or undersized files and checks printable
+page bounds. These checks do not judge artistic or educational correctness.
+
+The webhook returns `image_review: {"status":"disabled","checked":0,"regenerated":0}`
+for compatibility, plus `image_validation`, `page_count`, and `generation_seconds`.
+Old `REVIEW_WORKERS` and `IMAGE_REPAIR_ATTEMPTS` variables are ignored and can be
+removed from Railway. No new variable or API key is needed. Deploy this commit on
+both services; existing PDFs remain available.
 
 Optional performance variables on **both** Railway services:
 
@@ -74,21 +62,18 @@ Optional performance variables on **both** Railway services:
 | --- | --- | --- | --- |
 | `DESIGN_WORKERS` | `3` | 1-4 | Independent page-design requests |
 | `IMAGE_WORKERS` | `3` | 1-4 | Independent image-generation requests |
-| `REVIEW_WORKERS` | `2` | 1-3 | Concurrent image-review batches |
-| `GEMINI_REQUEST_TIMEOUT_SECONDS` | `45` | 10-120 | Timeout for each text/vision request |
+| `GEMINI_REQUEST_TIMEOUT_SECONDS` | `45` | 10-120 | Timeout for each text request |
 | `GEMINI_CALL_BUDGET_SECONDS` | `90` | 15-300 | Budget for starting/retrying one completion |
 | `GEMINI_TRANSIENT_ATTEMPTS` | `2` | 1-3 | Attempts per slot for temporary failures |
 | `IMAGE_REQUEST_TIMEOUT_SECONDS` | `60` | 15-180 | Cloudflare response timeout |
-| `IMAGE_REPAIR_ATTEMPTS` | `2` | 1-3 | Targeted regeneration rounds per rejected image |
 
 These defaults work without adding variables. If your project's small rate limit
-cannot support parallel calls, reduce the three worker settings to `1`.
+cannot support parallel calls, reduce the two worker settings to `1`.
 An in-flight HTTP call remains governed by its transport timeouts; the completion
 budget prevents further retries after it is spent, not a strict whole-book deadline.
 Image requests have two attempts by default. Actual runtime depends on provider
-latency, quotas, artwork count, repairs and review; **three-minute generation is
-not guaranteed**, especially for longer packs with image checks. Vision review
-uses additional Gemini quota, and regenerations use additional image quota.
+latency, quotas, artwork count and page-design repairs; **three-minute generation
+is not guaranteed**. Removing AI image review eliminates its extra calls and retries.
 
 The PDFs are static and are NOT editable forms or personalized name books.
 No automatic class-name personalization is supplied. Originality and varied layouts
@@ -352,7 +337,7 @@ do not retain unfinished pages across container restarts.
 - `core/theme_picker.py`: current-event / evergreen themes and random grade batches.
 - `core/creative_generator.py`: AI activity planning, page design, repair and illustrations.
 - `core/creative_layout.py`: restricted HTML/CSS, print preflight, final PDF and answer page.
-- `core/image_review.py`: multimodal artwork review, selective regeneration, and final verdicts.
+- `core/image_review.py`: local image-file integrity checks only (no AI calls).
 - `core/runtime.py`: bounded configuration and ordered parallel work.
 - `core/pipeline.py`: shared activity generation and atomic PDF output.
 - `core/providers.py`: Gemini/OpenAI text routing and sanitized errors.

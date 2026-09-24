@@ -59,15 +59,22 @@ def generate() -> tuple[object, int] | object:
     if link is not None:
         if not isinstance(link, str) or len(link) > 2048:
             return jsonify(error='link must be a URL string.'), 400
-        parsed = urlparse(link)
-        if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
+        try:
+            parsed = urlparse(link)
+            valid_host = bool(parsed.hostname)
+            parsed.port  # Validate malformed ports before starting expensive work.
+        except ValueError:
+            return jsonify(error='link must be a valid http or https URL.'), 400
+        if not valid_host or parsed.scheme not in {'http', 'https'} or not parsed.netloc:
             return jsonify(error='link must be a valid http or https URL.'), 400
     if not link and not description:
         return jsonify(error='Provide a description or a reference link.'), 400
 
     try:
         grade_config = load_grade_config()
-        grade_band = payload.get("grade_band") or pick_webhook_grade_band(load_state())
+        grade_band = payload.get("grade_band")
+        if grade_band is None:
+            grade_band = pick_webhook_grade_band(load_state())
         if not isinstance(grade_band, str) or grade_band not in grade_config:
             return jsonify(
                 {
@@ -102,6 +109,7 @@ def generate() -> tuple[object, int] | object:
                 "download_url": download_url,
                 "page_count": story.get("page_count"),
                 "image_review": story.get("image_review"),
+                "image_validation": story.get("image_validation"),
                 "generation_seconds": story.get("generation_seconds"),
             }
         )

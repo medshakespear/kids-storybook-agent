@@ -161,6 +161,13 @@ def _consolidate_image_manifest(design: dict, *, cover: bool = False) -> tuple[l
     # Prefer assets actually referenced by the HTML, then any remaining valid
     # manifest entries. If Gemini omitted the manifest, synthesize from HTML IDs.
     by_id = {asset['id']: asset for asset in valid}
+    unknown = [asset_id for asset_id in refs if asset_id not in by_id]
+    missing = [asset_id for asset_id in by_id if asset_id not in refs]
+    if unknown and len(unknown) == len(missing):
+        # Rebind misspelled slots before inventing fallback prompts or extra art.
+        html = _synchronize_asset_references(html, list(by_id))
+        refs = list(dict.fromkeys(re.findall(
+            r"<img\b[^>]*\bdata-asset=['\"]([^'\"]+)['\"]", html, re.I)))
     ordered = []
     for asset_id in refs:
         if asset_id in by_id:
@@ -212,7 +219,7 @@ def _synchronize_asset_references(html: str, ids: list[str]) -> str:
         for old, new in mapping.items():
             html = re.sub(
                 rf"(\bdata-asset=['\"]){re.escape(old)}(['\"])",
-                rf"\\g<1>{new}\\g<2>", html, flags=re.I)
+                rf"\g<1>{new}\g<2>", html, flags=re.I)
         refs = re.findall(r"<img\b[^>]*\bdata-asset=['\"]([^'\"]+)['\"]", html, re.I)
         referenced_set = set(refs)
         missing = [asset_id for asset_id in declared if asset_id not in referenced_set]
@@ -327,7 +334,7 @@ to dominate lower-grade student pages. Keep white response areas practical for p
 Honor the user's specific subject and description; treat reference links only as inspiration.
 No copying commercial artwork/wording/characters, invented facts, stereotypes or standards claims.
 Return JSON: title <=80 chars, overview <=350, art_direction <=650 (specific palette and cohesive
-rendering style), character_description <=350 (original cast, or object design language),
+rendering style only, no character or scene instructions), character_description <=350 (original cast, or object design language),
 cover_brief <=800, pages exactly {count}: each title <=80, learning_goal <=650,
 activity_concept <=650, layout_brief <=650. No teacher guide.'''
     plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count), 'Creative plan', 6000)
@@ -362,8 +369,8 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
 
 
 def generate_creative_images(pack: dict, config: dict, folder) -> None:
-    """Generate original assets, then visually review and selectively repair them."""
-    from core.image_review import review_and_repair_images
+    """Generate assets once and check file integrity locally before PDF assembly."""
+    from core.image_review import validate_image_files
     started = time.monotonic()
     assets = [a for page in [pack['cover'], *pack['pages']] for a in page['images']]
     unique, indexes = [], {}
@@ -371,18 +378,16 @@ def generate_creative_images(pack: dict, config: dict, folder) -> None:
         for asset in page['images']:
             if asset['prompt'] not in indexes:
                 indexes[asset['prompt']] = len(unique)
-                unique.append({'page_number': len(unique) + 1, 'image_prompt': asset['prompt'], 'contexts': []})
-            unique[indexes[asset['prompt']]]['contexts'].append({
-                'asset_id_on_page': asset['id'], 'worksheet_html': page['html'],
-                'page_title': page.get('title', pack['title']),
-                'answers': page.get('answers', ''), 'page_number': page.get('page_number', 0)})
+                unique.append({'page_number': len(unique) + 1, 'image_prompt': asset['prompt']})
     image_pack = dict(pack, pages=unique)
     styles = dict(config, illustration_style=pack['art_direction'])
     paths = generate_images(image_pack, styles, folder)
     if len(paths) != len(unique):
         raise ValueError('Incomplete creative illustration set')
     LOGGER.info('Image generation complete: %s unique illustrations in %.1fs', len(paths), time.monotonic() - started)
-    pack['image_review'] = review_and_repair_images(pack, styles, unique, paths, folder)
+    pack['image_validation'] = validate_image_files(paths, len(unique))
+    pack['image_review'] = {'status': 'disabled', 'checked': 0, 'regenerated': 0}
+    LOGGER.info('Illustration files valid: %s; AI image review disabled', len(paths))
     for asset in assets:
         asset['path'] = str(paths[indexes[asset['prompt']]])
 

@@ -12,7 +12,7 @@ import httpx
 from openai import OpenAI
 from PIL import Image
 
-from core.providers import validate_providers, text_provider_names, text_client
+from core.providers import validate_providers, text_provider_names, text_client, text_worker_limit
 from core.credential_pool import reset_credential_pools
 from core.story_generator import generate_story, StoryGenerationError
 from core.image_generator import generate_images, ImageGenerationError, _image_prompt, _sanitize_cloudflare_prompt
@@ -44,6 +44,19 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(str(api.base_url), "https://generativelanguage.googleapis.com/v1beta/openai/")
         self.assertEqual(model, "gemini-3.5-flash-lite")
         api.close()
+
+    def test_gemini_worker_limit_matches_configured_key_capacity(self):
+        """Design concurrency never exceeds the number of configured Gemini credentials."""
+        with patch.dict(os.environ, {"TEXT_PROVIDER": "gemini", "GEMINI_API_KEY": "one"}, clear=True):
+            reset_credential_pools()
+            self.assertEqual(text_worker_limit(3), 1)
+        with patch.dict(os.environ, {
+                "TEXT_PROVIDER": "gemini",
+                "GEMINI_API_KEY_1": "one",
+                "GEMINI_API_KEY_2": "two",
+        }, clear=True):
+            reset_credential_pools()
+            self.assertEqual(text_worker_limit(3), 2)
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "old-key"}, clear=True)
     def test_old_openai_key_does_not_enable_paid_calls(self):

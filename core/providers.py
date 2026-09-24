@@ -78,8 +78,8 @@ class GeminiPoolClient:
         """Retry the same completion on another available key after a limit error."""
         if self._closed:
             raise RuntimeError("Text client is closed")
-        deadline = time.monotonic() + int_setting('GEMINI_CALL_BUDGET_SECONDS', 90, 15, 300)
-        timeout = int_setting('GEMINI_REQUEST_TIMEOUT_SECONDS', 45, 10, 120)
+        deadline = time.monotonic() + int_setting('GEMINI_CALL_BUDGET_SECONDS', 180, 30, 300)
+        timeout = int_setting('GEMINI_REQUEST_TIMEOUT_SECONDS', 40, 10, 120)
 
         def request(credential):
             """Close every SDK transport, including those returning errors."""

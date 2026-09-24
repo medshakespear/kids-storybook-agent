@@ -39,13 +39,12 @@ class TransientFailoverTests(unittest.TestCase):
         """Exercise the same creative-plan call site as production generation."""
         return ask_json("Preserve this creative plan", lambda value: value, "Creative plan")
 
-    def test_brief_503_rotates_immediately_to_next_key(self):
-        """A transient Gemini failure advances to the next key without wasting a same-key retry."""
+    def test_brief_503_retries_same_key(self):
+        """A transient Gemini failure retries the same sticky key."""
         self.handler = lambda request: httpx.Response(503, json={}) if len(self.seen) == 1 else httpx.Response(200, json=completion())
         self.assertTrue(self.generate()["ok"])
         self.assertEqual(len(self.seen), 2)
-        self.assertNotEqual(self.seen[0][0], self.seen[1][0])
-        self.sleep.assert_not_called()
+        self.assertEqual(self.seen[0][0], self.seen[1][0])
 
     def test_repeated_503_reaches_fourth_key_without_changing_request(self):
         """After two attempts per failed key, the fourth can finish the same plan."""
@@ -101,8 +100,8 @@ class TransientFailoverTests(unittest.TestCase):
         self.assertTrue(self.generate()["ok"])
         self.sleep.assert_called_once_with(7.0)
 
-    def test_connection_timeouts_rotate_to_next_key(self):
-        """Actual SDK timeout exceptions immediately advance to another Gemini key."""
+    def test_connection_timeouts_retry_same_key(self):
+        """Actual SDK timeout exceptions keep using the same Gemini key."""
         def handler(request):
             """Simulate timeouts on key one and success on the second key."""
             if request.headers["authorization"].endswith("-1"):
@@ -112,8 +111,7 @@ class TransientFailoverTests(unittest.TestCase):
         self.handler = handler
         self.assertTrue(self.generate()["ok"])
         self.assertEqual(len(self.seen), 2)
-        self.assertEqual(self.seen[-1][0], "Bearer fake-text-secret-2")
-        self.sleep.assert_not_called()
+        self.assertEqual(self.seen[0][0], self.seen[1][0])
 
     def test_bad_requests_and_missing_models_never_rotate(self):
         """A content/configuration problem must not spend twelve requests."""

@@ -46,19 +46,16 @@ class TransientFailoverTests(unittest.TestCase):
         self.assertEqual(len(self.seen), 2)
         self.assertEqual(self.seen[0][0], self.seen[1][0])
 
-    def test_repeated_503_reaches_fourth_key_without_changing_request(self):
-        """After two attempts per failed key, the fourth can finish the same plan."""
-        self.handler = lambda request: httpx.Response(200, json=completion()) if request.headers["authorization"].endswith("-4") else httpx.Response(503, json={"error": {"message": "sensitive body"}})
-        with self.assertLogs("core.credential_pool", level="WARNING") as logs:
-            self.assertTrue(self.generate()["ok"])
-        self.assertEqual([key for key, _ in self.seen],
-                         [f"Bearer fake-text-secret-{i}" for i in (1, 1, 2, 2, 3, 3, 4)])
-        self.assertTrue(all(body == self.seen[0][1] for _, body in self.seen))
-        self.assertEqual(self.sleep.call_count, 3)
-        self.assertNotIn("sensitive body", str(logs.output))
-        self.assertNotIn("fake-text-secret", str(logs.output))
-        self.assertTrue(self.generate()["ok"])
-        self.assertEqual(self.seen[-1][0], "Bearer fake-text-secret-4")
+    def test_repeated_503_stays_on_same_key(self):
+        """Repeated Gemini outages never consume another key's quota."""
+        self.handler = lambda request: httpx.Response(
+            503, json={"error": {"message": "temporary upstream outage"}})
+        with self.assertRaises(ActivityGenerationError):
+            self.generate()
+        self.assertGreaterEqual(len(self.seen), 1)
+        first_key = self.seen[0][0]
+        self.assertTrue(all(key == first_key for key, _ in self.seen))
+
 
     def test_all_503_bounded_and_keys_recover_after_cooldown(self):
         """Pool exhaustion prevents multiplied outer retries and does not disable keys."""

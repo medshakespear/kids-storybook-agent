@@ -66,6 +66,33 @@ class LayoutReflowTests(unittest.TestCase):
         self.assertEqual(len(text_boxes), 14)
         self.assertTrue(all(abs(box.style['font_size'] - 14 * 96 / 72) < .01 for box in text_boxes))
 
+    def test_unsupported_decorative_css_is_dropped_locally(self):
+        """Background images and positioning do not consume a Gemini repair attempt."""
+        cleaned = clean_style(
+            'background-image:linear-gradient(red, blue);position:relative;top:2mm;'
+            'background-color:#eef4f5;padding:4mm'
+        )
+        self.assertNotIn('background-image', cleaned)
+        self.assertNotIn('position', cleaned)
+        self.assertNotIn('top:', cleaned)
+        self.assertIn('background-color:#eef4f5', cleaned)
+        self.assertIn('padding:4mm', cleaned)
+
+    def test_deterministic_spacing_compaction_can_rescue_fixed_height_page(self):
+        """Excessive model-authored fixed spacing is clamped before requesting a redesign."""
+        page = design_fixture()
+        page['html'] = (
+            '<img data-asset="scene" style="width:80mm;height:70mm"/>'
+            '<div style="padding:18mm;margin-bottom:14mm;height:150mm">'
+            '<h2>Reason and Reflect</h2><p>Explain your thinking with evidence.</p>'
+            '<p>____________________________________________________________</p>'
+            '</div>'
+        )
+        fixed = validate_design(page, 12)
+        self.assertIn('height:90mm', fixed['html'])
+        self.assertIn('padding:6mm', fixed['html'])
+        self.assertIn('margin-bottom:6mm', fixed['html'])
+
     def test_large_fixed_response_area_is_not_clipped_or_shrunk(self):
         """An impossible page still requires model reflow instead of losing content."""
         page = design_fixture()

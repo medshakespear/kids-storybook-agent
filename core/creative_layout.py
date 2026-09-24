@@ -32,6 +32,7 @@ TAGS = {'div', 'section', 'p', 'span', 'strong', 'b', 'em', 'h1', 'h2', 'h3', 'h
         'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'br', 'img'}
 TAG_ALIASES = {'i': 'em'}
 INLINE_TAGS = {'span', 'strong', 'b', 'em'}
+DROP_PROPERTIES = {'background-image', 'position', 'top', 'right', 'bottom', 'left', 'z-index'}
 PROPERTIES = {'color', 'background-color', 'border', 'border-color', 'border-width',
               'border-style', 'border-radius', 'border-top', 'border-bottom',
               'border-left', 'border-right', 'padding', 'padding-top', 'padding-bottom',
@@ -58,6 +59,8 @@ def clean_style(value: str) -> str:
     for decl in declarations:
         if decl.type != 'declaration':
             raise ValueError('Malformed inline CSS: use property:value declarations separated by semicolons')
+        if decl.lower_name in DROP_PROPERTIES:
+            continue
         if decl.lower_name not in PROPERTIES:
             raise ValueError(f'Unsupported CSS property "{decl.lower_name}"; remove it or use a listed print property')
         # Priority flags are unnecessary in these isolated fragments; keep the value.
@@ -254,22 +257,55 @@ def check_document(document, expected: int) -> None:
                          + '. Reflow within 186mm width and 265mm height: reduce panel/image heights, padding and margins; use auto-width table cells. Preserve readable text and response space.')
 
 
+def _tighten_explicit_spacing(html_value: str) -> str:
+    """Clamp excessive fixed spacing/heights as a last local fit attempt."""
+    def replace(match):
+        name = match.group(1).lower()
+        value = float(match.group(2))
+        unit = match.group(3).lower()
+        if unit != 'mm':
+            return match.group(0)
+        limits = {
+            'margin-top': 6, 'margin-bottom': 6, 'margin-left': 6, 'margin-right': 6,
+            'padding-top': 6, 'padding-bottom': 6, 'padding-left': 6, 'padding-right': 6,
+            'height': 90, 'min-height': 90, 'max-height': 120,
+        }
+        if name == 'margin':
+            limit = 6
+        elif name == 'padding':
+            limit = 6
+        else:
+            limit = limits.get(name)
+        if limit is None or value <= limit:
+            return match.group(0)
+        return f'{name}:{limit:g}mm'
+    pattern = r'\b(margin(?:-(?:top|right|bottom|left))?|padding(?:-(?:top|right|bottom|left))?|height|min-height|max-height)\s*:\s*(\d+(?:\.\d+)?)(mm)\b'
+    return re.sub(pattern, replace, html_value, flags=re.I)
+
+
 def check_page(page: dict, font: int, *, cover: bool = False) -> None:
     """Try measured local reflow before requesting another model-authored design."""
     page.pop('print_layout', None)
+    original_html = page['html']
     with RENDER_LOCK:
-        for mode in ('', 'reflow', 'compact'):
-            if mode:
-                page['print_layout'] = mode
-            markup = document_markup([cover_fragment(page, True) if cover else fragment(page, True)], font)
-            doc = HTML(string=markup, url_fetcher=data_only_fetcher).render()
-            try:
-                check_document(doc, 1)
-                return
-            except ValueError:
-                if mode == 'compact':
+        for tightened in (False, True):
+            if tightened:
+                page['html'] = _tighten_explicit_spacing(original_html)
+            for mode in ('', 'reflow', 'compact'):
+                if mode:
+                    page['print_layout'] = mode
+                else:
                     page.pop('print_layout', None)
-                    raise
+                markup = document_markup([cover_fragment(page, True) if cover else fragment(page, True)], font)
+                doc = HTML(string=markup, url_fetcher=data_only_fetcher).render()
+                try:
+                    check_document(doc, 1)
+                    return
+                except ValueError:
+                    continue
+        page['html'] = original_html
+        page.pop('print_layout', None)
+        raise ValueError('Design overflow: local reflow and deterministic spacing compaction could not fit the page')
 
 
 def pack_markup(pack: dict, config: dict, preview: bool = False) -> str:

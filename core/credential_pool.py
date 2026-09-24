@@ -84,19 +84,38 @@ class CredentialPool:
         self.credentials = credentials
         self.cooldown = cooldown
         self._blocked_until = [0.0] * len(credentials)
+        self._in_flight = [False] * len(credentials)
         self._cursor = 0
         self._lock = threading.Lock()
+        self._condition = threading.Condition(self._lock)
 
-    def _select(self, attempted: set[int]) -> int | None:
-        """Choose an eligible slot under the lock; never wait while holding it."""
-        with self._lock:
-            now = time.monotonic()
-            for offset in range(len(self.credentials)):
-                index = (self._cursor + offset) % len(self.credentials)
-                if index not in attempted and self._blocked_until[index] <= now:
-                    self._cursor = index
-                    return index
-        return None
+    def _select(self, attempted: set[int], deadline: float | None = None) -> int | None:
+        """Reserve one eligible idle slot; concurrent callers spread across credentials."""
+        with self._condition:
+            while True:
+                now = time.monotonic()
+                eligible = []
+                for offset in range(len(self.credentials)):
+                    index = (self._cursor + offset) % len(self.credentials)
+                    if index not in attempted and self._blocked_until[index] <= now:
+                        eligible.append(index)
+                        if not self._in_flight[index]:
+                            self._in_flight[index] = True
+                            self._cursor = index
+                            return index
+                if not eligible:
+                    return None
+                if deadline is not None and now >= deadline:
+                    raise ProviderError(
+                        f'{self.provider}: request retry time budget exhausted; retry later.', True)
+                wait = 0.25 if deadline is None else max(0.01, min(0.25, deadline - now))
+                self._condition.wait(timeout=wait)
+
+    def _release(self, index: int) -> None:
+        """Release a reserved credential and wake callers waiting for an idle slot."""
+        with self._condition:
+            self._in_flight[index] = False
+            self._condition.notify_all()
 
     def _block(self, index: int, error: ProviderError) -> None:
         """Apply quota cooldowns to known shared groups and disable rejected keys."""
@@ -126,39 +145,42 @@ class CredentialPool:
         """Visit each slot once with bounded transient retries and an optional deadline."""
         attempted, failures = set(), []
         attempts = int_setting('GEMINI_TRANSIENT_ATTEMPTS', 2, 1, 3) if self.provider == 'gemini' else 2
-        while (index := self._select(attempted)) is not None:
+        while (index := self._select(attempted, deadline)) is not None:
             attempted.add(index)
             credential = self.credentials[index]
-            for attempt in range(attempts):
-                if deadline is not None and time.monotonic() >= deadline:
-                    raise ProviderError(f'{self.provider}: request retry time budget exhausted; retry later.')
-                try:
-                    result = operation(credential)
-                    LOGGER.info("%s: using %s", self.provider, credential.label)
-                    return result
-                except ProviderError as error:
-                    if not error.rotate:
-                        raise
-                    transient = error.retryable and error.status_code not in {401, 403, 429}
-                    if transient and attempt < attempts - 1 and (error.retry_after or 0) <= 10:
-                        delay = max(2 ** (attempt + 1) + random.random(), error.retry_after or 0)
-                        if deadline is not None and time.monotonic() + delay >= deadline:
-                            self._block(index, error)
-                            raise ProviderError(f'{self.provider}: request retry time budget exhausted; retry later.') from None
-                        LOGGER.warning("%s: %s; retrying this slot in %.1fs (%s/%s)",
-                                       credential.label, error, delay, attempt + 2, attempts)
-                        time.sleep(delay)
-                        with self._lock:
-                            ready = self._blocked_until[index] <= time.monotonic()
-                        if ready:
-                            continue
-                    # Do not block the worker on a long Retry-After or permanently
-                    # disable a key just because its provider had a temporary outage.
-                    self._block(index, error)
-                    failure = f"{credential.label}: {error}"
-                    failures.append(failure)
-                    LOGGER.warning("%s; trying the next available slot", failure)
-                    break
+            try:
+                for attempt in range(attempts):
+                    if deadline is not None and time.monotonic() >= deadline:
+                        raise ProviderError(
+                            f'{self.provider}: request retry time budget exhausted; retry later.', True)
+                    try:
+                        result = operation(credential)
+                        LOGGER.info("%s: using %s", self.provider, credential.label)
+                        return result
+                    except ProviderError as error:
+                        if not error.rotate:
+                            raise
+                        transient = error.retryable and error.status_code not in {401, 403, 429}
+                        if transient and attempt < attempts - 1 and (error.retry_after or 0) <= 10:
+                            delay = max(2 ** (attempt + 1) + random.random(), error.retry_after or 0)
+                            if deadline is not None and time.monotonic() + delay >= deadline:
+                                self._block(index, error)
+                                raise ProviderError(
+                                    f'{self.provider}: request retry time budget exhausted; retry later.', True) from None
+                            LOGGER.warning("%s: %s; retrying this slot in %.1fs (%s/%s)",
+                                           credential.label, error, delay, attempt + 2, attempts)
+                            time.sleep(delay)
+                            with self._lock:
+                                ready = self._blocked_until[index] <= time.monotonic()
+                            if ready:
+                                continue
+                        self._block(index, error)
+                        failure = f"{credential.label}: {error}"
+                        failures.append(failure)
+                        LOGGER.warning("%s; trying the next available slot", failure)
+                        break
+            finally:
+                self._release(index)
         raise self._exhausted(failures) from None
 
 

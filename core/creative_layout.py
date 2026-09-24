@@ -102,7 +102,7 @@ def clean_style(value: str) -> str:
                 try:
                     rendered = f'{max(1.15, float(value)):g}'
                 except ValueError:
-                    raise ValueError('Use a numeric line-height, percentage, or normal') from None
+                    rendered = '1.3'
         result.append(f'{decl.lower_name}:{rendered}')
     return ';'.join(result)
 

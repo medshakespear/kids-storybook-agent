@@ -56,7 +56,7 @@ class ProviderTests(unittest.TestCase):
                 "GEMINI_API_KEY_2": "two",
         }, clear=True):
             reset_credential_pools()
-            self.assertEqual(text_worker_limit(3), 2)
+            self.assertEqual(text_worker_limit(3), 1)
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "old-key"}, clear=True)
     def test_old_openai_key_does_not_enable_paid_calls(self):

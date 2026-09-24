@@ -12,7 +12,7 @@ from uuid import uuid4
 from core.activity_generator import ActivityGenerationError, _text
 from core.creative_layout import check_page, preflight_pack, PROPERTIES, TAGS
 from core.image_generator import generate_images
-from core.providers import text_provider_names, text_client, safe_api_error
+from core.providers import text_provider_names, text_client, text_worker_limit, safe_api_error
 from core.runtime import int_setting, ordered_parallel
 
 LOGGER = logging.getLogger(__name__)
@@ -359,7 +359,12 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
         page.update(title=brief['title'], page_number=number)
         LOGGER.info('Activity design %s/%s complete', number, count)
         return page
-    designs = ordered_parallel(design_unit, range(count + 1), int_setting('DESIGN_WORKERS', 3, 1, 4))
+    requested_workers = int_setting('DESIGN_WORKERS', 3, 1, 4)
+    workers = text_worker_limit(requested_workers)
+    if workers != requested_workers:
+        LOGGER.info('Design workers capped from %s to %s by configured text credential capacity',
+                    requested_workers, workers)
+    designs = ordered_parallel(design_unit, range(count + 1), workers)
     cover, pages = designs[0], designs[1:]
     pack = dict(title=plan['title'], overview=plan['overview'], theme=theme, grade_band=grade_band,
                 character_description=plan['character_description'], art_direction=plan['art_direction'],

@@ -30,6 +30,8 @@ def cover_fragment(page: dict, preview: bool = False) -> str:
 
 TAGS = {'div', 'section', 'p', 'span', 'strong', 'b', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'br', 'img'}
+TAG_ALIASES = {'i': 'em'}
+INLINE_TAGS = {'span', 'strong', 'b', 'em'}
 PROPERTIES = {'color', 'background-color', 'border', 'border-color', 'border-width',
               'border-style', 'border-radius', 'border-top', 'border-bottom',
               'border-left', 'border-right', 'padding', 'padding-top', 'padding-bottom',
@@ -116,6 +118,7 @@ class PrintFragment(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
         """Validate tags and attributes and construct safe output markup."""
+        tag = TAG_ALIASES.get(tag, tag)
         if tag not in TAGS:
             raise ValueError(f'Unsupported HTML tag: {tag}')
         data = dict(attrs)
@@ -156,10 +159,23 @@ class PrintFragment(HTMLParser):
         self.handle_starttag(tag, attrs)
 
     def handle_endtag(self, tag: str) -> None:
-        """Reject malformed nesting instead of silently rearranging a worksheet."""
-        if not self.stack or self.stack.pop() != tag:
-            raise ValueError('HTML tags must be balanced and correctly nested')
-        self.parts.append(f'</{tag}>')
+        """Repair harmless inline formatting mismatches; keep structural nesting strict."""
+        tag = TAG_ALIASES.get(tag, tag)
+        if self.stack and self.stack[-1] == tag:
+            self.stack.pop()
+            self.parts.append(f'</{tag}>')
+            return
+        if tag in INLINE_TAGS and tag in self.stack:
+            position = len(self.stack) - 1 - self.stack[::-1].index(tag)
+            intervening = self.stack[position + 1:]
+            if all(open_tag in INLINE_TAGS for open_tag in intervening):
+                for open_tag in reversed(intervening):
+                    self.stack.pop()
+                    self.parts.append(f'</{open_tag}>')
+                self.stack.pop()
+                self.parts.append(f'</{tag}>')
+                return
+        raise ValueError('HTML tags must be balanced and correctly nested')
 
     def handle_data(self, data: str) -> None:
         """Escape model-written text while preserving ordinary printable symbols."""
@@ -172,6 +188,10 @@ def fragment(page: dict, preview: bool = False) -> str:
     parser = PrintFragment(assets, preview)
     parser.feed(page['html'])
     parser.close()
+    # Browsers safely auto-close trailing emphasis markup. Do the same only for
+    # inline formatting tags; structural page markup remains strictly validated.
+    while parser.stack and parser.stack[-1] in INLINE_TAGS:
+        parser.parts.append(f'</{parser.stack.pop()}>')
     if parser.stack or parser.used != set(assets):
         raise ValueError('Close every HTML tag and use every declared illustration')
     mode = page.get('print_layout', '')

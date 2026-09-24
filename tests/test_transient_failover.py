@@ -110,6 +110,25 @@ class TransientFailoverTests(unittest.TestCase):
         self.assertEqual(len(self.seen), 2)
         self.assertEqual(self.seen[0][0], self.seen[1][0])
 
+    def test_repeated_503_uses_same_key_with_growing_backoff(self):
+        """Repeated Gemini 503s stay on one key and back off instead of hammering the service."""
+        calls = {'count': 0}
+        def handler(request):
+            calls['count'] += 1
+            if calls['count'] < 4:
+                return httpx.Response(503, json={})
+            return httpx.Response(200, json=completion())
+        self.handler = handler
+
+        with patch.dict(os.environ, {'GEMINI_TRANSPORT_ATTEMPTS': '8'}, clear=False), patch(
+                'core.creative_generator.random.random', return_value=0):
+            self.assertTrue(self.generate()['ok'])
+
+        keys = [key for key, _ in self.seen]
+        self.assertEqual(keys, [keys[0]] * len(keys))
+        waits = [call.args[0] for call in self.sleep.call_args_list]
+        self.assertEqual(waits[:3], [5.0, 10.0, 20.0])
+
     def test_bad_requests_and_missing_models_never_rotate(self):
         """A content/configuration problem must not spend twelve requests."""
         for status in (400, 404):

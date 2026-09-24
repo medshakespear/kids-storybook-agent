@@ -40,7 +40,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
         {'role': 'user', 'content': prompt},
     ]
     max_validation_attempts = 3
-    max_transport_failures = 3
+    # A real Gemini 503 incident can last longer than a few seconds. Keep the
+    # current sticky key and back off slowly; only 429 quota handling may rotate.
+    max_transport_failures = int_setting('GEMINI_TRANSPORT_ATTEMPTS', 8, 3, 12)
 
     for provider in text_provider_names():
         api, model = text_client(provider)
@@ -133,10 +135,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     transport_failures += 1
                     if transport_failures >= max_transport_failures:
                         break
+                    base_delay = min(60.0, 5.0 * (2 ** (transport_failures - 1)))
+                    delay = max(base_delay, failure.retry_after or 0) + random.random()
                     LOGGER.info(
-                        '%s: retrying the same design attempt after transient provider failure (%s/%s)',
-                        label, transport_failures + 1, max_transport_failures)
-                    time.sleep(min(2 ** (transport_failures - 1) + random.random(), 10))
+                        '%s: transient Gemini failure; keeping the same key and retrying in %.1fs (%s/%s)',
+                        label, delay, transport_failures + 1, max_transport_failures)
+                    time.sleep(delay)
         finally:
             api.close()
     raise ActivityGenerationError('; '.join(dict.fromkeys(errors))) from None

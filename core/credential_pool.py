@@ -118,18 +118,25 @@ class CredentialPool:
             self._condition.notify_all()
 
     def _block(self, index: int, error: ProviderError) -> None:
-        """Apply quota cooldowns to known shared groups and disable rejected keys."""
+        """Apply long cooldowns to quota/auth failures and short cooldowns to outages."""
         with self._lock:
-            until = (math.inf if error.status_code in {401, 403}
-                     else time.monotonic() + max(self.cooldown, error.retry_after or 0))
+            if error.status_code in {401, 403}:
+                until = math.inf
+            elif error.status_code == 429:
+                until = time.monotonic() + max(self.cooldown, error.retry_after or 0)
+            else:
+                # 5xx/timeouts are provider-health events, not quota depletion.
+                # Keep them briefly out of rotation without sidelining a good key
+                # for the full quota cooldown.
+                until = time.monotonic() + max(5.0, min(15.0, error.retry_after or 0))
             group = self.credentials[index].quota_group
             for other, credential in enumerate(self.credentials):
                 if other == index or (error.status_code == 429 and group and credential.quota_group == group):
                     self._blocked_until[other] = max(self._blocked_until[other], until)
             self._cursor = (index + 1) % len(self.credentials)
 
-    def _exhausted(self, failures: list[str]) -> ProviderError:
-        """Explain exhaustion without exposing tokens, account IDs, or response bodies."""
+    def _exhausted(self, failures: list[str], errors: list[ProviderError]) -> ProviderError:
+        """Explain exhaustion and distinguish temporary outages from quota/auth exhaustion."""
         with self._lock:
             earliest = min(self._blocked_until)
         if math.isfinite(earliest):
@@ -138,12 +145,20 @@ class CredentialPool:
         else:
             hint = "All configured credentials were rejected; check keys and permissions, then restart."
         details = (" " + "; ".join(failures)) if failures else ""
-        # Non-retryable here prevents the caller's content-repair loop from hammering the pool.
-        return ProviderError(f"{self.provider}: no credential slots available. {hint}{details}")
+        temporary = bool(errors) and any(
+            error.retryable and error.status_code not in {401, 403, 429}
+            for error in errors
+        )
+        return ProviderError(
+            f"{self.provider}: no credential slots available. {hint}{details}",
+            temporary,
+            retry_after=(max(1, math.ceil(earliest - time.monotonic()))
+                         if temporary and math.isfinite(earliest) else None),
+        )
 
     def run(self, operation: Callable[[Credential], T], *, deadline: float | None = None) -> T:
         """Visit each slot once with bounded transient retries and an optional deadline."""
-        attempted, failures = set(), []
+        attempted, failures, failure_errors = set(), [], []
         attempts = int_setting('GEMINI_TRANSIENT_ATTEMPTS', 2, 1, 3) if self.provider == 'gemini' else 2
         while (index := self._select(attempted, deadline)) is not None:
             attempted.add(index)
@@ -177,11 +192,12 @@ class CredentialPool:
                         self._block(index, error)
                         failure = f"{credential.label}: {error}"
                         failures.append(failure)
+                        failure_errors.append(error)
                         LOGGER.warning("%s; trying the next available slot", failure)
                         break
             finally:
                 self._release(index)
-        raise self._exhausted(failures) from None
+        raise self._exhausted(failures, failure_errors) from None
 
 
 _POOLS: dict[str, tuple[tuple, CredentialPool]] = {}

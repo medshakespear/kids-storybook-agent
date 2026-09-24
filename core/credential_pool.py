@@ -159,7 +159,10 @@ class CredentialPool:
     def run(self, operation: Callable[[Credential], T], *, deadline: float | None = None) -> T:
         """Visit each slot once with bounded transient retries and an optional deadline."""
         attempted, failures, failure_errors = set(), [], []
-        attempts = int_setting('GEMINI_TRANSIENT_ATTEMPTS', 2, 1, 3) if self.provider == 'gemini' else 2
+        # Gemini page generation already has an outer bounded transport retry loop.
+        # Rotate immediately across configured keys on 5xx/timeouts so one slow key
+        # cannot consume the entire per-completion deadline.
+        attempts = 1 if self.provider == 'gemini' else 2
         while (index := self._select(attempted, deadline)) is not None:
             attempted.add(index)
             credential = self.credentials[index]

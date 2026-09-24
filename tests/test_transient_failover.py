@@ -141,15 +141,16 @@ class TransientFailoverTests(unittest.TestCase):
                          [f"Bearer fake-text-secret-{i}" for i in (1, 1, 2)])
         self.sleep.assert_called_once()
 
-    def test_slow_failure_exhausts_call_budget_without_more_requests(self):
-        """A slow provider cannot multiply its long timeout across four keys."""
+    def test_slow_budget_exhaustion_gets_a_fresh_outer_attempt(self):
+        """One exhausted completion budget is transient and a fresh unit attempt can recover."""
+        calls = {'count': 0}
         with patch('core.credential_pool.time.monotonic', return_value=100) as clock:
             def handler(request):
-                """Simulate a call that has consumed the completion's retry budget."""
-                clock.return_value = 191
-                return httpx.Response(503, json={})
+                calls['count'] += 1
+                if calls['count'] == 1:
+                    clock.return_value = 191
+                    return httpx.Response(503, json={})
+                return httpx.Response(200, json=completion())
             self.handler = handler
-            with self.assertRaisesRegex(ActivityGenerationError, 'time budget exhausted'):
-                self.generate()
-        self.assertEqual(len(self.seen), 1)
-        self.sleep.assert_not_called()
+            self.assertTrue(self.generate()['ok'])
+        self.assertEqual(len(self.seen), 2)

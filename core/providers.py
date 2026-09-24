@@ -119,12 +119,12 @@ def text_provider_names() -> list[str]:
 
 
 def text_worker_limit(requested: int) -> int:
-    """Cap Gemini page-design concurrency to configured credential capacity."""
+    """Serialize Gemini work so one sticky key serves the entire book."""
     if requested < 1:
         raise ValueError("requested text workers must be positive")
     provider = text_provider_names()[0]
     if provider == "gemini":
-        return max(1, min(requested, len(configured_credentials("gemini"))))
+        return 1
     return requested
 
 
@@ -186,16 +186,16 @@ def safe_api_error(provider: str, exc: Exception, model: str | None = None) -> P
                              status_code=429, rotate=provider == "gemini", retry_after=delay)
     if status in {401, 403}:
         return ProviderError(f"{provider}: authentication or permission denied; check its API key and access.",
-                             status_code=status, rotate=provider == "gemini")
+                             status_code=status, rotate=False)
     if status is not None:
         if status in {408, 409} or 500 <= status <= 599:
             hint = ("service temporarily unavailable or overloaded" if status == 503
                     else "temporary server or request failure")
             return ProviderError(f"{provider}: HTTP {status}; {hint}. Retry later if all slots fail.",
-                                 True, status_code=status, rotate=provider == "gemini", retry_after=delay)
+                                 True, status_code=status, rotate=False, retry_after=delay)
         return ProviderError(f"{provider}: HTTP {status}; check model availability and provider settings.",
                              status_code=status)
     if isinstance(exc, APIConnectionError):
         return ProviderError(f"{provider}: temporary connection failure or timeout.",
-                             True, rotate=provider == "gemini")
+                             True, rotate=False)
     return ProviderError(f"{provider}: request failed ({type(exc).__name__}).", True)

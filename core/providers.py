@@ -85,7 +85,7 @@ class GeminiPoolClient:
             """Close every SDK transport, including those returning errors."""
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                raise ProviderError('gemini: request retry time budget exhausted; retry later.')
+                raise ProviderError('gemini: request retry time budget exhausted; retry later.', True)
             api = OpenAI(api_key=credential.api_key, base_url=self.base_url,
                          timeout=min(timeout, remaining), max_retries=0)
             try:
@@ -116,6 +116,16 @@ def text_provider_names() -> list[str]:
         if not os.getenv(key, "").strip():
             raise ValueError(f"{key} is required for {name}")
     return names
+
+
+def text_worker_limit(requested: int) -> int:
+    """Cap Gemini page-design concurrency to configured credential capacity."""
+    if requested < 1:
+        raise ValueError("requested text workers must be positive")
+    provider = text_provider_names()[0]
+    if provider == "gemini":
+        return max(1, min(requested, len(configured_credentials("gemini"))))
+    return requested
 
 
 def text_client(name: str) -> tuple[OpenAI | GeminiPoolClient, str]:

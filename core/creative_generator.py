@@ -12,7 +12,7 @@ from uuid import uuid4
 from core.activity_generator import ActivityGenerationError, _text
 from core.creative_layout import check_page, preflight_pack, PROPERTIES, TAGS
 from core.image_generator import generate_images
-from core.task_visuals import VISUAL_CONTRACT, page_visuals
+from core.task_visuals import VISUAL_CONTRACT, page_visuals, normalize_visual_metadata
 from core.exercise_quality import validate_exercises, proofread_pack
 from core.providers import text_provider_names, text_client, text_worker_limit, safe_api_error
 from core.runtime import int_setting, ordered_parallel
@@ -96,6 +96,19 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'Preserve the exercise and design rather than inventing a different page.'
                         )
                     asset_error = str(exc).lower()
+                    if ('visual question' in asset_error or 'visual needs' in asset_error or
+                            'visual ids' in asset_error or 'data-visual' in asset_error or
+                            'visuals must' in asset_error):
+                        repair += (
+                            ' Repair exact visual metadata and references together. Each visuals object '
+                            'needs id matching [a-z][a-z0-9_]{0,30}, a unique question JSON integer 1-30 '
+                            'matching its printed task, and kind with all required puzzle fields. '
+                            'Use the exact SAME id in img data-visual. Do not use zero, null, string '
+                            'question numbers, illustration prompts or page labels as metadata. '
+                            'Preserve puzzle content, artwork and calculations. Return the complete page '
+                            'including html, images, visuals and answers; do not replace a puzzle with '
+                            'an AI illustration or invent missing task numbers.'
+                        )
                     if 'calculation' in asset_error or 'arithmetic' in asset_error or 'only numbers' in asset_error:
                         repair += (
                             ' Repair calculations only: expression must be a numeric computation such as '
@@ -329,6 +342,8 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
             design['answers'] = ''  # All questions may be inside exact visuals.
         else:
             design['answers'] = _text(answers, 'answers', 4000)
+    if not cover:
+        normalize_visual_metadata(design)
     page_visuals(design)
     if quality is not None:
         # Never silently replace, merge or invent artwork in newly generated books.

@@ -201,6 +201,35 @@ def cached_visual(serialized: str) -> tuple[str, str]:
     return build_visual(json.loads(serialized))
 
 
+def normalize_visual_metadata(page: dict) -> None:
+    """Normalize explicit IDs and numeric strings without inventing puzzle metadata."""
+    specs = page.get('visuals', [])
+    if not isinstance(specs, list):
+        return  # The strict validator supplies the schema error.
+    mapping, seen = {}, set()
+    for spec in specs:
+        if not isinstance(spec, dict):
+            continue
+        original = spec.get('id')
+        if isinstance(original, str):
+            normalized = re.sub(r'[\s-]+', '_', original.strip().lower())
+            if re.fullmatch(r'[a-z][a-z0-9_]{0,30}', normalized):
+                if normalized in seen:
+                    raise ValueError('Visual IDs collide after normalization; supply distinct lowercase ids')
+                seen.add(normalized)
+                mapping[original] = normalized
+                spec['id'] = normalized
+        question = spec.get('question')
+        if isinstance(question, str) and re.fullmatch(r'\s*\d{1,2}\s*', question):
+            spec['question'] = int(question.strip())
+    def replace_reference(match):
+        """Update the HTML reference to the exact same explicit visual ID."""
+        original = html.unescape(match[2])
+        return match[1] + mapping.get(original, match[2]) + match[3]
+    page['html'] = re.sub(r'(\bdata-visual\s*=\s*[\'"])([^\'"]*)([\'"])',
+                          replace_reference, page['html'], flags=re.I)
+
+
 def page_visuals(page: dict) -> dict[str, tuple[str, str]]:
     """Validate visual IDs and numbers and compile every requested component."""
     specs = page.get('visuals', [])
@@ -223,7 +252,12 @@ def answer_text(page: dict) -> str:
 
 VISUAL_CONTRACT = '''Optional exact visuals: use <img data-visual="id" style="width:175mm;height:130mm"/>.
 Declare each in visuals (0-3 objects); Python draws them sharply and adds their numbered answers.
-Each has id (lowercase), question (printed question number), kind, and the following fields:
+Each object MUST have id matching [a-z][a-z0-9_]{0,30}, question as a JSON INTEGER 1-30
+(not a string, page number, zero, null or object), kind, and the following fields.
+The question number matches the numbered task and must be unique on this page. Example:
+{"id":"trail","question":1,"kind":"maze","rows":5,"cols":5,"seed":12,"tokens":3}.
+Use the SAME id in HTML data-visual="trail". images holds Cloudflare art; visuals holds these
+exact puzzle objects. Never put illustration prompts in visuals or omit id/question.
 - maze: rows/cols integers 4-8, seed integer 0-2147483647, tokens integer 0-5. Python draws a real
   solvable maze, START/FINISH and precisely that many stars on its route. Use height:145mm.
 - differences: items list of 4-8 {shape,color,size}; changes list of {index:1-based,field,value}.

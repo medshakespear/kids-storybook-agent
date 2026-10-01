@@ -12,8 +12,10 @@ from functools import lru_cache
 import json
 
 COLORS = {'orange': '#ED8936', 'teal': '#219E9A', 'purple': '#9063B5',
-          'yellow': '#F2C94C', 'red': '#DF5763', 'blue': '#508FCC', 'green': '#62A86E'}
-SHAPES = {'circle', 'square', 'triangle', 'star', 'leaf', 'pumpkin'}
+          'yellow': '#F2C94C', 'red': '#DF5763', 'blue': '#508FCC', 'green': '#62A86E',
+          'white': '#FFFFFF', 'black': '#252A34', 'pink': '#F09DB9', 'brown': '#A06A42',
+          'gray': '#88939E'}
+SHAPES = {'circle', 'square', 'triangle', 'star', 'leaf', 'pumpkin', 'ghost', 'bat'}
 SIZES = {'small': 0.65, 'large': 1.0}
 
 
@@ -24,14 +26,27 @@ def integer(value, name: str, low: int, high: int) -> int:
     return value
 
 
-def symbol(raw: dict) -> dict:
+def symbol(raw: dict, context: str = 'Symbol') -> dict:
     """Validate a vector symbol without accepting arbitrary SVG or CSS."""
-    if not isinstance(raw, dict) or raw.get('shape') not in SHAPES or raw.get('color') not in COLORS:
-        raise ValueError('Each symbol needs a supported shape and color')
+    if not isinstance(raw, dict):
+        raise ValueError(f'{context}: each symbol must be an object with shape, color and size')
+    shape = raw.get('shape')
+    color = raw.get('color', raw.get('colour'))
+    shape = shape.strip().lower() if isinstance(shape, str) else None
+    color = color.strip().lower() if isinstance(color, str) else None
+    plurals = {s+'s': s for s in SHAPES}
+    plurals['leaves'] = 'leaf'
+    shape = plurals.get(shape, shape)
+    color = {'grey': 'gray', **{v.lower(): k for k,v in COLORS.items()}}.get(color, color)
+    if shape not in SHAPES or color not in COLORS:
+        raise ValueError(f'{context}: each symbol needs a supported shape and color; '
+                         f'received shape={str(raw.get("shape"))[:60]!r}, color={str(raw.get("color", raw.get("colour")))[:60]!r}. '
+                         f'Shapes: {", ".join(sorted(SHAPES))}. Colors: {", ".join(sorted(COLORS))}')
     size = raw.get('size', 'large')
+    size = size.strip().lower() if isinstance(size, str) else None
     if size not in SIZES:
-        raise ValueError('Symbol size must be small or large')
-    return dict(shape=raw['shape'], color=raw['color'], size=size)
+        raise ValueError(f'{context}: Symbol size must be small or large')
+    return dict(shape=shape, color=color, size=size)
 
 
 def icon(item: dict, x: float, y: float, scale: float = 1) -> str:
@@ -47,6 +62,14 @@ def icon(item: dict, x: float, y: float, scale: float = 1) -> str:
         body = '<path d="M0,-30 L9,-10 L30,-9 L15,7 L20,29 L0,17 L-20,29 L-15,7 L-30,-9 L-9,-10 Z"/>'
     elif shape == 'leaf':
         body = '<path d="M-25,25 Q-40,-25 27,-28 Q42,26 -25,25 Z"/><path d="M-25,25 L20,-20" fill="none"/>'
+    elif shape == 'ghost':
+        eyes = '#233544' if item['color'] in {'white','yellow','pink'} else '#FFFFFF'
+        body = ('<path d="M-24,30 V-8 A24,24 0 0 1 24,-8 V30 L12,22 L0,30 L-12,22 Z"/>'
+                f'<g fill="{eyes}" stroke="none"><circle cx="-8" cy="-6" r="3"/>'
+                '<circle cx="8" cy="-6" r="3"/><path d="M-5,7 Q0,12 5,7" fill="none" '
+                f'stroke="{eyes}" stroke-width="2"/></g>')
+    elif shape == 'bat':
+        body = '<path d="M0,-8 L-7,-21 L-11,-7 L-36,-23 L-30,3 Q-20,-3 -16,15 Q-8,10 0,25 Q8,10 16,15 Q20,-3 30,3 L36,-23 L11,-7 L7,-21 Z"/>'
     else:
         body = ('<path d="M-4,-22 L-2,-36 L6,-36 L4,-22" fill="#468453"/>'
                 '<ellipse cx="-13" cy="3" rx="19" ry="26"/><ellipse cx="13" cy="3" rx="19" ry="26"/>'
@@ -137,7 +160,7 @@ def build_visual(spec: dict) -> tuple[str, str]:
         items = spec.get('items')
         if not isinstance(items, list) or not 4 <= len(items) <= 8:
             raise ValueError('Differences needs 4-8 symbols')
-        first = [symbol(i) for i in items]
+        first = [symbol(item, f'Visual {spec["id"]}, item {i}') for i,item in enumerate(items, 1)]
         second = [dict(i) for i in first]
         changes, changed = spec.get('changes'), set()
         if not isinstance(changes, list) or not 1 <= len(changes) <= len(items):
@@ -150,7 +173,7 @@ def build_visual(spec: dict) -> tuple[str, str]:
             if index in changed or field not in {'shape','color','size'}:
                 raise ValueError('Change one trait per distinct item')
             second[index][field] = change.get('value')
-            second[index] = symbol(second[index])
+            second[index] = symbol(second[index], f'Visual {spec["id"]}, changed item {index+1}')
             if second[index] == first[index]:
                 raise ValueError('Each difference must actually change a visible trait')
             changed.add(index)
@@ -169,7 +192,7 @@ def build_visual(spec: dict) -> tuple[str, str]:
         items, attribute = spec.get('items'), spec.get('attribute')
         if not isinstance(items, list) or not 4 <= len(items) <= 8 or attribute not in {'shape','color','size'}:
             raise ValueError('Sort needs 4-8 symbols and attribute shape, color or size')
-        symbols = [symbol(item) for item in items]
+        symbols = [symbol(item, f'Visual {spec["id"]}, item {i}') for i,item in enumerate(items, 1)]
         values = list(dict.fromkeys(item[attribute] for item in symbols))
         if not 2 <= len(values) <= 3:
             raise ValueError('Sorting needs exactly 2-3 disjoint groups')
@@ -264,7 +287,10 @@ exact puzzle objects. Never put illustration prompts in visuals or omit id/quest
   Each index occurs once; change exactly one visible field. Python draws BOTH numbered rows.
 - sort: attribute shape/color/size; items list of 4-8 {shape,color,size} with 2-3 distinct values
   for that attribute. Python derives exhaustive, disjoint bins and exact membership. Height:140mm.
-Shapes: circle,square,triangle,star,leaf,pumpkin. Colors: orange,teal,purple,yellow,red,blue,green.
+Shapes: circle,square,triangle,star,leaf,pumpkin,ghost,bat.
+Colors: orange,teal,purple,yellow,red,blue,green,white,black,pink,brown,gray.
+Every item MUST explicitly contain shape and color from these lists, plus size: small or large.
+Do not invent unsupported objects or palette names in exact visuals. Use images for other subjects.
 Sizes: small,large. Use theme-appropriate shapes, and vary composition instead of repeating components.
 These are optional drawing tools, NOT a required list of exercises. Other original activities are welcome.
 For mazes, spot-the-difference and closed-rule picture sorting, ALWAYS use these exact visuals.

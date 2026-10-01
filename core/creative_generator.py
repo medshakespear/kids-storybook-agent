@@ -12,7 +12,7 @@ from uuid import uuid4
 from core.activity_generator import ActivityGenerationError, _text
 from core.creative_layout import check_page, preflight_pack, PROPERTIES, TAGS
 from core.image_generator import generate_images
-from core.task_visuals import VISUAL_CONTRACT, page_visuals, normalize_visual_metadata
+from core.task_visuals import VISUAL_CONTRACT, page_visuals, normalize_visual_metadata, SHAPES, COLORS
 from core.exercise_quality import validate_exercises, proofread_pack
 from core.providers import text_provider_names, text_client, text_worker_limit, safe_api_error
 from core.runtime import int_setting, ordered_parallel
@@ -96,6 +96,16 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'Preserve the exercise and design rather than inventing a different page.'
                         )
                     asset_error = str(exc).lower()
+                    if 'symbol' in asset_error or 'supported shape' in asset_error:
+                        repair += (
+                            f' Repair only the identified exact visual item. Supported shapes: {sorted(SHAPES)}. '
+                            f'Supported colors: {sorted(COLORS)}. Every items object needs shape, color and '
+                            'size (small or large). Difference changes.value must be valid for its field. '
+                            'Keep the grouping/difference logic and all numbered tasks coherent; update '
+                            'directions if a subject must change. Use images for other original illustrated '
+                            'subjects, but never replace an exact-answer puzzle with AI art. Return the '
+                            'complete page and preserve images, visuals, answers and calculations.'
+                        )
                     if ('visual question' in asset_error or 'visual needs' in asset_error or
                             'visual ids' in asset_error or 'data-visual' in asset_error or
                             'visuals must' in asset_error):

@@ -109,9 +109,18 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
         facts.append({'expression': expression, 'result': str(value)})
     page['computed_math'] = facts
     numbers = set()
-    for item in checks:
+    for index, item in enumerate(checks, 1):
+        if isinstance(item, dict):
+            reference = item.get('question')
+            # Gemini often serializes a printed numeric task label as a JSON number.
+            # Preserve that explicit identity; never infer one from list position.
+            if type(reference) is int and 1 <= reference <= 999:
+                item['question'] = str(reference)
+            elif isinstance(reference, str):
+                item['question'] = reference.strip()
         if not isinstance(item, dict) or not isinstance(item.get('question'), str) or not 1 <= len(item['question']) <= 20:
-            raise ValueError('Each calculation needs a short question reference')
+            raise ValueError(f'Each calculation needs a short question reference; calculations item {index} '
+                             'requires question as nonempty text matching its printed task, e.g. "1" or "2A"')
         if item['question'] in numbers:
             raise ValueError('Calculation question references must be unique')
         numbers.add(item['question'])

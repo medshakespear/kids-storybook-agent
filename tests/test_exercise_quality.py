@@ -181,3 +181,25 @@ class ExactVisualTests(unittest.TestCase):
         page['calculations'][0]=dict(question='2',expression='0.1+0.2',answer='0.3')
         with self.assertRaisesRegex(ValueError,'whole-number'):
             validate_exercises(page,load_grade_config()['1st-2nd'])
+
+    def test_calculation_question_normalizes_explicit_labels_without_inventing_them(self):
+        """Numeric task labels and harmless whitespace do not require another AI request."""
+        for reference in [1,' 1 ']:
+            page=exact_page(visual_fixtures()[0])
+            page['calculations']=[dict(question=reference,expression='2+3',answer=5)]
+            validate_exercises(page,load_grade_config()['Pre-K-K'])
+            self.assertEqual(page['calculations'][0]['question'],'1')
+        for reference in [None,' ',True,0,1.5,{},'x'*21]:
+            page=exact_page(visual_fixtures()[0])
+            page['calculations']=[dict(question=reference,expression='2+3',answer=5)]
+            with self.subTest(reference=reference),self.assertRaisesRegex(ValueError,'calculations item 1'):
+                validate_exercises(page,load_grade_config()['Pre-K-K'])
+        page=exact_page(visual_fixtures()[0])
+        page['calculations']=[dict(expression='2+3',answer=5)]
+        with self.assertRaisesRegex(ValueError,'requires question'):
+            validate_exercises(page,load_grade_config()['Pre-K-K'])
+        self.assertNotIn('question',page['calculations'][0])
+        page['calculations']=[dict(question=1,expression='2+3',answer=5),
+                              dict(question=' 1 ',expression='3+2',answer=5)]
+        with self.assertRaisesRegex(ValueError,'must be unique'):
+            validate_exercises(page,load_grade_config()['Pre-K-K'])

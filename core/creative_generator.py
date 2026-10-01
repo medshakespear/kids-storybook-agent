@@ -111,7 +111,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         )
                     if 'calculation' in asset_error or 'arithmetic' in asset_error or 'only numbers' in asset_error:
                         repair += (
-                            ' Repair calculations only: expression must be a numeric computation such as '
+                            ' Repair calculations only. Every calculations item must have exactly '
+                            'question (unique nonempty string of 1-20 characters matching the printed task, '
+                            'e.g. "1" or "2A"), expression (numeric computation), and answer (final value). '
+                            'Do not omit question, use null, or substitute question_number/id/number fields. '
+                            'If the worksheet has no arithmetic, return calculations: []. '
+                            'Expression must be a numeric computation such as '
                             '"12.50+7.25", "3/4+1/8" or "20*15/100", not an equation or word problem. '
                             'No unknowns, equals signs, currency symbols, units, powers or percent signs '
                             'inside expression. For a missing-number task, express the numeric operation '
@@ -441,6 +446,10 @@ Images are fitted without cropping. Illustration prompts must describe original 
 scenes or objects without text, labels, numbers, page borders or worksheet layouts.
 Include calculations: [] or [{{"question":"2A","expression":"34+23","answer":57}}] for EVERY
 arithmetic question, including missing-number problems (expression computes the missing value).
+Each item requires question as a UNIQUE nonempty JSON string <=20 characters matching the printed
+task label, e.g. "1" or "2A". Never omit question or rename it to question_number, number or id.
+If no arithmetic appears, return calculations: []. Visuals question is an integer; calculations
+question is a string label. Preserve these distinct schemas.
 Expressions contain numeric integer/decimal literals, parentheses and + - * / only. Use "20-8"
 for an unknown in x+8=20, "20*15/100" for a percentage; put equations, units and labels in html.
 No variables, equals signs, currency symbols, powers or percent signs inside expression.

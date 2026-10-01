@@ -6,6 +6,7 @@ import re
 from copy import deepcopy
 from html.parser import HTMLParser
 
+from core.print_tags import TAG_ALIASES
 from core.task_visuals import normalize_visual_metadata, page_visuals
 
 EXACT_MECHANICS = {'maze', 'sort', 'differences', 'pattern', 'matching', 'balance', 'count'}
@@ -28,13 +29,31 @@ class BoundLayout(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.blocks, self.used, self.parts, self.stack = blocks, set(), [], []
         self.slot = None
+        self.slot_nesting = []
+        self.inferred_slot = False
         self.assets, self.visuals = [], []
         self.visual_styles = {}
+        self.text_blocks = {}
+        for key,value in blocks.items():
+            parser = HTMLParser(convert_charrefs=True)
+            words = []
+            parser.handle_data = words.append
+            parser.feed(value)
+            self.text_blocks[key] = ' '.join(' '.join(words).split()).casefold()
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
         """Replace empty content placeholders and preserve design-only wrappers."""
+        tag = TAG_ALIASES.get(tag,tag)
         if self.slot:
-            raise ValueError('Content slots must be empty; exercise specification supplies their text')
+            if self.inferred_slot:
+                raise ValueError('Bind this entire text container with data-content; do not append independent formatting or wording to an inferred content slot')
+            # A prefilled slot is only a redundant model draft: canonical text
+            # replaces it. Never discard task graphics or another content slot.
+            if tag not in {'p','div','section','span','strong','b','em','br'} or any(
+                    key in {'data-content','data-asset','data-visual','src'} for key,_ in attrs):
+                raise ValueError('Prefilled content slots may contain only text/formatting; keep graphics and other slots outside them')
+            if tag != 'br': self.slot_nesting.append(tag)
+            return
         data = dict(attrs)
         if len(data) != len(attrs):
             raise ValueError('Duplicate layout attributes')
@@ -46,6 +65,7 @@ class BoundLayout(HTMLParser):
                 raise ValueError(f'Unknown or repeated exercise content slot: {block}')
             self.used.add(block)
             self.slot = block
+            self.inferred_slot = False
         attributes = ' '.join(f'{key}="{html.escape(value or "", quote=True)}"' for key,value in data.items())
         self.parts.append(f'<{tag} {attributes}>')
         if block:
@@ -60,21 +80,58 @@ class BoundLayout(HTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         """Require correctly nested wrappers and close filled content slots."""
+        tag = TAG_ALIASES.get(tag,tag)
+        if self.slot and self.slot_nesting:
+            if self.slot_nesting[-1] != tag:
+                raise ValueError('Prefilled content slot formatting must be balanced')
+            self.slot_nesting.pop()
+            return
         if not self.stack or self.stack[-1][0] != tag:
             raise ValueError('Exercise layout tags must be balanced')
         _,block = self.stack.pop()
-        if block: self.slot = None
+        if block:
+            self.slot = None
+            self.inferred_slot = False
         self.parts.append(f'</{tag}>')
 
     def handle_startendtag(self, tag: str, attrs: list) -> None:
         """Support ordinary self-closing artwork, breaks and empty content slots."""
         self.handle_starttag(tag,attrs)
-        if tag not in {'img','br'}: self.handle_endtag(tag)
+        if TAG_ALIASES.get(tag,tag) not in {'img','br'}: self.handle_endtag(tag)
 
     def handle_data(self, data: str) -> None:
-        """Reject text outside canonical slots, including leaked answers and stray directions."""
-        if data.strip():
-            raise ValueError('Put ALL printed wording in exercise fields and empty data-content slots; no independent layout text')
+        """Replace slot drafts and bind exact canonical copies without accepting unrelated tasks."""
+        if not data.strip():
+            return
+        if self.slot:
+            if self.inferred_slot:
+                raise ValueError('Use a complete data-content slot; additional independent layout text cannot be discarded')
+            return
+        normalized = ' '.join(data.split()).casefold()
+        matches = [key for key,value in self.text_blocks.items() if normalized==value]
+        if not matches:
+            matches = [key for key,value in self.text_blocks.items() if key.startswith('question_')
+                       and re.sub(r'^\d+[a-z]?\.\s*','',value)==normalized]
+        if not matches and self.stack and self.stack[-1][0] in {'h1','h2','h3','h4'}:
+            heading = re.sub(r'^(?:page|activity)\s+#?\d+\s*[:.\-–—]\s*','',normalized)
+            if heading==self.text_blocks['title']: matches = ['title']
+        if not matches and re.fullmatch(r'name\s*:\s*[_\s]*',normalized):
+            matches = ['name']
+        if len(matches)==1:
+            key = matches[0]
+            if key in self.used:
+                return  # Do not print a second copy of an already bound instruction.
+            if self.stack and self.stack[-1][0] in {'h1','h2','h3','h4','p','div','span','section','td'}:
+                tag,_ = self.stack[-1]
+                self.stack[-1] = (tag,key)
+                self.used.add(key)
+                self.slot = key
+                self.inferred_slot = True
+                self.parts.append(self.blocks[key])
+                return
+        raise ValueError('Put ALL printed wording in exercise fields and data-content slots; '
+                         f'unbound wording: {data.strip()[:100]!r}. Preserve the task and bind this '
+                         'wording to the appropriate directions, passage or question field')
 
     def handle_comment(self, data: str) -> None:
         """Reject hidden duplicate instruction drafts in layout comments."""
@@ -263,7 +320,7 @@ Passage, if provided: <div data-content="passage"></div>. Each question needs ex
 <div data-content="question_1"></div>. Python fills prompt, number and response space together.
 Use ordinary div/section/table/panels, inline styles and images to invent original compositions.
 Do not put independent text, numbers, labels, comments or task instructions in html. Do not fill
-slots yourself. Never return a separate answers/calculations draft: Python derives both from exercise.
+slots yourself; redundant filled drafts are replaced by canonical exercise wording. Never return a separate answers/calculations draft: Python derives both from exercise.
 Artwork supports task context or open-ended creation. Closed answers must not require identifying
 exact pixels, hidden objects, missing costume pieces, specific faces or counting AI-generated objects.
 For lower grades use a large useful illustration, expressive craft/coloring material or a large exact

@@ -12,6 +12,7 @@ from functools import lru_cache
 import tinycss2
 from weasyprint import HTML, default_url_fetcher
 from core.paths import BASE_DIR
+from core.print_tags import TAG_ALIASES
 from core.task_visuals import page_visuals, answer_text
 
 RENDER_LOCK = RLock()
@@ -31,7 +32,6 @@ def cover_fragment(page: dict, preview: bool = False) -> str:
 
 TAGS = {'div', 'section', 'p', 'span', 'strong', 'b', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'br', 'img'}
-TAG_ALIASES = {'i': 'em'}
 INLINE_TAGS = {'span', 'strong', 'b', 'em'}
 DROP_PROPERTIES = {'background-image', 'position', 'top', 'right', 'bottom', 'left', 'z-index'}
 PROPERTIES = {'color', 'background-color', 'border', 'border-color', 'border-width',

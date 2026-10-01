@@ -419,3 +419,16 @@ New designs discard model-authored clipping/scrolling CSS declarations and expos
 all content before measuring printable bounds. This avoids a needless cover retry
 for `overflow:hidden`; oversized content still fails print preflight. Gemini HTTP
 503 responses remain provider-side availability errors and receive bounded retries.
+
+
+Content-binding recovery handles redundant model drafts locally: text inside a
+known `data-content` slot is replaced by canonical exercise text. Unbound wording
+that exactly matches a unique canonical title, direction or question can bind
+without another model request. Unrelated wording, duplicate explicit slots,
+misplaced graphics and executable markup remain invalid. Diagnostics quote the
+unbound wording so a repair can bind it without redesigning the exercise.
+
+Harmless HTML5 print wrappers are normalized consistently in content compilation
+and PDF rendering: `header`/`footer`/`figure` become `div`, `main`/`article` become
+`section`, and `figcaption` becomes `p`. Their explicit supported styles are kept;
+attribute, resource-loading and print-boundary checks remain enforced.

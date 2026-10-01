@@ -97,6 +97,18 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'Preserve the exercise and design rather than inventing a different page.'
                         )
                     asset_error = str(exc).lower()
+                    if ('printed wording' in asset_error or 'content slot' in asset_error or
+                            'required exercise content' in asset_error):
+                        repair += (
+                            ' Repair content binding only, not the activity. Return html, images, exercise. '
+                            'All task wording belongs in exercise.directions, passage or questions[].prompt; '
+                            'retain the existing correct wording and answer/criterion there. Layout containers '
+                            'use data-content="title", "directions", "passage", "name" or "question_ID". '
+                            'Use each required slot once, with no duplicate unbound instructions or labels. '
+                            'Keep image elements outside text slots and retain every graphic ID and task. '
+                            'Use div or section for layout wrappers, not unsupported semantic tags. '
+                            'Do not delete a task to make the markup validate.'
+                        )
                     if 'exact planned activity title' in asset_error:
                         repair += (
                             ' Repair only the visible activity heading to match the supplied title words. '

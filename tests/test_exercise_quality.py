@@ -158,3 +158,26 @@ class ExactVisualTests(unittest.TestCase):
         self.assertIs(pack['pages'][0],original)
         self.assertEqual(pack['content_checks']['repair_rounds'],1)
         self.assertNotIn('image_url',calls[0]);self.assertNotIn('base64',calls[0])
+
+    def test_decimal_math_is_exact_and_numeric_only(self):
+        """Upper-grade money/fraction arithmetic avoids binary rounding and executable syntax."""
+        from fractions import Fraction
+        self.assertEqual(calculate(' 0.1 + 0.2 '),Fraction('0.3'))
+        self.assertEqual(calculate('12.50+7.25'),Fraction('19.75'))
+        self.assertEqual(calculate('3/4+1/8'),Fraction('7/8'))
+        self.assertEqual(calculate('4 x 3'),12)
+        self.assertEqual(calculate('20*15/100'),3)
+        for expression in ['x+8=20','15%*20','£12+3','2**3','1e3+1','True+1','float(2)']:
+            with self.subTest(expression=expression),self.assertRaises(ValueError):
+                calculate(expression)
+        page=exact_page(visual_fixtures()[0])
+        page['html']+='<p>2. Add 12.50 + 7.25.</p>'
+        page['calculations']=[dict(question='2',expression='12.50+7.25',answer='19.75')]
+        validate_exercises(page,load_grade_config()['5th-6th'])
+        self.assertIn(dict(expression='12.50+7.25',result='79/4'),page['computed_math'])
+        page['calculations'][0]['expression']='x+8=20'
+        with self.assertRaisesRegex(ValueError,'Question 2: calculation expression'):
+            validate_exercises(page,load_grade_config()['5th-6th'])
+        page['calculations'][0]=dict(question='2',expression='0.1+0.2',answer='0.3')
+        with self.assertRaisesRegex(ValueError,'whole-number'):
+            validate_exercises(page,load_grade_config()['1st-2nd'])

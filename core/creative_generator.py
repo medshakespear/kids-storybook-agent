@@ -96,6 +96,16 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'Preserve the exercise and design rather than inventing a different page.'
                         )
                     asset_error = str(exc).lower()
+                    if 'calculation' in asset_error or 'arithmetic' in asset_error or 'only numbers' in asset_error:
+                        repair += (
+                            ' Repair calculations only: expression must be a numeric computation such as '
+                            '"12.50+7.25", "3/4+1/8" or "20*15/100", not an equation or word problem. '
+                            'No unknowns, equals signs, currency symbols, units, powers or percent signs '
+                            'inside expression. For a missing-number task, express the numeric operation '
+                            'that computes the missing value (e.g. "20-8", not "x+8=20"). Put units and '
+                            'question wording in html and the final value in answer. Preserve the artwork '
+                            'and question/answer references; do not replace the exercise to fix notation.'
+                        )
                     if ('illustration' in asset_error or 'data-asset' in asset_error or
                             'asset mismatch' in asset_error):
                         repair += (
@@ -324,7 +334,10 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
         # Never silently replace, merge or invent artwork in newly generated books.
         images = design.get('images')
         if not isinstance(images, list) or len(images) > 4 or (not images and (cover or not design.get('visuals'))):
-            raise ValueError('Supply 1-4 meaningful illustrations, or exact visuals with images=[]')
+            detail = ('missing' if 'images' not in design else
+                      f'list with {len(images)} entries' if isinstance(images, list) else type(images).__name__)
+            raise ValueError('Supply 1-4 meaningful illustrations, or exact visuals with images=[]; '
+                             f'images is {detail}. Return a JSON list; an empty list needs exact visuals.')
         ids = set()
         for asset in images:
             if not isinstance(asset, dict) or not re.fullmatch(r'[a-z][a-z0-9_]{0,30}', str(asset.get('id',''))):
@@ -413,6 +426,9 @@ Images are fitted without cropping. Illustration prompts must describe original 
 scenes or objects without text, labels, numbers, page borders or worksheet layouts.
 Include calculations: [] or [{{"question":"2A","expression":"34+23","answer":57}}] for EVERY
 arithmetic question, including missing-number problems (expression computes the missing value).
+Expressions contain numeric integer/decimal literals, parentheses and + - * / only. Use "20-8"
+for an unknown in x+8=20, "20*15/100" for a percentage; put equations, units and labels in html.
+No variables, equals signs, currency symbols, powers or percent signs inside expression.
 Python checks arithmetic. Match every printed question and answer exactly. Keep answers concise.
 Python renders all written content. Draw exact quantities, diagrams, number lines, answer
 boxes and symbols using HTML/text; never depend on image-model accuracy for a numeric answer.

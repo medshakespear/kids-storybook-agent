@@ -46,7 +46,8 @@ def calculate(expression: str) -> Fraction:
     """Evaluate bounded elementary arithmetic without eval or executable model code."""
     if not isinstance(expression, str) or len(expression) > 80:
         raise ValueError('Calculation expression must be text of at most 80 characters')
-    expression = expression.replace('×','*').replace('÷','/').replace('−','-')
+    expression = expression.strip().replace('×','*').replace('÷','/').replace('−','-')
+    expression = re.sub(r'(?<=\d)\s*[xX]\s*(?=\d)', '*', expression)
     try:
         root = ast.parse(expression, mode='eval')
     except SyntaxError:
@@ -54,9 +55,14 @@ def calculate(expression: str) -> Fraction:
     if len(list(ast.walk(root))) > 35:
         raise ValueError('Arithmetic expression is too complex')
     def visit(node):
-        """Resolve only bounded integer constants and four arithmetic operations."""
-        if isinstance(node, ast.Constant) and type(node.value) is int and abs(node.value) <= 10000:
-            return Fraction(node.value)
+        """Resolve bounded numeric literals exactly and four arithmetic operations."""
+        if isinstance(node, ast.Constant) and type(node.value) in {int, float}:
+            # Read the original decimal spelling, avoiding binary float rounding.
+            literal = ast.get_source_segment(expression, node) or ''
+            if re.fullmatch(r'(?:\d+(?:\.\d*)?|\.\d+)', literal):
+                value = Fraction(literal)
+                if abs(value) <= 10000:
+                    return value
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
             value = visit(node.operand)
             return -value if isinstance(node.op, ast.USub) else value
@@ -75,7 +81,8 @@ def calculate(expression: str) -> Fraction:
             if abs(result) > 1000000:
                 raise ValueError('Arithmetic result is too large')
             return result
-        raise ValueError('Only numbers, parentheses and + - * / are allowed')
+        raise ValueError('Only integer/decimal literals, parentheses and + - * / are allowed; '
+                         'no variables, equations, units, percent signs or powers')
     return visit(root.body)
 
 
@@ -96,7 +103,7 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
         raise ValueError('calculations must be a list of at most 16 arithmetic checks')
     # Independently derive printed arithmetic facts even if the author omits a check.
     facts = []
-    for match in re.finditer(r'(?<![\w.])(\d+)\s*([+−×÷*/-])\s*(\d+)(?![\w.])', prose):
+    for match in re.finditer(r'(?<![\w.])(\d+(?:\.\d+)?|\.\d+)\s*([+−×÷*/-])\s*(\d+(?:\.\d+)?|\.\d+)(?!\w|\.\d)', prose):
         expression = ''.join(match.groups())
         value = calculate(expression)
         facts.append({'expression': expression, 'result': str(value)})
@@ -108,11 +115,15 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
         if item['question'] in numbers:
             raise ValueError('Calculation question references must be unique')
         numbers.add(item['question'])
-        actual = calculate(item.get('expression'))
+        try:
+            actual = calculate(item.get('expression'))
+        except ValueError as exc:
+            raise ValueError(f'Question {item["question"]}: calculation expression '
+                             f'{str(item.get("expression"))[:80]!r}: {exc}') from None
         try:
             provided = Fraction(str(item.get('answer')))
         except (ValueError, ZeroDivisionError):
-            raise ValueError('Calculation answer must be an integer or fraction string') from None
+            raise ValueError('Calculation answer must be a number or fraction string') from None
         if provided != actual:
             raise ValueError(f'Question {item["question"]}: {item["expression"]} equals {actual}, not {item["answer"]}')
         if actual < 0 or actual > config.get('max_result', 10000):

@@ -51,7 +51,7 @@ PROPERTIES = {'color', 'background-color', 'border', 'border-color', 'border-wid
               'gap', 'row-gap', 'column-gap', 'white-space'}
 
 
-def clean_style(value: str) -> str:
+def clean_style(value: str, minimum_font: float = 11) -> str:
     """Allow print layout declarations, excluding resource loading and hidden content."""
     if re.search(r'[\\@<>]|url\s*\(|expression\s*\(|var\s*\(', value, re.I):
         raise ValueError('Unsupported CSS resource or expression')
@@ -93,7 +93,7 @@ def clean_style(value: str) -> str:
                 raise ValueError('font-size must be a positive pt or px value, e.g. 14pt or 20px; avoid relative units')
             points = float(match[1]) * (0.75 if match[2].lower() == 'px' else 1)
             # Normalize typography before measuring layout; never scale the whole PDF.
-            rendered = f'{max(11, min(40, points)):g}pt'
+            rendered = f'{max(minimum_font, min(40, points)):g}pt'
         if decl.lower_name == 'line-height':
             # Line-height is cosmetic and safe to normalize locally. Do not spend
             # another model call because Gemini returned 1.0, "normal", or 110%.
@@ -114,10 +114,11 @@ def clean_style(value: str) -> str:
 class PrintFragment(HTMLParser):
     """Rebuild a printable fragment; only declared asset IDs can become images."""
 
-    def __init__(self, assets: dict[str, str], preview: bool = False, visuals: dict | None = None):
+    def __init__(self, assets: dict[str, str], preview: bool = False, visuals: dict | None = None, minimum_font: float = 11):
         """Track allowed images, nesting, and all image references."""
         super().__init__(convert_charrefs=True)
         self.assets, self.preview = assets, preview
+        self.minimum_font = minimum_font
         self.visuals, self.used_visuals = visuals or {}, set()
         self.parts, self.stack, self.used = [], [], set()
 
@@ -131,7 +132,7 @@ class PrintFragment(HTMLParser):
             raise ValueError('Only style, data-asset, data-visual, colspan and rowspan attributes are allowed')
         attributes = []
         if 'style' in data:
-            attributes.append('style="' + html.escape(clean_style(data['style']), quote=True) + '"')
+            attributes.append('style="' + html.escape(clean_style(data['style'], self.minimum_font), quote=True) + '"')
         for key in ('colspan', 'rowspan'):
             if key in data:
                 if tag not in {'td', 'th'} or not re.fullmatch('[1-6]', data[key]):
@@ -199,7 +200,7 @@ def fragment(page: dict, preview: bool = False) -> str:
     """Sanitize one authored page and require all declared artwork to be used."""
     assets = {a['id']: a.get('path', '') for a in page['images']}
     visuals = page_visuals(page)
-    parser = PrintFragment(assets, preview, visuals)
+    parser = PrintFragment(assets, preview, visuals, page.get('quality_profile', {}).get('minimum_text_pt', 11))
     parser.feed(page['html'])
     parser.close()
     # Browsers safely auto-close trailing emphasis markup. Do the same only for
@@ -268,13 +269,13 @@ def check_document(document, expected: int) -> None:
                          + '. Reflow within 186mm width and 265mm height: reduce panel/image heights, padding and margins; use auto-width table cells. Preserve readable text and response space.')
 
 
-def _tighten_explicit_spacing(html_value: str) -> str:
-    """Clamp excessive fixed spacing/heights as a last local fit attempt."""
+def _tighten_explicit_spacing(html_value: str, *, preserve_heights: bool = False) -> str:
+    """Clamp excessive spacing; preserve response and illustration heights on quality pages."""
     def replace(match):
         name = match.group(1).lower()
         value = float(match.group(2))
         unit = match.group(3).lower()
-        if unit != 'mm':
+        if unit != 'mm' or (preserve_heights and 'height' in name):
             return match.group(0)
         limits = {
             'margin-top': 6, 'margin-bottom': 6, 'margin-left': 6, 'margin-right': 6,
@@ -298,10 +299,11 @@ def check_page(page: dict, font: int, *, cover: bool = False) -> None:
     """Try measured local reflow before requesting another model-authored design."""
     page.pop('print_layout', None)
     original_html = page['html']
+    last_overflow = ''
     with RENDER_LOCK:
-        for tightened in ((False,) if page.get('quality_profile') else (False, True)):
+        for tightened in (False, True):
             if tightened:
-                page['html'] = _tighten_explicit_spacing(original_html)
+                page['html'] = _tighten_explicit_spacing(original_html, preserve_heights=bool(page.get('quality_profile')))
             for mode in ('', 'reflow', 'compact'):
                 if mode:
                     page['print_layout'] = mode
@@ -311,13 +313,16 @@ def check_page(page: dict, font: int, *, cover: bool = False) -> None:
                 doc = HTML(string=markup, url_fetcher=data_only_fetcher).render()
                 try:
                     check_document(doc, 1)
-                except ValueError:
+                except ValueError as exc:
+                    last_overflow = str(exc)
                     continue
                 check_visual_quality(doc, page.get('quality_profile', {}), cover=cover)
                 return
         page['html'] = original_html
         page.pop('print_layout', None)
-        raise ValueError('Design overflow: local reflow and deterministic spacing compaction could not fit the page')
+        raise ValueError('Design overflow: local reflow and spacing compaction could not fit the page. '
+                         + last_overflow + '. Keep grade-specific minimum font sizes; shorten directions '
+                         'or reorganize panels instead of reducing text or response space.')
 
 
 def pack_markup(pack: dict, config: dict, preview: bool = False) -> str:

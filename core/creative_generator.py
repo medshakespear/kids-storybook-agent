@@ -33,6 +33,8 @@ def parse_design_json(content: str) -> dict:
 def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
     """Retry validation defects separately from transient provider transport failures."""
     errors = []
+    floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
+    minimum_font = int(floor_match[1]) if floor_match else 11
     messages = [
         {'role': 'system', 'content': (
             'You are an original elementary curriculum designer and print art director. '
@@ -116,7 +118,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'height including headings, margins, borders and response spaces. Keep total '
                             'table widths including cell padding and spacing below 186mm. Avoid explicit '
                             'percentage widths on table cells; use equal auto-width cells or a stacked layout. '
-                            'Do not hide overflow, remove questions, shrink text below 11pt or remove essential '
+                            f'Do not hide overflow, remove questions, shrink text below {minimum_font}pt or remove essential '
                             'response space.'
                         )
                         if label == 'Cover design':
@@ -124,6 +126,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                                 ' The cover also reserves 41mm for the real store logo: keep YOUR fragment '
                                 'below 215mm, ideally 205mm.'
                             )
+                    repair += (f' All student text, including captions, must be at least {minimum_font}pt. '
+                               'Python raises smaller inline sizes to this floor BEFORE checking fit. '
+                               'Budget the layout at this readable size; use shorter directions and fewer '
+                               'decorative headings without removing tasks or shrinking response areas.')
                     messages.append({'role': 'user', 'content': repair})
                     time.sleep(min(2 ** max(validation_attempt - 1, 0) + random.random(), 10))
                 except Exception as exc:
@@ -355,17 +361,18 @@ def compact_answers(page: dict, number: int) -> dict:
     return dict(page, answers=result['answers'])
 
 
-def layout_contract(font: int) -> str:
+def layout_contract(font: int, minimum_text_pt: int = 11) -> str:
     """Describe the print boundary without prescribing a reusable composition."""
     return VISUAL_CONTRACT + f'''Return JSON with html (one complete HTML fragment, <=18000 chars), images
 (0-4 objects with id and prompt <=650 chars; at least one unless exact visuals fill the page), and answers (one concise string <=300 chars,
 number EVERY answer to match the student tasks; include a sample/criterion for open responses).
+Minimum student font: {minimum_text_pt}pt (mandatory for every caption and label).
 Canvas: A4, 186mm wide, content at most 265mm high. No html/head/body/style tags.
 Choose YOUR OWN layout, palette, typographic hierarchy, borders, panels and response spaces.
 Allowed tags: {sorted(TAGS)}. Only inline style attributes; no classes or external files.
 Allowed CSS properties: {sorted(PROPERTIES)}. Use valid simple CSS, positive mm dimensions,
-percent widths, colors, numeric line-height >=1.15. Font-size preferably in pt, 11-40pt; px
-is converted at 0.75pt per px and sizes are normalized to 11-40pt before print checks. Student text
+percent widths, colors, numeric line-height >=1.15. Font-size in pt, {minimum_text_pt}-40pt; px
+is converted at 0.75pt per px and smaller inline sizes are raised to {minimum_text_pt}pt before print checks. Student text
 should usually be {font}pt or larger. Use tables or flex for columns; no CSS grid, positioning,
 floats, transforms, overflow hiding, scripts, SVG, negative spacing, URLs or font imports.
 Images: <img data-asset="asset_id" style="width:80mm;height:55mm"/>.
@@ -379,7 +386,11 @@ Python renders all written content. Draw exact quantities, diagrams, number line
 boxes and symbols using HTML/text; never depend on image-model accuracy for a numeric answer.
 Do not put solutions in student HTML. Include clear directions, numbered tasks, and sufficient
 writing/cutting/drawing space appropriate to the activity. Never refer to missing materials.
-Use normal document flow and leave breathing room; aim for 245mm total content height.
+Use normal document flow; aim for 235mm total content height, leaving 30mm safety for wrapping.
+Plan a height budget: heading/name/directions <=40mm, main visual 90-140mm, response area
+40-60mm, remaining borders/margins <=15mm. Choose values whose sum stays within 235mm.
+For Pre-K-K: 1-2 short adult-read directions, at most 3 task items, no repeated instruction
+paragraphs below picture cards. Keep large objects and usable hands-on response space.
 Include padding, margins, borders and table spacing in the 186mm width budget.
 Prefer auto-width table cells; percentage cell widths plus padding may overflow.
 Use white-space:normal, pre-wrap or pre-line if needed. Long text and answer lines must wrap.
@@ -430,7 +441,7 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
         """Author one independent page while preserving caller-owned page numbering."""
         if number == 0:
             return ask_json(f'Create an illustrated cover for {grade_band}. {context}\n{plan["cover_brief"]}\n'
-                     + layout_contract(font) + '\nThis is the cover: omit student tasks and answers. Include the pack title and grade. '
+                     + layout_contract(font, config.get('minimum_text_pt', 11)) + '\nThis is the cover: omit student tasks and answers. Include the pack title and grade. '
                      'Python places the REAL store logo in a separate 41mm header above your content. '
                      'Do not draw a logo or repeat the store name. Override the full-page height: '
                      'YOUR cover fragment must be at most 215mm high; aim for 205mm including all spacing.',
@@ -440,7 +451,7 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
                   f'User context: {source_context or theme}. Skills: {config["skill_notes"]}.\n'
                   f'Art direction: {context}\nThis page brief: {json.dumps(brief)}\n'
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
-                  + layout_contract(font) + f'\nPrint activity number {number} and the EXACT title: {brief["title"]}.')
+                  + layout_contract(font, config.get('minimum_text_pt', 11)) + f'\nPrint activity number {number} and the EXACT title: {brief["title"]}.')
         page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title']), f'Activity design {number}')
         page = compact_answers(page, number)
         page.update(title=brief['title'], page_number=number)
@@ -462,7 +473,7 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
             f'Repair activity {number} for {grade_band}. Exact title: {previous["title"]}. '
             f'Correct these concrete exercise defects: {json.dumps(issues)}. '
             'Preserve the learning goal, meaningful visuals and response space. Return a complete page.\n'
-            + layout_contract(font) + '\nPrevious page: ' + json.dumps(previous),
+            + layout_contract(font, config.get('minimum_text_pt', 11)) + '\nPrevious page: ' + json.dumps(previous),
             lambda raw: validate_design(raw, font, quality=config, expected_title=previous['title']),
             f'Exercise repair {number}', 6500)
         repaired = compact_answers(repaired, number)

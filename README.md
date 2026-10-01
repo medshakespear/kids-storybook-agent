@@ -385,3 +385,5 @@ after deploying both Railway services. No new credentials are needed.
 
 New modules: \`core/task_visuals.py\` (exact graphics/answers),
 \`core/exercise_quality.py\` (math contracts and text-only proofreading).
+
+Pre-K layout repairs use the same 14pt minimum as final printing. Smaller model-authored captions are raised locally before measuring the page. Excess cosmetic spacing may be compacted, while explicit illustration and response-area heights are preserved. Unfit pages receive measured overflow feedback and a grade-specific repair instruction.

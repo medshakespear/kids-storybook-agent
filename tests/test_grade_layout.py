@@ -64,4 +64,43 @@ class GradeLayoutTests(unittest.TestCase):
             ask_json(layout_contract(15,14),validate,'Activity design 3')
         repair=api.chat.completions.create.call_args.kwargs['messages'][-1]['content']
         self.assertIn('below 14pt',repair)
+        self.assertIn('never omit the images list',repair)
         self.assertNotIn('below 11pt',repair)
+
+    def test_illustration_repair_keeps_exact_visual_references(self):
+        """A manifest repair supports both real artwork and Python-rendered puzzles."""
+        api=Mock()
+        api.chat.completions.create.return_value=SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content=json.dumps({'ok':True})),finish_reason='stop')])
+        attempts=[]
+        def validate(raw):
+            """Reproduce the reported illustration-list error once."""
+            attempts.append(raw)
+            if len(attempts)==1:raise ValueError('Supply 1-4 meaningful illustrations, or exact visuals with images=[]')
+            return raw
+        with patch('core.creative_generator.text_provider_names',return_value=['gemini']), \
+             patch('core.creative_generator.text_client',return_value=(api,'test')), \
+             patch('core.creative_generator.time.sleep'):
+            ask_json(layout_contract(12,12),validate,'Activity design 1')
+        repair=api.chat.completions.create.call_args.kwargs['messages'][-1]['content']
+        self.assertIn('OR data-visual',repair)
+        self.assertIn('images=[] is allowed ONLY',repair)
+        self.assertNotIn('Every <img> in html must use data-asset',repair)
+
+    def test_unsupported_overflow_style_does_not_trigger_activity_recomposition(self):
+        """CSS syntax correction must not redesign or lose an otherwise usable exercise."""
+        api=Mock()
+        api.chat.completions.create.return_value=SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content=json.dumps({'ok':True})),finish_reason='stop')])
+        attempts=[]
+        def validate(raw):
+            """Reject one unsupported style, then accept the corrected unit."""
+            attempts.append(raw)
+            if len(attempts)==1:raise ValueError('CSS overflow may not hide, clip or scroll printable content; remove it')
+            return raw
+        with patch('core.creative_generator.text_provider_names',return_value=['gemini']), \
+             patch('core.creative_generator.text_client',return_value=(api,'test')), \
+             patch('core.creative_generator.time.sleep'):
+            ask_json(layout_contract(12,12),validate,'Activity design 1')
+        repair=api.chat.completions.create.call_args.kwargs['messages'][-1]['content']
+        self.assertNotIn('Recompose this same activity',repair)

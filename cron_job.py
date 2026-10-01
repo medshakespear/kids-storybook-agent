@@ -39,7 +39,7 @@ def _daily_count() -> int:
 def main() -> int:
     """Run today's batch, continue after per-book errors, and persist results."""
 
-    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(stream=sys.stdout, level=os.getenv("LOG_LEVEL", "INFO"), format="%(levelname)s %(name)s: %(message)s")
     try:
         validate_providers()
         with CALENDAR_PATH.open("r", encoding="utf-8") as handle:

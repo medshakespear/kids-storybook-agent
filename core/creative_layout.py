@@ -60,6 +60,11 @@ def clean_style(value: str, minimum_font: float = 11) -> str:
     for decl in declarations:
         if decl.type != 'declaration':
             raise ValueError('Malformed inline CSS: use property:value declarations separated by semicolons')
+        if decl.lower_name in {'overflow', 'overflow-x', 'overflow-y'}:
+            # Visible is the print default; dropping it does not hide content.
+            if tinycss2.serialize(decl.value).strip().lower() == 'visible':
+                continue
+            raise ValueError('CSS overflow may not hide, clip or scroll printable content; remove it')
         if decl.lower_name in DROP_PROPERTIES:
             continue
         if decl.lower_name not in PROPERTIES:

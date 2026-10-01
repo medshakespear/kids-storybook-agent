@@ -58,3 +58,11 @@ class PrintStyleTests(unittest.TestCase):
         """Syntax failures are distinguished from unsupported property names."""
         with self.assertRaisesRegex(ValueError, 'Malformed inline CSS'):
             clean_style('color')
+
+    def test_visible_overflow_is_safe_default_but_clipping_is_rejected(self):
+        """Normalize a redundant declaration without hiding printable task content."""
+        self.assertEqual(clean_style('overflow:visible;color:teal'), 'color:teal')
+        self.assertEqual(clean_style('overflow-x:visible;overflow-y:visible'), '')
+        for style in ['overflow:hidden','overflow:clip','overflow:auto','overflow-y:scroll']:
+            with self.subTest(style=style), self.assertRaisesRegex(ValueError,'may not hide'):
+                clean_style(style)

@@ -6,6 +6,7 @@ import logging
 import json
 import hmac
 import os
+import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -20,7 +21,7 @@ from core.theme_picker import build_webhook_inspiration, pick_webhook_grade_band
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024
-logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
+logging.basicConfig(stream=sys.stdout, level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 ensure_runtime_directories()
 

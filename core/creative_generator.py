@@ -101,8 +101,11 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         repair += (
                             ' Repair the image manifest and HTML together. Return images as a JSON list of 1-4 '
                             'objects, each exactly {"id":"short_lowercase_id","prompt":"complete visual prompt"}. '
-                            'Every <img> in html must use data-asset with EXACTLY one of those declared IDs. '
-                            'Every declared image ID must appear in html at least once. Do not use src attributes. '
+                            'images=[] is allowed ONLY on a student page containing valid exact visuals. '
+                            'Every img uses EITHER data-asset for one images[].id OR data-visual for one '
+                            'visuals[].id; never both. Declare and use every ID. Do not use src attributes. '
+                            'Keep exact visual specifications and their question numbers intact. Never return '
+                            'a null/string/object instead of an images list or delete task artwork. '
                             'Do not rename an ID on only one side: synchronize images[].id and every data-asset '
                             'reference in the same response. Keep the existing activity content and layout.'
                         )
@@ -112,14 +115,16 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                                 'in the cover HTML with <img data-asset=...>. Do not solve the mismatch by deleting '
                                 'the image element or returning an unused images entry.'
                             )
-                    if 'overflow' in asset_error or 'printable bounds' in asset_error:
+                    if asset_error.startswith('design overflow:') or 'printable bounds' in asset_error:
                         repair += (
-                            ' Recompose this same activity more compactly. Budget at most 245mm of content '
+                            ' Recompose this same activity more compactly. Budget at most 235mm of content '
                             'height including headings, margins, borders and response spaces. Keep total '
                             'table widths including cell padding and spacing below 186mm. Avoid explicit '
                             'percentage widths on table cells; use equal auto-width cells or a stacked layout. '
                             f'Do not hide overflow, remove questions, shrink text below {minimum_font}pt or remove essential '
-                            'response space.'
+                            'response space. Return the complete page including images, visuals, answers '
+                            'and calculations. Preserve image IDs/prompts and data-asset/data-visual '
+                            'references together; never omit the images list during a layout repair.'
                         )
                         if label == 'Cover design':
                             repair += (

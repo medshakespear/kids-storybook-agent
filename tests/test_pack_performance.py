@@ -14,6 +14,7 @@ from core.image_generator import generate_images
 from core.pipeline import load_grade_config
 from core.runtime import ordered_parallel
 from tests.test_creative_design import creative_fixture, cover_fixture, design_fixture
+from tests.coherent_fixtures import authored_page
 from tests.test_key_rotation import SLOTS, image_response
 from tests.test_providers import STORY, CONFIG
 
@@ -51,7 +52,7 @@ class PackPerformanceTests(unittest.TestCase):
         plan = dict(title='Garden Makers', overview='Make and investigate.', art_direction='Teal and coral.',
                     character_description='Original garden objects.', cover_brief='A friendly garden.',
                     pages=[dict(title=f'Mission {i}', learning_goal='Design.', activity_concept=f'Challenge {i}',
-                                layout_brief=f'Layout {i}') for i in range(1, 9)])
+                                layout_brief=f'Layout {i}', render_mode='authored', mechanic=f'challenge {i}') for i in range(1, 9)])
         def ask(prompt, validate, label, *args):
             """Use actual page validation, but emulate provider overlap deterministically."""
             if label == 'Creative plan':
@@ -61,8 +62,7 @@ class PackPerformanceTests(unittest.TestCase):
             barrier.wait(timeout=5)
             if label == 'Cover design':
                 return validate(cover_fixture())
-            page = design_fixture(0)
-            page['html'] = page['html'].replace('Garden Detectives', 'Mission '+label.split()[-1])
+            page = authored_page(mechanic='challenge '+label.split()[-1])
             return validate(page)
         with patch.dict(os.environ, {'DESIGN_WORKERS': '3'}), patch('core.creative_generator.ask_json', side_effect=ask), patch('core.creative_generator.text_worker_limit', return_value=3):
             pack = generate_creative_pack('Garden', 'Pre-K-K', config)

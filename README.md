@@ -19,7 +19,8 @@ validates and assembles the model-authored designs as A4 PDFs. There is no datab
 These are actual student tasks with answer space, not lists of ideas. A planning
 call chooses distinct learning activities and their visual compositions. Separate
 calls author the cover and each student page using restricted HTML/inline CSS,
-with a pack-specific palette and 1-4 original illustration briefs per page.
+with a pack-specific palette and up to four original illustration briefs per page.
+Exact visual puzzle pages may use Python graphics without a Cloudflare illustration.
 Python supplies page boundaries, checks supported markup and printable bounds,
 embeds artwork without cropping, and adds the single consolidated answer page.
 Cloudflare produces the artwork; Gemini decides what the art should show.
@@ -79,9 +80,9 @@ The PDFs are static and are NOT editable forms or personalized name books.
 No automatic class-name personalization is supplied. Originality and varied layouts
 are requested, not guarantees of novelty or professional design quality.
 Before selling or teaching, review content, answer keys, cultural context, reading
-level, and print quality. In this flexible design mode, mathematical and semantic
-correctness are model-authored and require human review; the former fixed-type
-arithmetic checker is not used. Layout checks cannot detect every visual or
+level, and print quality. The shared exercise compiler checks exact puzzles and
+declared arithmetic, with text proofreading for other content. Human review is
+still needed: layout and automated content checks cannot detect every visual or
 educational flaw. No standards alignment is claimed.
 
 ## Daily selection: random events in the next 30 days
@@ -319,9 +320,8 @@ response-area height; they never clip content or scale the whole page. Pages tha
 still overflow after local repair go back to Gemini with measured feedback.
 
 Each creative unit (plan, cover, or one student page) has bounded retries with
-validation feedback. Long answer keys are condensed separately after the student
-layout passes; this never asks the model to redesign a valid worksheet. Short keys
-need no extra request. All six HTML heading levels are supported. Each unit uses
+validation feedback. Student-page answer keys come from the shared exercise specification;
+there is no separate key-condensation request that could change a validated answer. All six HTML heading levels are supported. Each unit uses
 validation feedback and the latest draft. Completed pages stay in memory when a
 later page needs correction. Python assigns page order. All pages are print-checked
 with fixed-size preview image boxes before illustration spending. Final PDFs are
@@ -336,6 +336,9 @@ do not retain unfinished pages across container restarts.
 - `core/calendar_rules.py`: exact periods and timezone-aware today.
 - `core/theme_picker.py`: current-event / evergreen themes and random grade batches.
 - `core/creative_generator.py`: AI activity planning, page design, repair and illustrations.
+- `core/page_contract.py`: bind printed content and answers to one exercise specification.
+- `core/task_visuals.py`: exact printable graphics and computed puzzle answers.
+- `core/exercise_quality.py`: arithmetic checks and text-only proofreading.
 - `core/creative_layout.py`: restricted HTML/CSS, print preflight, final PDF and answer page.
 - `core/image_review.py`: local image-file integrity checks only (no AI calls).
 - `core/runtime.py`: bounded configuration and ordered parallel work.
@@ -366,24 +369,33 @@ one further text check. Persistent defects stop publication with their page numb
 This adds one proofreading request when the first draft passes, plus bounded
 repairs if needed. It is not a guarantee of educational correctness.
 
-For mazes, differences and closed-rule picture sorting, optional structured
-\`visuals\` components are drawn by Python as crisp embedded SVG. AI chooses the
-layout and component parameters. The maze is a connected tree with a unique
-start/finish route and exactly the requested stars on that route. Differences
-change one declared trait per position. Sorting bins are derived from the actual
-visible trait values so every item has one correct group. Final-page puzzle answers
-come from the same data. These drawing components do not constrain the rest of the
-book to a fixed list of worksheet types.
+New student pages use `creative_bound_v2`. Gemini returns **one exercise specification**
+and an original HTML layout with empty named content slots. Python fills the title,
+directions, passage, numbered questions and response spaces from that specification.
+The final answer key uses those same question records. Independent instruction and
+answer drafts are rejected. A repair preserves the planned activity mechanism.
 
-The \`calculations\` manifest is evaluated using restricted arithmetic (no eval).
-The text proofreader checks its relation to the printed questions and final key,
-including comprehension evidence and question numbering. Exact-count and precise
-hidden-detail tasks must not depend on Cloudflare's generated pixels. AI artwork
-is for expressive scenes and open-ended inspiration; people should still inspect
-commercial PDFs before publishing. Existing PDFs are unchanged; regenerate them
-after deploying both Railway services. No new credentials are needed.
+Gemini may invent open-ended design, crafts, writing, reading, investigations and
+reasoning activities with varied layouts. For closed visual puzzles, Python supports
+seven exact drawing components: mazes, differences, sorting, patterns, matching
+(including silhouettes), size comparisons and counting. Their visible objects and
+solutions come from identical data. A size comparison asks about size, never assumes
+physical weight from a picture. Unsupported subjects use meaningful original artwork
+and open activities rather than silently being replaced by generic shapes.
 
-New modules: \`core/task_visuals.py\` (exact graphics/answers),
-\`core/exercise_quality.py\` (math contracts and text-only proofreading).
+A plan can use a mechanic at most twice. Text proofreading checks planned intent,
+actual printed questions and the shared key, including comprehension evidence and
+question numbering. Local arithmetic checks validate declared results, explicit
+question computations and numerical key values. These checks reduce known errors;
+they cannot guarantee the correctness of every invented activity or image.
+
+Cloudflare artwork is for expressive scenes and open-ended inspiration. Exact-count
+and precise hidden-detail answers must not depend on generated pixels. Gemini image
+checking stays disabled. The real cover logo, one final answer page and grade-specific
+page counts are preserved. Existing PDFs are unchanged: regenerate after deploying
+both Railway services. No new environment variables or credentials are required.
+
+Modules: `core/page_contract.py` (shared content binding), `core/task_visuals.py`
+(exact graphics/answers), `core/exercise_quality.py` (math checks and text proofreading).
 
 Pre-K layout repairs use the same 14pt minimum as final printing. Smaller model-authored captions are raised locally before measuring the page. Excess cosmetic spacing may be compacted, while explicit illustration and response-area heights are preserved. Unfit pages receive measured overflow feedback and a grade-specific repair instruction.

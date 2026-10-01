@@ -12,10 +12,11 @@ from uuid import uuid4
 from core.activity_generator import ActivityGenerationError, _text
 from core.creative_layout import check_page, preflight_pack, PROPERTIES, TAGS
 from core.image_generator import generate_images
-from core.task_visuals import VISUAL_CONTRACT, page_visuals, normalize_visual_metadata, SHAPES, COLORS
+from core.task_visuals import VISUAL_CONTRACT, BOUND_VISUAL_CONTRACT, page_visuals, normalize_visual_metadata, SHAPES, COLORS
 from core.exercise_quality import validate_exercises, proofread_pack, activity_title
 from core.providers import text_provider_names, text_client, text_worker_limit, safe_api_error
 from core.runtime import int_setting, ordered_parallel
+from core.page_contract import compile_exercise, validate_brief, EXERCISE_CONTRACT
 
 LOGGER = logging.getLogger(__name__)
 
@@ -180,6 +181,11 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                                'Python raises smaller inline sizes to this floor BEFORE checking fit. '
                                'Budget the layout at this readable size; use shorter directions and fewer '
                                'decorative headings without removing tasks or shrinking response areas.')
+                    if 'ONE shared source' in prompt:
+                        repair += (' This is a bound exercise page. Return ONLY html, images, exercise. '
+                                   'Put corrections in exercise.visual or exercise.questions and use EMPTY '
+                                   'data-content slots in html. Do not return legacy visuals/answers/calculations '
+                                   'fields or fill slots with text. Preserve planned render_mode and mechanic.')
                     messages.append({'role': 'user', 'content': repair})
                     time.sleep(min(2 ** max(validation_attempt - 1, 0) + random.random(), 10))
                 except Exception as exc:
@@ -203,7 +209,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
             api.close()
     raise ActivityGenerationError('; '.join(dict.fromkeys(errors))) from None
 
-def validate_plan(raw: dict, count: int) -> dict:
+def validate_plan(raw: dict, count: int, *, require_coherent: bool = False) -> dict:
     """Validate bounded art direction and distinct activity concepts without a type menu."""
     if not isinstance(raw, dict):
         raise ValueError('Plan must be an object')
@@ -219,9 +225,14 @@ def validate_plan(raw: dict, count: int) -> dict:
         for key in ('title', 'learning_goal', 'activity_concept', 'layout_brief'):
             page[key] = _text(page.get(key), key, 80 if key == 'title' else 650)
         page['title'] = _text(activity_title(page['title']), 'activity title without page label', 80)
+        if require_coherent: validate_brief(page)
     for key in ('title', 'activity_concept', 'layout_brief'):
         if len({p[key].strip().casefold() for p in plan['pages']}) != count:
             raise ValueError(f'Each page needs a different {key}; do not repeat a worksheet pattern')
+    if require_coherent:
+        mechanics = [p['mechanic'].casefold() for p in plan['pages']]
+        if any(mechanics.count(m)>2 for m in set(mechanics)):
+            raise ValueError('Use no more than two pages with the same exercise mechanic; vary actual student actions')
     return plan
 
 
@@ -342,12 +353,15 @@ def _synchronize_asset_references(html: str, ids: list[str]) -> str:
 
 
 def validate_design(raw: dict, font: int, *, cover: bool = False,
-                    quality: dict | None = None, expected_title: str | None = None) -> dict:
+                    quality: dict | None = None, expected_title: str | None = None,
+                    require_coherent: bool = False, brief: dict | None = None) -> dict:
     """Require complete art-backed HTML and preflight it at actual print dimensions."""
     if not isinstance(raw, dict):
         raise ValueError('Design must be an object')
     design = deepcopy(raw)
     design['html'] = _text(design.get('html'), 'html', 18000)
+    if require_coherent and not cover:
+        compile_exercise(design, quality or {}, expected_title or '', brief)
     if cover:
         # Cover art has no exercise numbers. Ignore unused exercise metadata,
         # but never silently remove a visible puzzle from authored markup.
@@ -410,7 +424,7 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
 
 def compact_answers(page: dict, number: int) -> dict:
     """Shorten only an oversized key; never redesign the already validated worksheet."""
-    if len(page['answers']) <= 300:
+    if page.get('exercise_binding') or len(page['answers']) <= 300:
         return page
     def validate_key(raw):
         """Require a concise, nonempty key without accepting arbitrary response fields."""
@@ -426,7 +440,7 @@ def compact_answers(page: dict, number: int) -> dict:
     return dict(page, answers=result['answers'])
 
 
-def layout_contract(font: int, minimum_text_pt: int = 11, *, cover: bool = False) -> str:
+def layout_contract(font: int, minimum_text_pt: int = 11, *, cover: bool = False, coherent: bool = False) -> str:
     """Describe the print boundary without prescribing a reusable composition."""
     if cover:
         return f'''Return JSON containing html (one complete fragment, <=18000 chars), images
@@ -445,6 +459,23 @@ Only inline styles; no html/head/body/style tags, external files, classes, SVG, 
 Use positive mm dimensions, valid colors, numeric line-height >=1.15 and font-size in pt.
 No positioning, CSS grid, floats, transforms, hidden overflow or negative dimensions.
 Do not invent certifications, reading-level labels or series numbers. Do not repeat the store logo.
+'''
+    if coherent:
+        return EXERCISE_CONTRACT + BOUND_VISUAL_CONTRACT + f'''
+Layout geometry: A4 portrait, 186mm content width; aim for <=235mm total height including all
+borders, margins, response space and wrapping. No clipping or text shrinking to force a fit.
+Minimum student font: {minimum_text_pt}pt; use {font}pt or larger for ordinary student wording.
+Allowed tags: {sorted(TAGS)}. Allowed inline CSS: {sorted(PROPERTIES)}.
+Only inline styles. No external resources, src attributes, classes, scripts, raw SVG, positioning,
+grid, transforms, negative dimensions or hidden overflow. Use positive mm dimensions and pt fonts.
+Images use data-asset and images:[{{id,prompt}}]; every prompt <=650 chars. 1-4 purposeful images,
+or images=[] when exact visuals dominate. Every image/visual needs explicit width AND height in mm.
+Keep a main visual at least 120x80mm; total visual area >=10000mm2 lower grades, 8000 middle, 6000 upper.
+For younger grades, fill the workspace with big usable visual material, not tiny mascot headers.
+Choose original composition, rich palette, panels and hierarchy suited to this activity. Ample
+response space belongs in questions[].space_mm; do not add separate unbound response tasks.
+No teacher guide or answers printed on student pages. Do not print independent activity numbers
+in html: task numbers come from question IDs and exact visual.question. The title is a filled slot.
 '''
     return VISUAL_CONTRACT + f'''Return JSON with html (one complete HTML fragment, <=18000 chars), images
 (0-4 objects with id and prompt <=650 chars; at least one unless exact visuals fill the page), and answers (one concise string <=300 chars,
@@ -524,8 +555,16 @@ No copying commercial artwork/wording/characters, invented facts, stereotypes or
 Return JSON: title <=80 chars, overview <=350, art_direction <=650 (specific palette and cohesive
 rendering style only, no character or scene instructions), character_description <=350 (original cast, or object design language),
 cover_brief <=800, pages exactly {count}: each title <=80, learning_goal <=650,
-activity_concept <=650, layout_brief <=650. No teacher guide.'''
-    plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count), 'Creative plan', 6000)
+activity_concept <=650, layout_brief <=650, render_mode and mechanic.
+render_mode is exact or authored. For exact choose mechanic maze/sort/differences/pattern/matching/balance/count.
+Exact balance compares sizes, not weight. These tools support only circle,square,triangle,star,leaf,pumpkin,ghost,bat.
+For any other creative exercise use authored with an ORIGINAL short mechanism label describing its actual action.
+Authored tasks allow original design, investigation, craft, reading/writing or reasoning rather than a fixed menu.
+Favor context-specific authored invention for at least half the pages unless the requested subject requires exact puzzles.
+Closed-answer tasks cannot depend on precise AI picture features. Use exact for counts, mazes, shadows,
+patterns and differences; use authored for open responses or supplied text/math questions. Avoid generic
+reflection repeated after every puzzle. At most two pages with the same mechanic. No teacher guide.'''
+    plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True), 'Creative plan', 6000)
     context = json.dumps({k: plan[k] for k in ('title', 'art_direction', 'character_description')})
     def design_unit(number):
         """Author one independent page while preserving caller-owned page numbering."""
@@ -540,9 +579,10 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
         prompt = (f'Author student activity {number} for {grade_band}. Theme: {theme}. '
                   f'User context: {source_context or theme}. Skills: {config["skill_notes"]}.\n'
                   f'Art direction: {context}\nThis page brief: {json.dumps(brief)}\n'
+                  f'Maximum question/action count on this page: {config.get("items_per_page",4)}.\n'
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
-                  + layout_contract(font, config.get('minimum_text_pt', 11)) + f'\nPrint activity number {number} and the EXACT title: {brief["title"]}.')
-        page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title']), f'Activity design {number}')
+                  + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + f'\nThe title slot will print: {brief["title"]}.')
+        page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title'], require_coherent=True, brief=brief), f'Activity design {number}')
         page = compact_answers(page, number)
         page.update(title=brief['title'], page_number=number)
         LOGGER.info('Activity design %s/%s complete', number, count)
@@ -556,15 +596,18 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
     cover, pages = designs[0], designs[1:]
     pack = dict(title=plan['title'], overview=plan['overview'], theme=theme, grade_band=grade_band,
                 character_description=plan['character_description'], art_direction=plan['art_direction'],
-                resource_type='activity_pack', design_engine='creative_html_v1', cover=cover, pages=pages)
+                resource_type='activity_pack', design_engine='creative_bound_v2', cover=cover, pages=pages)
     def repair_content(number, previous, issues):
         """Correct only the affected activity, preserving the pack's title and style."""
+        source = {k: previous[k] for k in ('images','exercise')}
+        source['html'] = previous['source_layout']
+        brief = previous['planned_intent']
         repaired = ask_json(
             f'Repair activity {number} for {grade_band}. Exact title: {previous["title"]}. '
             f'Correct these concrete exercise defects: {json.dumps(issues)}. '
             'Preserve the learning goal, meaningful visuals and response space. Return a complete page.\n'
-            + layout_contract(font, config.get('minimum_text_pt', 11)) + '\nPrevious page: ' + json.dumps(previous),
-            lambda raw: validate_design(raw, font, quality=config, expected_title=previous['title']),
+            + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + '\nPlanned brief: ' + json.dumps(brief) + '\nPrevious shared specification/layout: ' + json.dumps(source),
+            lambda raw: validate_design(raw, font, quality=config, expected_title=previous['title'], require_coherent=True, brief=brief),
             f'Exercise repair {number}', 6500)
         repaired = compact_answers(repaired, number)
         repaired.update(title=previous['title'], page_number=number)

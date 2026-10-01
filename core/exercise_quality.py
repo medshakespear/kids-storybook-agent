@@ -191,7 +191,8 @@ def proofread_pack(pack: dict, ask, repair) -> None:
     for attempt in range(2):
         payload = [{'page_number': i, 'title': page['title'], 'student_content': student_text(page),
                     'answer_key': answer_text(page), 'verified_calculations': page.get('calculations', []),
-                    'independent_printed_math': page.get('computed_math', [])}
+                    'independent_printed_math': page.get('computed_math', []),
+                    'planned_intent': page.get('planned_intent'), 'shared_exercise': page.get('exercise')}
                    for i, page in enumerate(pack['pages'], 1)]
         prompt = (
             'Proofread the educational CONTENT of this static classroom pack. This is NOT image review. '
@@ -200,9 +201,14 @@ def proofread_pack(pack: dict, ask, repair) -> None:
             f'Grade: {pack["grade_band"]}. Identify only concrete mistakes making a task incorrect, '
             'ambiguous, unsolvable or mismatched to its answer key. Independently solve printed math; '
             'match question numbers, titles and EVERY answer; check comprehension against supplied passage, '
-            'exhaustive/nonoverlapping sorting rules and sufficient materials. Flag a required visual '
+            'compare the planned activity with the shared exercise and actually printed task. Flag substituted '
+            'mechanisms, e.g. sorting beneath seesaw directions or a maze beneath a pattern instruction. '
+            'exhaustive/nonoverlapping sorting rules and sufficient materials. Flag more than two pages '
+            'with the same actual activity mechanics despite different labels, but do not flag distinct '
+            'tasks merely because they share a theme or palette. Flag a required visual '
             'replaced with text labels, empty panels, CSS-only drawings, or an illustrative scene. '
-            'Exact Python visuals are guaranteed from their specs: maze route/tokens and differences/sort '
+            'Exact Python visuals are guaranteed from their specs: maze route/tokens, differences, sort, '
+            'patterns, matching, size comparison and counts have computed answers. '
             'answers are supplied by Python; their numbered directions are printed inside the graphic. '
             'Other images are decorative/illustrative only: a task must not depend on their exact count, '
             'spelling, path, tiny detail or a specific hidden object. Open drawing/writing can use general art. '

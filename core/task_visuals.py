@@ -49,7 +49,7 @@ def symbol(raw: dict, context: str = 'Symbol') -> dict:
     return dict(shape=shape, color=color, size=size)
 
 
-def icon(item: dict, x: float, y: float, scale: float = 1) -> str:
+def icon(item: dict, x: float, y: float, scale: float = 1, *, silhouette: bool = False) -> str:
     """Draw one consistent vector symbol with a visible outline."""
     shape, color = item['shape'], COLORS[item['color']]
     if shape == 'circle':
@@ -74,13 +74,17 @@ def icon(item: dict, x: float, y: float, scale: float = 1) -> str:
         body = ('<path d="M-4,-22 L-2,-36 L6,-36 L4,-22" fill="#468453"/>'
                 '<ellipse cx="-13" cy="3" rx="19" ry="26"/><ellipse cx="13" cy="3" rx="19" ry="26"/>'
                 '<ellipse cx="0" cy="3" rx="17" ry="28"/>')
+    if silhouette:
+        body = re.sub(r'<g fill=.*?</g>', '', body)
+        body = re.sub(r'fill="#[A-Fa-f0-9]{6}"', 'fill="#252A34"', body)
+    outline = color if silhouette else '#344454'
     return (f'<g transform="translate({x:g},{y:g}) scale({scale * SIZES[item["size"]]:g})" '
-            f'fill="{color}" stroke="#344454" stroke-width="2.5" stroke-linejoin="round">{body}</g>')
+            f'fill="{color}" stroke="{outline}" stroke-width="2.5" stroke-linejoin="round">{body}</g>')
 
 
-def text(x: float, y: float, value: str, size: int = 20, anchor: str = 'middle') -> str:
+def text(x: float, y: float, value: str, size: int = 24, anchor: str = 'middle') -> str:
     """Escape labels and provide a font available in the deployment image."""
-    return (f'<text x="{x:g}" y="{y:g}" font-family="DejaVu Sans" font-size="{size}" '
+    return (f'<text x="{x:g}" y="{y:g}" font-family="DejaVu Sans" font-size="{max(24,size)}" '
             f'text-anchor="{anchor}" fill="#233544" stroke="none">{html.escape(value)}</text>')
 
 
@@ -185,7 +189,7 @@ def build_visual(spec: dict) -> tuple[str, str]:
             parts.append(text(25,y,'AB'[row],24))
             for i, item in enumerate(symbols):
                 x = 68 + (i+.5)*cell
-                parts.append(icon(item,x,y,min(1.4,cell/72)))
+                parts.append(icon(item,x,y,min(1.4,cell/90)))
                 parts.append(text(x,y+65,str(i+1),20))
         answer = f'{q}. Row B positions: ' + ', '.join(str(i+1) for i in sorted(changed)) + '.'
     elif kind == 'sort':
@@ -210,8 +214,90 @@ def build_visual(spec: dict) -> tuple[str, str]:
             parts.append(f'<path d="M{x+18},{bottom+92} h{width-48}" stroke="#657989" stroke-width="1"/>')
         height = bottom + 140
         answer = f'{q}. ' + '; '.join(v.title()+': '+', '.join(str(i+1) for i,item in enumerate(symbols) if item[attribute]==v) for v in values) + '.'
+    elif kind == 'pattern':
+        motif, choices = spec.get('motif'), spec.get('choices')
+        if not isinstance(motif,list) or not 2 <= len(motif) <= 3:
+            raise ValueError('Pattern motif needs 2-3 symbols')
+        if not isinstance(choices,list) or not 2 <= len(choices) <= 4:
+            raise ValueError('Pattern needs 2-4 answer choices')
+        motif = [symbol(v, f'Pattern motif {i}') for i,v in enumerate(motif,1)]
+        choices = [symbol(v, f'Pattern choice {i}') for i,v in enumerate(choices,1)]
+        if len({json.dumps(v,sort_keys=True) for v in motif}) < 2:
+            raise ValueError('Pattern motif needs at least two different symbols')
+        matches = [i for i,v in enumerate(choices) if v == motif[-1]]
+        if len(matches) != 1 or len({json.dumps(v,sort_keys=True) for v in choices}) != len(choices):
+            raise ValueError('Pattern choices need one correct option and no duplicates')
+        parts.append(text(360,35,f'{q}. Circle the picture that comes next.',24))
+        sequence = (motif * 2)[:-1]
+        spacing = 630 / (len(sequence)+1)
+        for i,v in enumerate(sequence):
+            parts.append(icon(v,45+(i+.5)*spacing,150,min(1.4,spacing/90)))
+        x = 45+(len(sequence)+.5)*spacing
+        parts.extend([f'<rect x="{x-35}" y="115" width="70" height="70" rx="10" fill="#F1F8FA"/>',text(x,160,'?',30)])
+        parts.append(text(360,245,'Choose one:',24))
+        for i,v in enumerate(choices):
+            x = 90+(i+.5)*540/len(choices)
+            parts.extend([icon(v,x,330,1.65),text(x,410,'ABCD'[i],26)])
+        height = 445
+        answer = f'{q}. Choice {"ABCD"[matches[0]]}.'
+    elif kind == 'matching':
+        items, mode = spec.get('items'), spec.get('mode')
+        if not isinstance(items,list) or not 2 <= len(items) <= 4 or mode not in {'shadow','identical'}:
+            raise ValueError('Matching needs 2-4 symbols and mode shadow or identical')
+        items = [symbol(v, f'Matching item {i}') for i,v in enumerate(items,1)]
+        identities = [v['shape'] if mode=='shadow' else json.dumps(v,sort_keys=True) for v in items]
+        if len(set(identities)) != len(items):
+            raise ValueError('Matching pictures must have distinct counterparts; shadows need distinct shapes')
+        order = list(range(len(items)))
+        random.Random(integer(spec.get('seed'), 'Matching seed',0,2147483647)).shuffle(order)
+        if order == list(range(len(items))): order = order[1:]+order[:1]
+        parts.append(text(360,35,f'{q}. Draw lines to the matching '+('shadows.' if mode=='shadow' else 'pictures.'),24))
+        for i,v in enumerate(items):
+            y = 125+i*120
+            parts.extend([text(45,y+8,str(i+1),26),icon(v,160,y,1.5)])
+            right = dict(items[order[i]])
+            if mode=='shadow': right['color']='black'
+            parts.extend([icon(right,555,y,1.5,silhouette=mode=='shadow'),text(675,y+8,'ABCD'[i],26)])
+        height = 200+(len(items)-1)*120
+        answer = f'{q}. '+', '.join(f'{i+1}–{"ABCD"[order.index(i)]}' for i in range(len(items)))+'.'
+    elif kind == 'balance':
+        rows = spec.get('rows')
+        if not isinstance(rows,list) or not 1 <= len(rows) <= 3:
+            raise ValueError('Size comparison needs 1-3 rows')
+        parts.append(text(360,35,f'{q}. Circle the larger picture in each row.',24))
+        results = []
+        for i,row in enumerate(rows):
+            if not isinstance(row,dict): raise ValueError('Comparison row needs left and right symbols')
+            left, right = symbol(row.get('left'),'Comparison left'),symbol(row.get('right'),'Comparison right')
+            if any(left[k]!=right[k] for k in ('shape','color')) or left['size']==right['size']:
+                raise ValueError('Compare the same shape/color in different sizes; do not infer physical weight')
+            y = 150+i*155
+            parts.extend([text(45,y,str(i+1),26),icon(left,220,y,1.9),icon(right,520,y,1.9)])
+            parts.append(f'<path d="M155,{y+70} H585" stroke="#90AAB5" stroke-width="2"/>')
+            results.append(f'{i+1}: '+('left' if left['size']=='large' else 'right'))
+        height = 255+(len(rows)-1)*155
+        answer = f'{q}. '+ '; '.join(results)+'.'
+    elif kind == 'count':
+        rows = spec.get('rows')
+        if not isinstance(rows,list) or not 1 <= len(rows) <= 3:
+            raise ValueError('Counting needs 1-3 rows')
+        parts.append(text(360,35,f'{q}. Count each row. Write the number.',24))
+        results = []
+        for i,row in enumerate(rows):
+            if not isinstance(row,list) or not 1 <= len(row) <= 10:
+                raise ValueError('Counting row needs 1-10 actual symbols')
+            items = [symbol(v,f'Counting row {i+1}, item {j}') for j,v in enumerate(row,1)]
+            y = 135+i*145
+            parts.append(text(30,y,str(i+1),26))
+            spacing = 480/max(len(items),5)
+            for j,v in enumerate(items):
+                parts.append(icon(v,65+(j+.5)*spacing,y,min(1.35,spacing/95)))
+            parts.append(f'<rect x="590" y="{y-40}" width="85" height="80" rx="10" fill="#F1F8FA"/>')
+            results.append(f'{i+1}: {len(items)}')
+        height = 225+(len(rows)-1)*145
+        answer = f'{q}. '+ '; '.join(results)+'.'
     else:
-        raise ValueError('Visual kind must be maze, differences or sort')
+        raise ValueError('Visual kind must be maze, differences, sort, pattern, matching, balance or count')
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="720" height="{height}" viewBox="0 0 720 {height}">'
            '<rect width="100%" height="100%" fill="white"/>'
            '<g stroke="#344454" stroke-width="3" fill="none">'+''.join(parts)+'</g></svg>')
@@ -297,4 +383,27 @@ For mazes, spot-the-difference and closed-rule picture sorting, ALWAYS use these
 Never fake a maze or differences exercise with Cloudflare art, empty boxes, CSS drawings or descriptive labels.
 Do not repeat the exact visual's question or answer in HTML/answers: Python prints its directions,
 question number and answer. Your answers field covers ONLY other questions on the page.
+'''
+
+
+BOUND_VISUAL_CONTRACT = VISUAL_CONTRACT[:VISUAL_CONTRACT.index('Declare each in visuals')] + '''
+In exact mode declare ONE component in exercise.visual (not a top-level visuals list).
+Every component has id (short lowercase identifier), question (integer 1-30), kind and fields:
+- maze: rows,cols integers 4-8, seed integer 0-2147483647, tokens integer 0-5. Height 145mm.
+- sort: attribute shape/color/size; items 4-8 symbols with 2-3 distinct group values. Height 140mm.
+- differences: items 4-8 symbols; changes 1-N objects {index:1-based,field:shape/color/size,value}.
+  Each index once, changed trait must actually differ. Height 115mm.
+- pattern: motif 2-3 symbols; choices 2-4 distinct symbols including motif's LAST symbol exactly once.
+  Python prints two repetitions with the final symbol missing and lettered choices. Height 115mm.
+- matching: mode shadow/identical, seed integer 0-2147483647, items 2-4 distinct symbols.
+  Shadow mode requires different shapes. Python permutes counterparts and computes pairs. Height 140mm.
+- balance: rows 1-3 {left:symbol,right:symbol}, same shape/color, different sizes. This compares SIZE,
+  never physical weight. Printed directions ask for the larger picture. Height 140mm.
+- count: rows 1-3 lists of 1-10 symbols; Python draws actual items and blank number boxes. Height 140mm.
+Every symbol: {shape,color,size}. Shapes circle,square,triangle,star,leaf,pumpkin,ghost,bat.
+Colors orange,teal,purple,yellow,red,blue,green,white,black,pink,brown,gray. Size small/large.
+For other subjects, use authored creative tasks plus original Cloudflare illustrations. These optional
+exact tools do not restrict authored invention. Do not call plain stars candy or infer weight from size.
+Python prints exact directions/number in the graphic and puts computed solutions only in the final key.
+Do not duplicate them in exercise.questions. Use a large img data-visual with BOTH width/height in mm.
 '''

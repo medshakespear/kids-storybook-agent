@@ -12,6 +12,7 @@ from core.creative_generator import _consolidate_image_manifest, _normalize_asse
 from core.creative_layout import clean_style, check_page, build_creative_pdf, fragment
 from core.pipeline import load_grade_config, generate_book
 from tests.activity_fixtures import attach_test_art
+from tests.coherent_fixtures import authored_page
 
 
 def design_fixture(index=0):
@@ -243,10 +244,8 @@ class CreativeTests(unittest.TestCase):
         config['Pre-K-K']['activity_pages'] = 2
         plan = dict(title='Garden Makers', overview='Make and investigate.', art_direction='Teal and coral, clear outlines.',
                     character_description='Original friendly gardening objects.', cover_brief='Big plant and cheerful title.',
-                    pages=[dict(title=f'Mission {i}', learning_goal='Explain a design.', activity_concept=f'Original challenge {i}', layout_brief=f'Composition {i}') for i in range(2)])
-        first, second = design_fixture(0), design_fixture(0)
-        first['html'] = first['html'].replace('Garden Detectives', 'Mission 0')
-        second['html'] = second['html'].replace('Garden Detectives', 'Mission 1')
+                    pages=[dict(title=f'Mission {i}', learning_goal='Explain a design.', activity_concept=f'Original challenge {i}', layout_brief=f'Composition {i}', render_mode='authored', mechanic=f'challenge {i}') for i in range(2)])
+        first, second = authored_page(mechanic='challenge 0'), authored_page(mechanic='challenge 1')
         invalid = dict(second, html='<script>bad()</script>')
         api = Mock()
         def response(value):
@@ -257,7 +256,7 @@ class CreativeTests(unittest.TestCase):
                                                   response({'pages':[{'page_number':1,'issues':[]},{'page_number':2,'issues':[]}]})]
         with patch.dict(os.environ, {'DESIGN_WORKERS': '1'}), patch('core.creative_generator.text_provider_names', return_value=['gemini']), patch('core.creative_generator.text_client', return_value=(api, 'test')), patch('core.creative_generator.time.sleep'), patch('core.creative_generator.text_worker_limit', return_value=1):
             pack = generate_creative_pack('Garden', 'Pre-K-K', config, source_context='Invent a garden tool.')
-        self.assertEqual(pack['pages'][0]['html'], first['html'])
-        self.assertEqual(pack['pages'][1]['html'], second['html'])
+        self.assertEqual(pack['pages'][0]['source_layout'], first['html'])
+        self.assertEqual(pack['pages'][1]['source_layout'], second['html'])
         self.assertEqual(api.chat.completions.create.call_count, 6)
-        self.assertEqual(pack['design_engine'], 'creative_html_v1')
+        self.assertEqual(pack['design_engine'], 'creative_bound_v2')

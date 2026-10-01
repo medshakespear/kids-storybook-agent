@@ -157,15 +157,22 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         blocks['question_'+qid] = content
         answers.append(f'{qid}. {answer}')
         calculation = question.get('calculation')
-        numeric_facts = re.findall(r'(?<![\w.])(?:\d+(?:\.\d+)?|\.\d+)(?:\s*[+−×÷*/-]\s*(?:\d+(?:\.\d+)?|\.\d+))+(?![\w.])', prompt)
+        from core.exercise_quality import numeric_display_text
+        numeric_prompt = numeric_display_text(prompt)
+        numeric_facts = re.findall(r'(?<![\w.])(?:\d+(?:\.\d+)?|\.\d+)(?:\s*[+−×÷*/-]\s*(?:\d+(?:\.\d+)?|\.\d+))+(?![\w.])', numeric_prompt)
         if numeric_facts and calculation is None:
             raise ValueError(f'Question {qid}: printed arithmetic requires a calculation in the shared specification')
         if calculation is not None:
             if not isinstance(calculation,dict): raise ValueError('Question calculation must contain expression and answer')
-            page['calculations'].append(dict(question=qid,expression=calculation.get('expression'),answer=calculation.get('answer')))
+            from core.exercise_quality import calculate, normalize_calculation
+            original_expression = calculation.get('expression')
+            try:
+                calculation['expression'] = normalize_calculation(original_expression)
+            except ValueError as exc:
+                raise ValueError(f'Question {qid}: calculation expression {str(original_expression)[:80]!r}: {exc}') from None
+            page['calculations'].append(dict(question=qid,expression=calculation['expression'],answer=calculation.get('answer')))
             # The numeric answer printed in the key is also computed from this same object.
-            from core.exercise_quality import calculate
-            actual = calculate(calculation.get('expression'))
+            actual = calculate(calculation['expression'])
             from fractions import Fraction
             try: supplied = Fraction(str(calculation.get('answer')))
             except (ValueError,ZeroDivisionError): raise ValueError('Question calculation answer must be numeric') from None
@@ -173,7 +180,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
                 raise ValueError(f'Question {qid}: calculation does not solve the printed arithmetic')
             if actual != supplied: raise ValueError(f'Question {qid}: declared math answer is incorrect; correct the shared specification')
             # Require the prose key to contain the exact numeric answer, never an unrelated narrative.
-            candidates = re.findall(r'(?<![\w.])-?(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+)?(?![\w.])', answer)
+            numeric_key = numeric_display_text(answer)
+            candidates = re.findall(r'(?<![\w.])-?(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+)?(?![\w.])', numeric_key)
             values = []
             for value in candidates:
                 try: values.append(Fraction(value))
@@ -242,7 +250,11 @@ THIS task rather than replacing it with another mechanism.
 Each questions item: {id:"1", prompt:"Draw a safe costume.", answer:"Accept an original safe design.",
 space_mm:50, calculation?:{expression:"20-8",answer:12}}. IDs are distinct printed task labels.
 answer is a correct solution or a concrete success criterion for an open activity. Any arithmetic
-question includes calculation; its prose answer must contain that same numeric result. Do not put
+question includes calculation.expression as a numeric computation such as "20-8", "12.50+7.25"
+or "200*15/100". No variables, equals signs, function calls, units, powers or wording in expression.
+For a missing-number equation x+8=20 printed in the prompt, expression is "20-8", not "x+8=20".
+Never use a variable name or verbal formula such as "total_cost" as expression. calculation.answer
+is its final numeric value or fraction string; its prose answer must contain that same numeric result. Do not put
 answers in student prompts. For exact mode do not repeat the graphic's computed answer in questions.
 HTML is a freely designed layout with EMPTY data-content slots. ALL printed wording comes from
 exercise fields. Required title slot: <h1 data-content="title"></h1>; optional name slot:

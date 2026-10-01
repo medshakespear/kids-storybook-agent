@@ -101,6 +101,29 @@ def calculate(expression: str) -> Fraction:
     return visit(root.body)
 
 
+def numeric_display_text(value: str) -> str:
+    """Normalize only explicit numeric grouping/currency, leaving surrounding wording intact."""
+    value = re.sub(r'(?<![\w.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\w.,])',
+                   lambda match:match[0].replace(',',''),value)
+    return re.sub(r'[$£€](?=\s*(?:\d|\.\d))','',value)
+
+
+def normalize_calculation(expression: str) -> str:
+    """Canonicalize explicit numeric notation without guessing equations or running model code."""
+    if not isinstance(expression,str) or len(expression)>80:
+        raise ValueError('Calculation expression must be text of at most 80 characters')
+    value = expression.strip().replace('−','-').replace('–','-')
+    value = value.replace('×','*').replace('⋅','*').replace('·','*').replace('÷','/')
+    value = re.sub(r'(?<=[\d)])\s*[xX]\s*(?=[\d(])','*',value)
+    value = numeric_display_text(value)
+    # Percent suffix is a numeric literal, not Python's modulo operator. Reject
+    # ambiguous forms such as 10%3 and wording such as "15% of the class".
+    value = re.sub(r'(?<![\w.])(\d+(?:\.\d+)?|\.\d+)\s*%(?!\s*[\d.\w])',r'(\1/100)',value)
+    value = value.strip()
+    calculate(value)  # The existing restricted AST evaluator remains the safety boundary.
+    return value
+
+
 def validate_exercises(page: dict, config: dict, expected_title: str | None = None) -> None:
     """Reject known impossible tasks and verify declared math before image spending."""
     visuals = page_visuals(page)
@@ -127,7 +150,7 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
         raise ValueError('calculations must be a list of at most 16 arithmetic checks')
     # Independently derive printed arithmetic facts even if the author omits a check.
     facts = []
-    for match in re.finditer(r'(?<![\w.])(\d+(?:\.\d+)?|\.\d+)\s*([+−×÷*/-])\s*(\d+(?:\.\d+)?|\.\d+)(?!\w|\.\d)', prose):
+    for match in re.finditer(r'(?<![\w.])(\d+(?:\.\d+)?|\.\d+)\s*([+−×÷*/-])\s*(\d+(?:\.\d+)?|\.\d+)(?!\w|\.\d)', numeric_display_text(prose)):
         expression = ''.join(match.groups())
         value = calculate(expression)
         facts.append({'expression': expression, 'result': str(value)})

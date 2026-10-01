@@ -116,6 +116,27 @@ def clean_style(value: str, minimum_font: float = 11) -> str:
     return ';'.join(result)
 
 
+def reveal_print_content(markup: str) -> str:
+    """Remove model-authored clipping declarations, then let measured bounds validate all content."""
+    def replace(match):
+        """Preserve other CSS declarations and escape the rebuilt attribute."""
+        value = html.unescape(match[3])
+        declarations = tinycss2.parse_declaration_list(value,skip_comments=True,skip_whitespace=True)
+        if any(decl.type!='declaration' for decl in declarations):
+            return match[0]  # Let the strict CSS validator report the original malformed syntax.
+        kept,changed = [],False
+        for decl in declarations:
+            if decl.type=='declaration' and decl.lower_name in {'overflow','overflow-x','overflow-y'}:
+                tokens = tinycss2.serialize(decl.value).strip().lower().split()
+                if tokens and len(tokens)<=2 and set(tokens)<={'visible','hidden','clip','auto','scroll'}:
+                    changed = True
+                    continue  # Normal document flow exposes all content; never hides it.
+            kept.append(decl)
+        if not changed: return match[0]
+        return match[1]+match[2]+html.escape(tinycss2.serialize(kept),quote=True)+match[2]
+    return re.sub(r"(\bstyle\s*=\s*)(['\"])(.*?)\2",replace,markup,flags=re.I|re.S)
+
+
 class PrintFragment(HTMLParser):
     """Rebuild a printable fragment; only declared asset IDs can become images."""
 

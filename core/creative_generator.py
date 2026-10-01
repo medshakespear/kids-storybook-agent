@@ -10,7 +10,7 @@ from copy import deepcopy
 from uuid import uuid4
 
 from core.activity_generator import ActivityGenerationError, _text
-from core.creative_layout import check_page, preflight_pack, PROPERTIES, TAGS
+from core.creative_layout import check_page, preflight_pack, PROPERTIES, TAGS, reveal_print_content
 from core.image_generator import generate_images
 from core.task_visuals import VISUAL_CONTRACT, BOUND_VISUAL_CONTRACT, page_visuals, normalize_visual_metadata, SHAPES, COLORS
 from core.exercise_quality import validate_exercises, proofread_pack, activity_title
@@ -127,21 +127,35 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'including html, images, visuals and answers; do not replace a puzzle with '
                             'an AI illustration or invent missing task numbers.'
                         )
-                    if 'calculation' in asset_error or 'arithmetic' in asset_error or 'only numbers' in asset_error:
-                        repair += (
-                            ' Repair calculations only. Every calculations item must have exactly '
-                            'question (unique nonempty string of 1-20 characters matching the printed task, '
-                            'e.g. "1" or "2A"), expression (numeric computation), and answer (final value). '
-                            'Do not omit question, use null, or substitute question_number/id/number fields. '
-                            'If the worksheet has no arithmetic, return calculations: []. '
-                            'Expression must be a numeric computation such as '
-                            '"12.50+7.25", "3/4+1/8" or "20*15/100", not an equation or word problem. '
-                            'No unknowns, equals signs, currency symbols, units, powers or percent signs '
-                            'inside expression. For a missing-number task, express the numeric operation '
-                            'that computes the missing value (e.g. "20-8", not "x+8=20"). Put units and '
-                            'question wording in html and the final value in answer. Preserve the artwork '
-                            'and question/answer references; do not replace the exercise to fix notation.'
-                        )
+                    if ('calculation' in asset_error or 'arithmetic' in asset_error or 'only numbers' in asset_error
+                            or 'only integer/decimal literals' in asset_error):
+                        if 'ONE shared source' in prompt:
+                            repair += (
+                                ' Correct ONLY exercise.questions[].calculation and its answer field. '
+                                'expression must compute the numeric result, e.g. "20-8" for x+8=20, '
+                                '"200*15/100" for 15 percent of 200, or "12.50+7.25" for a cost sum. '
+                                'No variable names, equals signs, functions, units, verbal formulas or powers. '
+                                'calculation.answer is the final number or fraction string, not an expression. '
+                                'For a question with no arithmetic, omit calculation from that question; '
+                                'never add a top-level calculations field. Keep printed question text, IDs, '
+                                'response spaces, image manifest and planned mechanic. Return html with EMPTY '
+                                'data-content slots, images, and the complete exercise specification.'
+                            )
+                        else:
+                            repair += (
+                                ' Repair calculations only. Every calculations item must have exactly '
+                                'question (unique nonempty string of 1-20 characters matching the printed task, '
+                                'e.g. "1" or "2A"), expression (numeric computation), and answer (final value). '
+                                'Do not omit question, use null, or substitute question_number/id/number fields. '
+                                'If the worksheet has no arithmetic, return calculations: []. '
+                                'Expression must be a numeric computation such as '
+                                '"12.50+7.25", "3/4+1/8" or "20*15/100", not an equation or word problem. '
+                                'No unknowns, equals signs, currency symbols, units, powers or percent signs '
+                                'inside expression. For a missing-number task, express the numeric operation '
+                                'that computes the missing value (e.g. "20-8", not "x+8=20"). Put units and '
+                                'question wording in html and the final value in answer. Preserve the artwork '
+                                'and question/answer references; do not replace the exercise to fix notation.'
+                            )
                     if ('illustration' in asset_error or 'data-asset' in asset_error or
                             'asset mismatch' in asset_error):
                         repair += (
@@ -360,6 +374,8 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
         raise ValueError('Design must be an object')
     design = deepcopy(raw)
     design['html'] = _text(design.get('html'), 'html', 18000)
+    if quality is not None:
+        design['html'] = reveal_print_content(design['html'])
     if require_coherent and not cover:
         compile_exercise(design, quality or {}, expected_title or '', brief)
     if cover:

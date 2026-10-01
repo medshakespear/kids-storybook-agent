@@ -405,3 +405,17 @@ Modules: `core/page_contract.py` (shared content binding), `core/task_visuals.py
 (exact graphics/answers), `core/exercise_quality.py` (math checks and text proofreading).
 
 Pre-K layout repairs use the same 14pt minimum as final printing. Smaller model-authored captions are raised locally before measuring the page. Excess cosmetic spacing may be compacted, while explicit illustration and response-area heights are preserved. Unfit pages receive measured overflow feedback and a grade-specific repair instruction.
+
+
+Calculation repair keeps the shared exercise schema: each arithmetic question has
+`exercise.questions[].calculation` with a numeric computation and final value.
+Unknown equations such as `x+8=20` stay in the printed prompt; their computation
+is `20-8`. Local notation cleanup supports explicit percentages (`15%*200`),
+proper thousands grouping, currency prefixes and common multiplication symbols.
+Variables, functions, verbal formulas, powers and incorrect answers remain rejected.
+Diagnostics identify the question and offending expression for targeted repair.
+
+New designs discard model-authored clipping/scrolling CSS declarations and expose
+all content before measuring printable bounds. This avoids a needless cover retry
+for `overflow:hidden`; oversized content still fails print preflight. Gemini HTTP
+503 responses remain provider-side availability errors and receive bounded retries.

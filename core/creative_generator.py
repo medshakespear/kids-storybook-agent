@@ -13,7 +13,7 @@ from core.activity_generator import ActivityGenerationError, _text
 from core.creative_layout import check_page, preflight_pack, PROPERTIES, TAGS
 from core.image_generator import generate_images
 from core.task_visuals import VISUAL_CONTRACT, page_visuals, normalize_visual_metadata, SHAPES, COLORS
-from core.exercise_quality import validate_exercises, proofread_pack
+from core.exercise_quality import validate_exercises, proofread_pack, activity_title
 from core.providers import text_provider_names, text_client, text_worker_limit, safe_api_error
 from core.runtime import int_setting, ordered_parallel
 
@@ -96,6 +96,13 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'Preserve the exercise and design rather than inventing a different page.'
                         )
                     asset_error = str(exc).lower()
+                    if 'exact planned activity title' in asset_error:
+                        repair += (
+                            ' Repair only the visible activity heading to match the supplied title words. '
+                            'Page/activity numbering is separate metadata and need not be part of the title. '
+                            'Retain every task, illustration manifest, visual, answer and calculation. '
+                            'Do not redesign the exercise to correct its heading.'
+                        )
                     if 'symbol' in asset_error or 'supported shape' in asset_error:
                         repair += (
                             f' Repair only the identified exact visual item. Supported shapes: {sorted(SHAPES)}. '
@@ -211,6 +218,7 @@ def validate_plan(raw: dict, count: int) -> dict:
             raise ValueError('Each planned page must be an object')
         for key in ('title', 'learning_goal', 'activity_concept', 'layout_brief'):
             page[key] = _text(page.get(key), key, 80 if key == 'title' else 650)
+        page['title'] = _text(activity_title(page['title']), 'activity title without page label', 80)
     for key in ('title', 'activity_concept', 'layout_brief'):
         if len({p[key].strip().casefold() for p in plan['pages']}) != count:
             raise ValueError(f'Each page needs a different {key}; do not repeat a worksheet pattern')

@@ -4,8 +4,10 @@ from __future__ import annotations
 import ast
 from fractions import Fraction
 from html.parser import HTMLParser
+from html import unescape
 import json
 import re
+import unicodedata
 
 from core.task_visuals import page_visuals, answer_text
 
@@ -40,6 +42,19 @@ def student_text(page: dict) -> str:
     parser = StudentText(page)
     parser.feed(page['html'])
     return '\n'.join(parser.parts)
+
+
+def activity_title(value: str) -> str:
+    """Separate a model-added page label from the actual activity title."""
+    return re.sub(r'^\s*(?:page|activity)\s+#?\d+\s*[:.\-–—]\s*', '', value,
+                  flags=re.I).strip()
+
+
+def title_words(value: str) -> str:
+    """Compare visible title words regardless of typography or punctuation."""
+    value = unicodedata.normalize('NFKC', unescape(value)).casefold()
+    value = value.replace('&', ' and ').replace('’', "'").replace("'", '')
+    return ' '.join(re.sub(r'[\W_]+', ' ', value).split())
 
 
 def calculate(expression: str) -> Fraction:
@@ -91,8 +106,17 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
     visuals = page_visuals(page)
     prose = student_text(page)
     normalized = ' '.join(prose.split()).casefold()
-    if expected_title and ' '.join(expected_title.split()).casefold() not in normalized:
-        raise ValueError(f'Print the exact planned activity title: {expected_title}')
+    if expected_title:
+        expected_words = title_words(activity_title(expected_title))
+        # Artwork briefs are not printed headings and must not satisfy this check.
+        visible_parser = HTMLParser()
+        visible_parts = []
+        visible_parser.handle_data = visible_parts.append
+        visible_parser.feed(page['html'])
+        visible_words = title_words(' '.join(visible_parts))
+        if not expected_words or f' {expected_words} ' not in f' {visible_words} ':
+            raise ValueError(f'Print the exact planned activity title: {activity_title(expected_title)}. '
+                             'Put it visibly in h1 or h2; preserve the exercise and artwork.')
     kinds = {v['kind'] for v in page.get('visuals', [])}
     if re.search(r'\bmaze\b', normalized) and not re.search(r'(draw|design|create).{0,30}(your|an?).{0,15}maze', normalized) and 'maze' not in kinds:
         raise ValueError('A maze task requires an exact visuals kind=maze component, not an AI picture of a path')

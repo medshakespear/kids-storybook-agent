@@ -297,7 +297,16 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
         raise ValueError('Design must be an object')
     design = deepcopy(raw)
     design['html'] = _text(design.get('html'), 'html', 18000)
-    if not cover:
+    if cover:
+        # Cover art has no exercise numbers. Ignore unused exercise metadata,
+        # but never silently remove a visible puzzle from authored markup.
+        if re.search(r'<img\b[^>]*\bdata-visual\s*=', design['html'], re.I):
+            raise ValueError('Cover illustrations must use data-asset and images; '
+                             'move numbered puzzles to student pages and return visuals=[]')
+        design['visuals'] = []
+        design.pop('answers', None)
+        design.pop('calculations', None)
+    else:
         answers = design.get('answers')
         if isinstance(answers, list) and 1 <= len(answers) <= 30 and all(isinstance(a, str) and a.strip() for a in answers):
             answers = '; '.join(answers)
@@ -361,8 +370,26 @@ def compact_answers(page: dict, number: int) -> dict:
     return dict(page, answers=result['answers'])
 
 
-def layout_contract(font: int, minimum_text_pt: int = 11) -> str:
+def layout_contract(font: int, minimum_text_pt: int = 11, *, cover: bool = False) -> str:
     """Describe the print boundary without prescribing a reusable composition."""
+    if cover:
+        return f'''Return JSON containing html (one complete fragment, <=18000 chars), images
+(1-4 objects with short lowercase id and original illustration prompt <=650 chars), visuals: [].
+This is a decorative COVER, with the title, grade band and a short descriptive subtitle.
+No exercise, question numbers, puzzle components, calculations, answers or student directions.
+Use only images plus <img data-asset="id" style="width:175mm;height:125mm"/> for cover art.
+Declare and use every image ID. Do not use data-visual. All images need explicit width and height
+in mm and are fitted without cropping. Prompts describe original art without lettering or logos.
+Canvas: A4 portrait, width 186mm. Python reserves 41mm above this fragment for the REAL store logo.
+Keep YOUR composition at most 215mm high, ideally 205mm including all margins and padding.
+Minimum student font: {minimum_text_pt}pt. Use {font}pt or larger for the subtitle and larger title.
+Choose an original palette, composition, borders and hierarchy matching the pack art direction.
+Allowed tags: {sorted(TAGS)}. Allowed CSS properties: {sorted(PROPERTIES)}.
+Only inline styles; no html/head/body/style tags, external files, classes, SVG, scripts or URLs.
+Use positive mm dimensions, valid colors, numeric line-height >=1.15 and font-size in pt.
+No positioning, CSS grid, floats, transforms, hidden overflow or negative dimensions.
+Do not invent certifications, reading-level labels or series numbers. Do not repeat the store logo.
+'''
     return VISUAL_CONTRACT + f'''Return JSON with html (one complete HTML fragment, <=18000 chars), images
 (0-4 objects with id and prompt <=650 chars; at least one unless exact visuals fill the page), and answers (one concise string <=300 chars,
 number EVERY answer to match the student tasks; include a sample/criterion for open responses).
@@ -441,7 +468,7 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
         """Author one independent page while preserving caller-owned page numbering."""
         if number == 0:
             return ask_json(f'Create an illustrated cover for {grade_band}. {context}\n{plan["cover_brief"]}\n'
-                     + layout_contract(font, config.get('minimum_text_pt', 11)) + '\nThis is the cover: omit student tasks and answers. Include the pack title and grade. '
+                     + layout_contract(font, config.get('minimum_text_pt', 11), cover=True) + '\nThis is the cover: omit student tasks and answers. Include the pack title and grade. '
                      'Python places the REAL store logo in a separate 41mm header above your content. '
                      'Do not draw a logo or repeat the store name. Override the full-page height: '
                      'YOUR cover fragment must be at most 215mm high; aim for 205mm including all spacing.',

@@ -110,6 +110,7 @@ def generate() -> tuple[object, int] | object:
                 "page_count": story.get("page_count"),
                 "image_review": story.get("image_review"),
                 "image_validation": story.get("image_validation"),
+                "content_checks": story.get("content_checks"),
                 "generation_seconds": story.get("generation_seconds"),
             }
         )

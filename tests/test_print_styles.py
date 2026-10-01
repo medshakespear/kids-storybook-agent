@@ -31,8 +31,8 @@ class PrintStyleTests(unittest.TestCase):
 
     def test_names_rejected_property(self):
         """Feedback must identify the exact declaration the AI needs to correct."""
-        with self.assertRaisesRegex(ValueError, 'Unsupported CSS property "position"'):
-            clean_style('position:absolute')
+        with self.assertRaisesRegex(ValueError, 'Unsupported CSS property "filter"'):
+            clean_style('filter:blur(1px)')
 
     def test_resource_and_hidden_content_remain_blocked(self):
         """Background support never enables remote resources or invisible exercises."""

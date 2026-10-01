@@ -11,7 +11,7 @@
     "vocabulary_notes": "Use familiar concrete words, gentle repetition, simple action verbs, and at most one clearly explained new word.",
     "sentence_complexity_notes": "Use one or two short sentences per page, mostly subject-verb-object patterns, with a predictable refrain where natural.",
     "text_placement_style": "bottom_band",
-    "illustration_style": "Bold simple shapes, huge friendly characters, rounded forms, clear facial emotions, flat cheerful colors, very low visual clutter, soft picture-book texture.",
+    "illustration_style": "Original preschool editorial illustration: large simple friendly forms, clean bold outlines, coral, sunflower and teal accents, cheerful flat color, minimal background clutter. No glossy 3D rendering. Meaningful objects fill the composition.",
     "activity_pages": 8,
     "items_per_page": 3,
     "student_font_pt": 15,
@@ -33,7 +33,9 @@
       "trace",
       "picture_choice"
     ],
-    "skill_notes": "Emergent learners: adult-read directions, familiar words, count within 10, simple shape/word matching, first-letter recognition, large drawing and tracing spaces. No independent reading passages."
+    "skill_notes": "Emergent learners: adult-read directions, familiar words, count within 10, simple shape/word matching, first-letter recognition, large drawing and tracing spaces. No independent reading passages.",
+    "visual_area_mm2": 10500,
+    "minimum_text_pt": 14
   },
   "1st-2nd": {
     "page_count": {
@@ -47,7 +49,7 @@
     "vocabulary_notes": "Use decodable high-frequency language plus a few context-supported descriptive words; make meaning inferable from the scene.",
     "sentence_complexity_notes": "Use mostly simple sentences with occasional conjunctions, varied openings, dialogue tags, and a clear chronological sequence.",
     "text_placement_style": "top_band",
-    "illustration_style": "Warm contemporary picture-book art, friendly expressive characters, clean shapes with light texture, bright harmonious colors, readable action, moderate background detail.",
+    "illustration_style": "Premium early-elementary activity-book art: expressive hand-drawn shapes, crisp outlines, warm vibrant flat colors and restrained paper texture, clear large subjects and purposeful scenes. No glossy 3D mascot thumbnails or busy backgrounds.",
     "activity_pages": 8,
     "items_per_page": 4,
     "student_font_pt": 14,
@@ -71,7 +73,9 @@
       "trace",
       "picture_choice"
     ],
-    "skill_notes": "Foundational literacy, short concrete passages, addition/subtraction within 100, classification, sentence writing. Avoid content requiring advanced decoding."
+    "skill_notes": "Foundational literacy, short concrete passages, addition/subtraction within 100, classification, sentence writing. Avoid content requiring advanced decoding.",
+    "visual_area_mm2": 10000,
+    "minimum_text_pt": 13
   },
   "3rd-4th": {
     "page_count": {
@@ -85,7 +89,7 @@
     "vocabulary_notes": "Use vivid grade-appropriate vocabulary, meaningful context clues, sensory detail, and domain words when the lesson calls for them.",
     "sentence_complexity_notes": "Mix simple, compound, and accessible complex sentences; use dialogue and interior thought while keeping paragraphs compact.",
     "text_placement_style": "balanced_panel",
-    "illustration_style": "Polished middle-grade storybook illustration, expressive characters, cinematic but uncluttered compositions, textured brushwork, layered environments, rich balanced color.",
+    "illustration_style": "Polished illustrated learning journal: clear purposeful diagrams and visual narratives, bold controlled color, detailed but readable scenes, energetic editorial composition. Age-respectful, no babyish mascot repetition.",
     "activity_pages": 10,
     "items_per_page": 4,
     "student_font_pt": 12,
@@ -109,7 +113,9 @@
       "draw",
       "picture_choice"
     ],
-    "skill_notes": "Multi-step thinking, multiplication facts and exact division, evidence from short informational passages, word relationships, explain choices. Do not use babyish counting tasks."
+    "skill_notes": "Multi-step thinking, multiplication facts and exact division, evidence from short informational passages, word relationships, explain choices. Do not use babyish counting tasks.",
+    "visual_area_mm2": 8000,
+    "minimum_text_pt": 12
   },
   "5th-6th": {
     "page_count": {
@@ -123,7 +129,7 @@
     "vocabulary_notes": "Use precise, nuanced vocabulary, figurative language in moderation, subject-specific terms with natural context, and no condescending baby talk.",
     "sentence_complexity_notes": "Use varied sentence lengths, controlled complex syntax, subtext in dialogue, stronger transitions, and age-appropriate reflection.",
     "text_placement_style": "side_panel",
-    "illustration_style": "Detailed sophisticated illustrated-fiction art, less babyish character proportions, dynamic perspective, nuanced expressions, atmospheric lighting, richer color depth and environmental detail.",
+    "illustration_style": "Sophisticated upper-elementary editorial illustration: precise contours, restrained rich palette, useful contextual scenes, clean information hierarchy and mature proportions. No babyish clip art.",
     "activity_pages": 10,
     "items_per_page": 4,
     "student_font_pt": 11,
@@ -147,6 +153,8 @@
       "draw",
       "picture_choice"
     ],
-    "skill_notes": "Upper-elementary reasoning: authentic planning constraints, multi-digit arithmetic, precise vocabulary, inference and evidence, compare solutions, justify design decisions. No infantile clip art or tracing."
+    "skill_notes": "Upper-elementary reasoning: authentic planning constraints, multi-digit arithmetic, precise vocabulary, inference and evidence, compare solutions, justify design decisions. No infantile clip art or tracing.",
+    "visual_area_mm2": 6000,
+    "minimum_text_pt": 11
   }
 }

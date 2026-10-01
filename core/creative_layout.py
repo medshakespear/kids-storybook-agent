@@ -12,6 +12,7 @@ from functools import lru_cache
 import tinycss2
 from weasyprint import HTML, default_url_fetcher
 from core.paths import BASE_DIR
+from core.task_visuals import page_visuals, answer_text
 
 RENDER_LOCK = RLock()
 
@@ -113,10 +114,11 @@ def clean_style(value: str) -> str:
 class PrintFragment(HTMLParser):
     """Rebuild a printable fragment; only declared asset IDs can become images."""
 
-    def __init__(self, assets: dict[str, str], preview: bool = False):
+    def __init__(self, assets: dict[str, str], preview: bool = False, visuals: dict | None = None):
         """Track allowed images, nesting, and all image references."""
         super().__init__(convert_charrefs=True)
         self.assets, self.preview = assets, preview
+        self.visuals, self.used_visuals = visuals or {}, set()
         self.parts, self.stack, self.used = [], [], set()
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
@@ -125,8 +127,8 @@ class PrintFragment(HTMLParser):
         if tag not in TAGS:
             raise ValueError(f'Unsupported HTML tag: {tag}')
         data = dict(attrs)
-        if len(data) != len(attrs) or set(data) - {'style', 'data-asset', 'colspan', 'rowspan'}:
-            raise ValueError('Only style, data-asset, colspan and rowspan attributes are allowed')
+        if len(data) != len(attrs) or set(data) - {'style', 'data-asset', 'data-visual', 'colspan', 'rowspan'}:
+            raise ValueError('Only style, data-asset, data-visual, colspan and rowspan attributes are allowed')
         attributes = []
         if 'style' in data:
             attributes.append('style="' + html.escape(clean_style(data['style']), quote=True) + '"')
@@ -136,20 +138,28 @@ class PrintFragment(HTMLParser):
                     raise ValueError('Invalid table span')
                 attributes.append(f'{key}="{data[key]}"')
         if tag == 'img':
-            asset = data.get('data-asset')
-            if asset not in self.assets:
-                raise ValueError('Image must reference a declared data-asset ID')
-            self.used.add(asset)
-            if self.preview:
-                source = 'data:image/svg+xml;base64,' + base64.b64encode(b'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="#e5f2f4"/></svg>').decode()
+            asset, visual = data.get('data-asset'), data.get('data-visual')
+            if bool(asset) == bool(visual):
+                raise ValueError('An image needs exactly one data-asset or data-visual reference')
+            if visual:
+                if visual not in self.visuals:
+                    raise ValueError('Unknown data-visual ID')
+                self.used_visuals.add(visual)
+                source = 'data:image/svg+xml;base64,' + base64.b64encode(self.visuals[visual][0].encode()).decode()
             else:
-                source = 'data:image/png;base64,' + base64.b64encode(Path(self.assets[asset]).read_bytes()).decode()
+                if asset not in self.assets:
+                    raise ValueError('Image must reference a declared data-asset ID')
+                self.used.add(asset)
+                if self.preview:
+                    source = 'data:image/svg+xml;base64,' + base64.b64encode(b'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="#e5f2f4"/></svg>').decode()
+                else:
+                    source = 'data:image/png;base64,' + base64.b64encode(Path(self.assets[asset]).read_bytes()).decode()
             attributes.append(f'src="{source}"')
             if not re.search(r'height\s*:\s*[1-9][\d.]*mm', data.get('style', '')):
                 raise ValueError('Every image needs an explicit positive height in mm')
             if not re.search(r'(?<!-)\bwidth\s*:\s*[1-9][\d.]*(mm|%)', data.get('style', '')):
                 raise ValueError('Every image needs an explicit positive width in mm or percent')
-        elif 'data-asset' in data:
+        elif 'data-asset' in data or 'data-visual' in data:
             raise ValueError('data-asset belongs only on img elements')
         self.parts.append(f'<{tag} ' + ' '.join(attributes) + '>')
         if tag not in {'br', 'img'}:
@@ -188,14 +198,15 @@ class PrintFragment(HTMLParser):
 def fragment(page: dict, preview: bool = False) -> str:
     """Sanitize one authored page and require all declared artwork to be used."""
     assets = {a['id']: a.get('path', '') for a in page['images']}
-    parser = PrintFragment(assets, preview)
+    visuals = page_visuals(page)
+    parser = PrintFragment(assets, preview, visuals)
     parser.feed(page['html'])
     parser.close()
     # Browsers safely auto-close trailing emphasis markup. Do the same only for
     # inline formatting tags; structural page markup remains strictly validated.
     while parser.stack and parser.stack[-1] in INLINE_TAGS:
         parser.parts.append(f'</{parser.stack.pop()}>')
-    if parser.stack or parser.used != set(assets):
+    if parser.stack or parser.used != set(assets) or parser.used_visuals != set(visuals):
         raise ValueError('Close every HTML tag and use every declared illustration')
     mode = page.get('print_layout', '')
     classes = 'design'
@@ -288,7 +299,7 @@ def check_page(page: dict, font: int, *, cover: bool = False) -> None:
     page.pop('print_layout', None)
     original_html = page['html']
     with RENDER_LOCK:
-        for tightened in (False, True):
+        for tightened in ((False,) if page.get('quality_profile') else (False, True)):
             if tightened:
                 page['html'] = _tighten_explicit_spacing(original_html)
             for mode in ('', 'reflow', 'compact'):
@@ -300,9 +311,10 @@ def check_page(page: dict, font: int, *, cover: bool = False) -> None:
                 doc = HTML(string=markup, url_fetcher=data_only_fetcher).render()
                 try:
                     check_document(doc, 1)
-                    return
                 except ValueError:
                     continue
+                check_visual_quality(doc, page.get('quality_profile', {}), cover=cover)
+                return
         page['html'] = original_html
         page.pop('print_layout', None)
         raise ValueError('Design overflow: local reflow and deterministic spacing compaction could not fit the page')
@@ -311,7 +323,7 @@ def check_page(page: dict, font: int, *, cover: bool = False) -> None:
 def pack_markup(pack: dict, config: dict, preview: bool = False) -> str:
     """Compose model-authored pages and the single answer sheet for either render pass."""
     bodies = [cover_fragment(pack['cover'], preview)] + [fragment(p, preview) for p in pack['pages']]
-    keys = ''.join(f'<section><h3>{i}. {html.escape(p["title"])}</h3><p>{html.escape(p["answers"])}</p></section>' for i, p in enumerate(pack['pages'], 1))
+    keys = ''.join(f'<section><h3>{i}. {html.escape(p["title"])}</h3><p>{html.escape(answer_text(p))}</p></section>' for i, p in enumerate(pack['pages'], 1))
     bodies.append('<h1>Answer Key</h1><p>Activity numbers match the student pages. Creative answers may vary.</p><div class="key">' + keys + '</div>')
     return document_markup(bodies, config.get('student_font_pt', 13))
 
@@ -332,3 +344,23 @@ def build_creative_pdf(pack: dict, config: dict, output_path: str | Path) -> Pat
         target.parent.mkdir(parents=True, exist_ok=True)
         doc.write_pdf(str(target))
     return target
+
+
+def check_visual_quality(document, profile: dict, *, cover: bool = False) -> None:
+    """Measure actual image boxes and readable text in the laid-out student page."""
+    if not profile:
+        return
+    area, largest = 0.0, 0.0
+    for box in document.pages[0]._page_box.descendants():
+        if box.element_tag == 'img' and hasattr(box, 'replacement'):
+            value = box.width * box.height * (25.4 / 96) ** 2
+            area += value
+            largest = max(largest, value)
+        if not cover and getattr(box, 'text', '').strip():
+            if box.style['font_size'] * .75 + .01 < profile['minimum_text_pt']:
+                raise ValueError(f"Student text is too small: use at least {profile['minimum_text_pt']}pt")
+    # The cover includes the separately placed logo; student pages do not.
+    minimum = profile['visual_area_mm2']
+    if not cover and (area < minimum or largest < minimum * .55):
+        raise ValueError(f'Visuals are too small: use at least {minimum:g} square mm of meaningful artwork/diagrams, '
+                         'including one large main visual; preserve response space')

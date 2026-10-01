@@ -1,0 +1,180 @@
+"""Check printable exercise contracts and proofread text without reviewing image pixels."""
+from __future__ import annotations
+
+import ast
+from fractions import Fraction
+from html.parser import HTMLParser
+import json
+import re
+
+from core.task_visuals import page_visuals, answer_text
+
+
+class StudentText(HTMLParser):
+    """Extract visible text and identify every graphic's role for text proofreading."""
+
+    def __init__(self, page: dict):
+        """Keep the known image brief map without loading images or files."""
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+        self.images = {a['id']: a['prompt'] for a in page.get('images', [])}
+        self.visuals = {v['id']: v for v in page.get('visuals', [])}
+
+    def handle_data(self, data: str) -> None:
+        """Collect ordinary worksheet text."""
+        if data.strip():
+            self.parts.append(data.strip())
+
+    def handle_starttag(self, tag: str, attrs: list) -> None:
+        """Mark graphics as graphics rather than pretending to inspect their pixels."""
+        attrs = dict(attrs)
+        if tag == 'img':
+            if 'data-asset' in attrs:
+                self.parts.append('[AI artwork brief: '+self.images.get(attrs['data-asset'], 'UNKNOWN')+']')
+            if 'data-visual' in attrs:
+                self.parts.append('[Exact Python visual: '+json.dumps(self.visuals.get(attrs['data-visual']))+']')
+
+
+def student_text(page: dict) -> str:
+    """Return printable text and semantic graphic references with HTML entities decoded."""
+    parser = StudentText(page)
+    parser.feed(page['html'])
+    return '\n'.join(parser.parts)
+
+
+def calculate(expression: str) -> Fraction:
+    """Evaluate bounded elementary arithmetic without eval or executable model code."""
+    if not isinstance(expression, str) or len(expression) > 80:
+        raise ValueError('Calculation expression must be text of at most 80 characters')
+    expression = expression.replace('×','*').replace('÷','/').replace('−','-')
+    try:
+        root = ast.parse(expression, mode='eval')
+    except SyntaxError:
+        raise ValueError('Invalid arithmetic expression') from None
+    if len(list(ast.walk(root))) > 35:
+        raise ValueError('Arithmetic expression is too complex')
+    def visit(node):
+        """Resolve only bounded integer constants and four arithmetic operations."""
+        if isinstance(node, ast.Constant) and type(node.value) is int and abs(node.value) <= 10000:
+            return Fraction(node.value)
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+            value = visit(node.operand)
+            return -value if isinstance(node.op, ast.USub) else value
+        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+            a, b = visit(node.left), visit(node.right)
+            if isinstance(node.op, ast.Add):
+                result = a+b
+            elif isinstance(node.op, ast.Sub):
+                result = a-b
+            elif isinstance(node.op, ast.Mult):
+                result = a*b
+            else:
+                if not b:
+                    raise ValueError('Division by zero')
+                result = a/b
+            if abs(result) > 1000000:
+                raise ValueError('Arithmetic result is too large')
+            return result
+        raise ValueError('Only numbers, parentheses and + - * / are allowed')
+    return visit(root.body)
+
+
+def validate_exercises(page: dict, config: dict, expected_title: str | None = None) -> None:
+    """Reject known impossible tasks and verify declared math before image spending."""
+    visuals = page_visuals(page)
+    prose = student_text(page)
+    normalized = ' '.join(prose.split()).casefold()
+    if expected_title and ' '.join(expected_title.split()).casefold() not in normalized:
+        raise ValueError(f'Print the exact planned activity title: {expected_title}')
+    kinds = {v['kind'] for v in page.get('visuals', [])}
+    if re.search(r'\bmaze\b', normalized) and not re.search(r'(draw|design|create).{0,30}(your|an?).{0,15}maze', normalized) and 'maze' not in kinds:
+        raise ValueError('A maze task requires an exact visuals kind=maze component, not an AI picture of a path')
+    if re.search(r'(find|spot|circle).{0,60}\bdifferences?\b', normalized) and 'differences' not in kinds:
+        raise ValueError('Spot-the-difference tasks require an exact visuals kind=differences component with both rows')
+    checks = page.get('calculations', [])
+    if not isinstance(checks, list) or len(checks) > 16:
+        raise ValueError('calculations must be a list of at most 16 arithmetic checks')
+    # Independently derive printed arithmetic facts even if the author omits a check.
+    facts = []
+    for match in re.finditer(r'(?<![\w.])(\d+)\s*([+−×÷*/-])\s*(\d+)(?![\w.])', prose):
+        expression = ''.join(match.groups())
+        value = calculate(expression)
+        facts.append({'expression': expression, 'result': str(value)})
+    page['computed_math'] = facts
+    numbers = set()
+    for item in checks:
+        if not isinstance(item, dict) or not isinstance(item.get('question'), str) or not 1 <= len(item['question']) <= 20:
+            raise ValueError('Each calculation needs a short question reference')
+        if item['question'] in numbers:
+            raise ValueError('Calculation question references must be unique')
+        numbers.add(item['question'])
+        actual = calculate(item.get('expression'))
+        try:
+            provided = Fraction(str(item.get('answer')))
+        except (ValueError, ZeroDivisionError):
+            raise ValueError('Calculation answer must be an integer or fraction string') from None
+        if provided != actual:
+            raise ValueError(f'Question {item["question"]}: {item["expression"]} equals {actual}, not {item["answer"]}')
+        if actual < 0 or actual > config.get('max_result', 10000):
+            raise ValueError('Arithmetic result is outside this grade band; simplify the calculation')
+        if config.get('max_result', 10000) <= 100 and actual.denominator != 1:
+            raise ValueError('Use whole-number results for younger grades')
+    if visuals and len(answer_text(page)) > 650:
+        raise ValueError('Keep the combined exact-puzzle and written answers within 650 characters')
+
+
+def validate_audit(raw: dict, expected: set[int]) -> dict:
+    """Require a verdict for every page; missing pages never count as approval."""
+    rows = raw.get('pages') if isinstance(raw, dict) else None
+    if not isinstance(rows, list) or len(rows) != len(expected):
+        raise ValueError('Proofreading must return every requested page exactly once')
+    result = {}
+    for row in rows:
+        if not isinstance(row, dict) or type(row.get('page_number')) is not int:
+            raise ValueError('Proofreading page_number must be an integer')
+        n, issues = row['page_number'], row.get('issues')
+        if n not in expected or n in result:
+            raise ValueError('Unexpected or duplicate proofreading page')
+        if not isinstance(issues, list) or len(issues) > 4 or any(not isinstance(v,str) or not 1 <= len(v) <= 260 for v in issues):
+            raise ValueError('Return at most four concrete short content issues per page')
+        result[n] = issues
+    return result
+
+
+def proofread_pack(pack: dict, ask, repair) -> None:
+    """Audit text/answers in one batch; repair affected pages once and recheck them all."""
+    expected = set(range(1, len(pack['pages'])+1))
+    for attempt in range(2):
+        payload = [{'page_number': i, 'title': page['title'], 'student_content': student_text(page),
+                    'answer_key': answer_text(page), 'verified_calculations': page.get('calculations', []),
+                    'independent_printed_math': page.get('computed_math', [])}
+                   for i, page in enumerate(pack['pages'], 1)]
+        prompt = (
+            'Proofread the educational CONTENT of this static classroom pack. This is NOT image review. '
+            'Do not request images, judge image quality or speculate about generated pixels. '
+            'Return JSON {"pages":[{"page_number":1,"issues":[]}]} for EVERY page. '
+            f'Grade: {pack["grade_band"]}. Identify only concrete mistakes making a task incorrect, '
+            'ambiguous, unsolvable or mismatched to its answer key. Independently solve printed math; '
+            'match question numbers, titles and EVERY answer; check comprehension against supplied passage, '
+            'exhaustive/nonoverlapping sorting rules and sufficient materials. Flag a required visual '
+            'replaced with text labels, empty panels, CSS-only drawings, or an illustrative scene. '
+            'Exact Python visuals are guaranteed from their specs: maze route/tokens and differences/sort '
+            'answers are supplied by Python; their numbered directions are printed inside the graphic. '
+            'Other images are decorative/illustrative only: a task must not depend on their exact count, '
+            'spelling, path, tiny detail or a specific hidden object. Open drawing/writing can use general art. '
+            'Flag questions whose answer is accidentally printed in the question, unless a worked example. '
+            'Do not flag stylistic preferences, benign answer variations, absent solutions on student pages '
+            'or insist that artwork contains text supplied separately by HTML. List at most four specific '
+            'issues per page, <=260 chars each; use [] when no concrete issue is found. Content follows:\n'
+            + json.dumps(payload))
+        issues = ask(prompt, lambda raw: validate_audit(raw, expected), 'Exercise proofreading', 4000)
+        failed = {n: reasons for n, reasons in issues.items() if reasons}
+        if not failed:
+            pack['content_checks'] = {'status': 'passed', 'pages': len(expected), 'repair_rounds': attempt,
+                                      'method': 'local_puzzle_math_checks_and_text_proofreading'}
+            return
+        if attempt:
+            details = '; '.join(f'Activity {n}: '+ '; '.join(reasons) for n,reasons in failed.items())
+            raise ValueError('Exercise content still needs correction: '+details)
+        for n, reasons in failed.items():
+            pack['pages'][n-1] = repair(n, pack['pages'][n-1], reasons)

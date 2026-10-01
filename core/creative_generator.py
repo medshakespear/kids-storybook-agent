@@ -12,6 +12,8 @@ from uuid import uuid4
 from core.activity_generator import ActivityGenerationError, _text
 from core.creative_layout import check_page, preflight_pack, PROPERTIES, TAGS
 from core.image_generator import generate_images
+from core.task_visuals import VISUAL_CONTRACT, page_visuals
+from core.exercise_quality import validate_exercises, proofread_pack
 from core.providers import text_provider_names, text_client, text_worker_limit, safe_api_error
 from core.runtime import int_setting, ordered_parallel
 
@@ -282,7 +284,8 @@ def _synchronize_asset_references(html: str, ids: list[str]) -> str:
     return html
 
 
-def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
+def validate_design(raw: dict, font: int, *, cover: bool = False,
+                    quality: dict | None = None, expected_title: str | None = None) -> dict:
     """Require complete art-backed HTML and preflight it at actual print dimensions."""
     if not isinstance(raw, dict):
         raise ValueError('Design must be an object')
@@ -292,8 +295,32 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
         answers = design.get('answers')
         if isinstance(answers, list) and 1 <= len(answers) <= 30 and all(isinstance(a, str) and a.strip() for a in answers):
             answers = '; '.join(answers)
-        design['answers'] = _text(answers, 'answers', 4000)
-    images, design['html'] = _consolidate_image_manifest(design, cover=cover)
+        if answers == '' and design.get('visuals'):
+            design['answers'] = ''  # All questions may be inside exact visuals.
+        else:
+            design['answers'] = _text(answers, 'answers', 4000)
+    page_visuals(design)
+    if quality is not None:
+        # Never silently replace, merge or invent artwork in newly generated books.
+        images = design.get('images')
+        if not isinstance(images, list) or len(images) > 4 or (not images and (cover or not design.get('visuals'))):
+            raise ValueError('Supply 1-4 meaningful illustrations, or exact visuals with images=[]')
+        ids = set()
+        for asset in images:
+            if not isinstance(asset, dict) or not re.fullmatch(r'[a-z][a-z0-9_]{0,30}', str(asset.get('id',''))):
+                raise ValueError('Illustration IDs must be short lowercase identifiers')
+            if asset['id'] in ids:
+                raise ValueError('Illustration IDs must be unique; do not merge distinct subjects')
+            ids.add(asset['id'])
+            asset['prompt'] = _text(asset.get('prompt'), 'illustration prompt', 650)
+        refs = set(re.findall(r'<img\b[^>]*\bdata-asset=[\'\"]([^\'\"]+)[\'\"]', design['html'], re.I))
+        if refs != ids:
+            raise ValueError('Match every image id to exactly its intended data-asset reference; do not substitute pictures')
+        design['quality_profile'] = {
+            'visual_area_mm2': quality.get('visual_area_mm2', 6500),
+            'minimum_text_pt': quality.get('minimum_text_pt', 11)}
+    else:
+        images, design['html'] = _consolidate_image_manifest(design, cover=cover)
     design['images'] = images
     ids = {asset['id'] for asset in images}
     ordered_ids = [asset['id'] for asset in images]
@@ -304,6 +331,8 @@ def validate_design(raw: dict, font: int, *, cover: bool = False) -> dict:
         declared = ', '.join(sorted(ids)) or 'none'
         referenced = ', '.join(sorted(html_refs)) or 'none'
         raise ValueError(f'Image asset mismatch after deterministic repair: declared IDs [{declared}]; HTML data-asset IDs [{referenced}]')
+    if quality is not None and not cover:
+        validate_exercises(design, quality, expected_title)
     check_page(design, font, cover=cover)
     return design
 
@@ -328,8 +357,8 @@ def compact_answers(page: dict, number: int) -> dict:
 
 def layout_contract(font: int) -> str:
     """Describe the print boundary without prescribing a reusable composition."""
-    return f'''Return JSON with html (one complete HTML fragment, <=18000 chars), images
-(1-4 objects with id and prompt <=650 chars), and answers (one concise string <=300 chars,
+    return VISUAL_CONTRACT + f'''Return JSON with html (one complete HTML fragment, <=18000 chars), images
+(0-4 objects with id and prompt <=650 chars; at least one unless exact visuals fill the page), and answers (one concise string <=300 chars,
 number EVERY answer to match the student tasks; include a sample/criterion for open responses).
 Canvas: A4, 186mm wide, content at most 265mm high. No html/head/body/style tags.
 Choose YOUR OWN layout, palette, typographic hierarchy, borders, panels and response spaces.
@@ -343,6 +372,9 @@ Images: <img data-asset="asset_id" style="width:80mm;height:55mm"/>.
 Declare and use every image. All images need BOTH explicit width and height, with height in mm.
 Images are fitted without cropping. Illustration prompts must describe original meaningful
 scenes or objects without text, labels, numbers, page borders or worksheet layouts.
+Include calculations: [] or [{{"question":"2A","expression":"34+23","answer":57}}] for EVERY
+arithmetic question, including missing-number problems (expression computes the missing value).
+Python checks arithmetic. Match every printed question and answer exactly. Keep answers concise.
 Python renders all written content. Draw exact quantities, diagrams, number lines, answer
 boxes and symbols using HTML/text; never depend on image-model accuracy for a numeric answer.
 Do not put solutions in student HTML. Include clear directions, numbered tasks, and sufficient
@@ -353,7 +385,16 @@ Prefer auto-width table cells; percentage cell widths plus padding may overflow.
 Use white-space:normal, pre-wrap or pre-line if needed. Long text and answer lines must wrap.
 Python can reflow oversized table columns and reduce excessive paragraph/cell spacing,
 but it will not shrink text, remove questions, or reduce explicit response-area heights.
-Do not fill the sheet with tiny text.
+Use ONE main activity on each page. Do not append the same reflection question to every activity.
+For younger grades use picture cards, a large illustrated scene, hands-on visual challenges and generous
+response space, not small mascot thumbnails above text boxes. At most FOUR card columns; keep labels
+unbroken and readable. At least one main visual should be around 120x80mm or larger.
+For grades Pre-K-K and 1st-2nd, use at least 10000 square mm total meaningful visual area; 3rd-4th
+at least 8000; 5th-6th at least 6000. Font sizes at least 14pt for Pre-K-K, 13pt for 1st-2nd,
+12pt for 3rd-4th, 11pt for 5th-6th, including small captions. Do not fill the sheet with tiny text.
+Do not invent reading-level certifications, book-series numbers or grade claims.
+No exact-count, hidden-object, maze, matching-by-tiny-feature or difference answers may depend on AI art.
+If an activity needs a precise picture feature, use an exact visual or change to an open-ended task.
 No teacher guide, teaching tips, answer page, or teacher instructions in this fragment.'''
 
 
@@ -393,14 +434,14 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
                      'Python places the REAL store logo in a separate 41mm header above your content. '
                      'Do not draw a logo or repeat the store name. Override the full-page height: '
                      'YOUR cover fragment must be at most 215mm high; aim for 205mm including all spacing.',
-                     lambda raw: validate_design(raw, font, cover=True), 'Cover design')
+                     lambda raw: validate_design(raw, font, cover=True, quality=config), 'Cover design')
         brief = plan['pages'][number - 1]
         prompt = (f'Author student activity {number} for {grade_band}. Theme: {theme}. '
                   f'User context: {source_context or theme}. Skills: {config["skill_notes"]}.\n'
                   f'Art direction: {context}\nThis page brief: {json.dumps(brief)}\n'
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
-                  + layout_contract(font) + f'\nPrint activity number {number} and its title prominently.')
-        page = ask_json(prompt, lambda raw: validate_design(raw, font), f'Activity design {number}')
+                  + layout_contract(font) + f'\nPrint activity number {number} and the EXACT title: {brief["title"]}.')
+        page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title']), f'Activity design {number}')
         page = compact_answers(page, number)
         page.update(title=brief['title'], page_number=number)
         LOGGER.info('Activity design %s/%s complete', number, count)
@@ -415,6 +456,19 @@ activity_concept <=650, layout_brief <=650. No teacher guide.'''
     pack = dict(title=plan['title'], overview=plan['overview'], theme=theme, grade_band=grade_band,
                 character_description=plan['character_description'], art_direction=plan['art_direction'],
                 resource_type='activity_pack', design_engine='creative_html_v1', cover=cover, pages=pages)
+    def repair_content(number, previous, issues):
+        """Correct only the affected activity, preserving the pack's title and style."""
+        repaired = ask_json(
+            f'Repair activity {number} for {grade_band}. Exact title: {previous["title"]}. '
+            f'Correct these concrete exercise defects: {json.dumps(issues)}. '
+            'Preserve the learning goal, meaningful visuals and response space. Return a complete page.\n'
+            + layout_contract(font) + '\nPrevious page: ' + json.dumps(previous),
+            lambda raw: validate_design(raw, font, quality=config, expected_title=previous['title']),
+            f'Exercise repair {number}', 6500)
+        repaired = compact_answers(repaired, number)
+        repaired.update(title=previous['title'], page_number=number)
+        return repaired
+    proofread_pack(pack, ask_json, repair_content)
     preflight_pack(pack, config)
     return pack
 
@@ -432,7 +486,7 @@ def generate_creative_images(pack: dict, config: dict, folder) -> None:
                 unique.append({'page_number': len(unique) + 1, 'image_prompt': asset['prompt']})
     image_pack = dict(pack, pages=unique)
     styles = dict(config, illustration_style=pack['art_direction'])
-    paths = generate_images(image_pack, styles, folder)
+    paths = generate_images(image_pack, styles, folder) if unique else []
     if len(paths) != len(unique):
         raise ValueError('Incomplete creative illustration set')
     LOGGER.info('Image generation complete: %s unique illustrations in %.1fs', len(paths), time.monotonic() - started)

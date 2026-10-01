@@ -349,3 +349,39 @@ Legacy story and fixed-template activity modules are retained for compatibility;
 the active pipeline uses the creative engine and reuses the image backend.
 `DAILY_BOOK_COUNT` and `/books` keep their existing names
 to avoid breaking your Railway configuration and download links.
+
+
+## Exercise correctness and usable visuals
+
+New packs use stricter image manifests: missing images and blank prompts must be
+repaired by the author, rather than silently merged, substituted or guessed.
+Lower-grade pages have measured minimum visual area and text-size requirements;
+small decorative mascot thumbnails alone cannot pass. The author is directed to
+use one main activity per page and avoid repeating generic reflection boxes.
+
+Gemini still does **not** review generated images. It authors the content and
+performs one **text-only exercise/answer proofreading pass** before image spending.
+A concrete content defect repairs only the affected page; the resulting pack gets
+one further text check. Persistent defects stop publication with their page number.
+This adds one proofreading request when the first draft passes, plus bounded
+repairs if needed. It is not a guarantee of educational correctness.
+
+For mazes, differences and closed-rule picture sorting, optional structured
+\`visuals\` components are drawn by Python as crisp embedded SVG. AI chooses the
+layout and component parameters. The maze is a connected tree with a unique
+start/finish route and exactly the requested stars on that route. Differences
+change one declared trait per position. Sorting bins are derived from the actual
+visible trait values so every item has one correct group. Final-page puzzle answers
+come from the same data. These drawing components do not constrain the rest of the
+book to a fixed list of worksheet types.
+
+The \`calculations\` manifest is evaluated using restricted arithmetic (no eval).
+The text proofreader checks its relation to the printed questions and final key,
+including comprehension evidence and question numbering. Exact-count and precise
+hidden-detail tasks must not depend on Cloudflare's generated pixels. AI artwork
+is for expressive scenes and open-ended inspiration; people should still inspect
+commercial PDFs before publishing. Existing PDFs are unchanged; regenerate them
+after deploying both Railway services. No new credentials are needed.
+
+New modules: \`core/task_visuals.py\` (exact graphics/answers),
+\`core/exercise_quality.py\` (math contracts and text-only proofreading).

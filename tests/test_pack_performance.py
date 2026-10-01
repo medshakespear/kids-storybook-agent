@@ -56,9 +56,15 @@ class PackPerformanceTests(unittest.TestCase):
             """Use actual page validation, but emulate provider overlap deterministically."""
             if label == 'Creative plan':
                 return validate(plan)
+            if label == 'Exercise proofreading':
+                return validate({'pages':[{'page_number':i,'issues':[]} for i in range(1,9)]})
             barrier.wait(timeout=5)
-            return validate(cover_fixture() if label == 'Cover design' else design_fixture(int(label.split()[-1])))
-        with patch.dict(os.environ, {'DESIGN_WORKERS': '3'}), patch('core.creative_generator.ask_json', side_effect=ask):
+            if label == 'Cover design':
+                return validate(cover_fixture())
+            page = design_fixture(0)
+            page['html'] = page['html'].replace('Garden Detectives', 'Mission '+label.split()[-1])
+            return validate(page)
+        with patch.dict(os.environ, {'DESIGN_WORKERS': '3'}), patch('core.creative_generator.ask_json', side_effect=ask), patch('core.creative_generator.text_worker_limit', return_value=3):
             pack = generate_creative_pack('Garden', 'Pre-K-K', config)
         self.assertEqual([p['page_number'] for p in pack['pages']], list(range(1, 9)))
 

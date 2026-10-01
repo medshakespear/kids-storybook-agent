@@ -101,7 +101,7 @@ class CreativeTests(unittest.TestCase):
         page['html'] = page['html'].replace('Look at the plant.', '<i>Look at the plant.</i>')
         rendered = fragment(page, preview=True)
         self.assertIn('<em >Look at the plant.</em>', rendered)
-        self.assertNotIn('<i', rendered)
+        self.assertNotRegex(rendered, r'<i(?:\s|>)')
 
     def test_inline_formatting_misnest_is_repaired_but_structure_stays_strict(self):
         """Inline emphasis may auto-balance, while structural tag mistakes still fail."""
@@ -244,17 +244,20 @@ class CreativeTests(unittest.TestCase):
         plan = dict(title='Garden Makers', overview='Make and investigate.', art_direction='Teal and coral, clear outlines.',
                     character_description='Original friendly gardening objects.', cover_brief='Big plant and cheerful title.',
                     pages=[dict(title=f'Mission {i}', learning_goal='Explain a design.', activity_concept=f'Original challenge {i}', layout_brief=f'Composition {i}') for i in range(2)])
-        invalid = design_fixture(1)
-        invalid['html'] = '<script>bad()</script>'
+        first, second = design_fixture(0), design_fixture(0)
+        first['html'] = first['html'].replace('Garden Detectives', 'Mission 0')
+        second['html'] = second['html'].replace('Garden Detectives', 'Mission 1')
+        invalid = dict(second, html='<script>bad()</script>')
         api = Mock()
         def response(value):
             """Wrap fixture JSON as a chat completion without contacting a provider."""
             return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(value)))])
         api.chat.completions.create.side_effect = [response(plan), response(cover_fixture()),
-                                                  response(design_fixture(1)), response(invalid), response(design_fixture(2))]
-        with patch.dict(os.environ, {'DESIGN_WORKERS': '1'}), patch('core.creative_generator.text_provider_names', return_value=['gemini']), patch('core.creative_generator.text_client', return_value=(api, 'test')), patch('core.creative_generator.time.sleep'):
+                                                  response(first), response(invalid), response(second),
+                                                  response({'pages':[{'page_number':1,'issues':[]},{'page_number':2,'issues':[]}]})]
+        with patch.dict(os.environ, {'DESIGN_WORKERS': '1'}), patch('core.creative_generator.text_provider_names', return_value=['gemini']), patch('core.creative_generator.text_client', return_value=(api, 'test')), patch('core.creative_generator.time.sleep'), patch('core.creative_generator.text_worker_limit', return_value=1):
             pack = generate_creative_pack('Garden', 'Pre-K-K', config, source_context='Invent a garden tool.')
-        self.assertEqual(pack['pages'][0]['html'], design_fixture(1)['html'])
-        self.assertEqual(pack['pages'][1]['html'], design_fixture(2)['html'])
-        self.assertEqual(api.chat.completions.create.call_count, 5)
+        self.assertEqual(pack['pages'][0]['html'], first['html'])
+        self.assertEqual(pack['pages'][1]['html'], second['html'])
+        self.assertEqual(api.chat.completions.create.call_count, 6)
         self.assertEqual(pack['design_engine'], 'creative_html_v1')

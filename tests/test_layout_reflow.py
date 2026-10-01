@@ -78,8 +78,8 @@ class LayoutReflowTests(unittest.TestCase):
         self.assertIn('background-color:#eef4f5', cleaned)
         self.assertIn('padding:4mm', cleaned)
 
-    def test_deterministic_spacing_compaction_can_rescue_fixed_height_page(self):
-        """Excessive model-authored fixed spacing is clamped before requesting a redesign."""
+    def test_already_fitting_page_preserves_explicit_work_space(self):
+        """A page that already fits must not lose its response space merely to compact it."""
         page = design_fixture()
         page['html'] = (
             '<img data-asset="scene" style="width:80mm;height:70mm"/>'
@@ -89,9 +89,9 @@ class LayoutReflowTests(unittest.TestCase):
             '</div>'
         )
         fixed = validate_design(page, 12)
-        self.assertIn('height:90mm', fixed['html'])
-        self.assertIn('padding:6mm', fixed['html'])
-        self.assertIn('margin-bottom:6mm', fixed['html'])
+        self.assertIn('height:150mm', fixed['html'])
+        self.assertIn('padding:18mm', fixed['html'])
+        self.assertIn('margin-bottom:14mm', fixed['html'])
 
     def test_large_fixed_response_area_is_not_clipped_or_shrunk(self):
         """An impossible page still requires model reflow instead of losing content."""

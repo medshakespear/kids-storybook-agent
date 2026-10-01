@@ -6,7 +6,7 @@ import re
 from copy import deepcopy
 from html.parser import HTMLParser
 
-from core.task_visuals import normalize_visual_metadata, page_visuals, answer_text
+from core.task_visuals import normalize_visual_metadata, page_visuals
 
 EXACT_MECHANICS = {'maze', 'sort', 'differences', 'pattern', 'matching', 'balance', 'count'}
 
@@ -186,8 +186,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             if actual not in values:
                 raise ValueError(f'Question {qid}: answer key must contain its verified calculation answer')
     page['answers'] = ' '.join(answers)
-    if len(page['answers'])>350 or len(answer_text(page))>650:
-        raise ValueError('Keep the shared exercise answer key concise; retain every question and success criterion')
+    # Each answer and question count is already bounded. Check final sheet geometry
+    # during pack preflight rather than imposing a contradictory aggregate character cap.
     layout = page['html']
     parser = BoundLayout(blocks)
     parser.feed(layout); parser.close()
@@ -227,7 +227,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
 EXERCISE_CONTRACT = '''Each student page returns ONLY html, images and exercise. Content and answers have
 ONE shared source. goal <=240 chars, directions <=180 chars for younger grades or <=350 for older;
 passage <=1500 chars (none for Pre-K). question prompt <=220 chars, answer/criterion <=180 chars;
-combined non-visual answer key <=350 chars. Keep it concise without dropping answers. exercise: {render_mode, mechanic, goal, directions?, passage?, visual?, questions:[]}.
+Keep answers concise without dropping solutions or success criteria; there is no combined character cap.
+Python checks actual final answer-sheet fit, not an arbitrary per-page aggregate length. exercise: {render_mode, mechanic, goal, directions?, passage?, visual?, questions:[]}.
 Preserve render_mode and mechanic from the planned brief. Do not substitute sorting for balancing,
 matching for mazes, or a maze for completing a pattern. If the chosen task cannot be rendered, repair
 THIS task rather than replacing it with another mechanism.

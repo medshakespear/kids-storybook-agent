@@ -321,7 +321,10 @@ still overflow after local repair go back to Gemini with measured feedback.
 
 Each creative unit (plan, cover, or one student page) has bounded retries with
 validation feedback. Student-page answer keys come from the shared exercise specification;
-there is no separate key-condensation request that could change a validated answer. All six HTML heading levels are supported. Each unit uses
+there is no independent answer draft. The final key is measured on A4 and uses compact
+spacing when necessary. Only if it still cannot fit does a bounded request shorten
+canonical question answer fields; text proofreading checks their original essential
+conditions again. Student tasks, artwork and question IDs are preserved. All six HTML heading levels are supported. Each unit uses
 validation feedback and the latest draft. Completed pages stay in memory when a
 later page needs correction. Python assigns page order. All pages are print-checked
 with fixed-size preview image boxes before illustration spending. Final PDFs are
@@ -372,7 +375,10 @@ repairs if needed. It is not a guarantee of educational correctness.
 New student pages use `creative_bound_v2`. Gemini returns **one exercise specification**
 and an original HTML layout with empty named content slots. Python fills the title,
 directions, passage, numbered questions and response spaces from that specification.
-The final answer key uses those same question records. Independent instruction and
+The final answer key uses those same question records. Individual answers are bounded
+to 180 characters, without a conflicting 350-character aggregate cap. Final-sheet
+preflight checks actual geometry and uses 10pt or 9.5pt key text where necessary;
+grade-specific student fonts remain unchanged. Independent instruction and
 answer drafts are rejected. A repair preserves the planned activity mechanism.
 
 Gemini may invent open-ended design, crafts, writing, reading, investigations and

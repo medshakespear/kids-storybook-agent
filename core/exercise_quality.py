@@ -163,7 +163,7 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
             raise ValueError('Arithmetic result is outside this grade band; simplify the calculation')
         if config.get('max_result', 10000) <= 100 and actual.denominator != 1:
             raise ValueError('Use whole-number results for younger grades')
-    if visuals and len(answer_text(page)) > 650:
+    if visuals and not page.get('exercise_binding') and len(answer_text(page)) > 650:
         raise ValueError('Keep the combined exact-puzzle and written answers within 650 characters')
 
 
@@ -192,7 +192,8 @@ def proofread_pack(pack: dict, ask, repair) -> None:
         payload = [{'page_number': i, 'title': page['title'], 'student_content': student_text(page),
                     'answer_key': answer_text(page), 'verified_calculations': page.get('calculations', []),
                     'independent_printed_math': page.get('computed_math', []),
-                    'planned_intent': page.get('planned_intent'), 'shared_exercise': page.get('exercise')}
+                    'planned_intent': page.get('planned_intent'), 'shared_exercise': page.get('exercise'),
+                    'original_answer_conditions': page.get('answer_key_original')}
                    for i, page in enumerate(pack['pages'], 1)]
         prompt = (
             'Proofread the educational CONTENT of this static classroom pack. This is NOT image review. '
@@ -201,6 +202,8 @@ def proofread_pack(pack: dict, ask, repair) -> None:
             f'Grade: {pack["grade_band"]}. Identify only concrete mistakes making a task incorrect, '
             'ambiguous, unsolvable or mismatched to its answer key. Independently solve printed math; '
             'match question numbers, titles and EVERY answer; check comprehension against supplied passage, '
+            'if original_answer_conditions are supplied, verify concise answers preserve their essential '
+            'solutions and success conditions; flag any omitted required condition or changed value. '
             'compare the planned activity with the shared exercise and actually printed task. Flag substituted '
             'mechanisms, e.g. sorting beneath seesaw directions or a maze beneath a pattern instruction. '
             'exhaustive/nonoverlapping sorting rules and sufficient materials. Flag more than two pages '

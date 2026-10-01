@@ -330,17 +330,53 @@ def check_page(page: dict, font: int, *, cover: bool = False) -> None:
                          'or reorganize panels instead of reducing text or response space.')
 
 
+def answer_key_markup(pack: dict, mode: str = 'standard') -> str:
+    """Render every canonical answer, varying only final-sheet typography and spacing."""
+    if mode not in {'standard','compact','dense'}:
+        raise ValueError('Unknown answer sheet layout')
+    compact = mode != 'standard'
+    font = 9.5 if mode == 'dense' else 10
+    section_style = ('margin:0 0 2mm;border-top:0.5mm solid #188a91;padding-top:1mm' if compact else '')
+    heading_style = 'font-size:10pt;margin:0 0 1mm;line-height:1.15' if compact else ''
+    paragraph_style = f'font-size:{font:g}pt;margin:0;line-height:1.2;overflow-wrap:anywhere' if compact else ''
+    keys = ''.join(
+        f'<section style="{section_style}"><h3 style="{heading_style}">{i}. {html.escape(p["title"])}</h3>'
+        f'<p style="{paragraph_style}">{html.escape(answer_text(p))}</p></section>'
+        for i,p in enumerate(pack['pages'],1))
+    intro_style = 'font-size:10pt;margin-bottom:3mm' if compact else ''
+    return ('<h1>Answer Key</h1>'
+            f'<p style="{intro_style}">Activity numbers match the student pages. Creative answers may vary.</p>'
+            '<div class="key">'+keys+'</div>')
+
+
+def fit_answer_key(pack: dict, config: dict) -> None:
+    """Select a measured one-page key layout without rewriting or deleting any answers."""
+    with RENDER_LOCK:
+        for mode in ('standard','compact','dense'):
+            doc = HTML(string=document_markup([answer_key_markup(pack,mode)],config.get('student_font_pt',13)),
+                       url_fetcher=data_only_fetcher).render()
+            try:
+                check_document(doc,1)
+            except ValueError:
+                continue
+            pack['answer_key_layout'] = mode
+            return
+    raise ValueError('Final answer sheet cannot fit one A4 page with readable text. '
+                     'Shorten the shared question answer/criterion fields while retaining every solution; '
+                     'student activities and images do not need redesign.')
+
+
 def pack_markup(pack: dict, config: dict, preview: bool = False) -> str:
-    """Compose model-authored pages and the single answer sheet for either render pass."""
+    """Compose model-authored pages and the measured single answer sheet for both render passes."""
     bodies = [cover_fragment(pack['cover'], preview)] + [fragment(p, preview) for p in pack['pages']]
-    keys = ''.join(f'<section><h3>{i}. {html.escape(p["title"])}</h3><p>{html.escape(answer_text(p))}</p></section>' for i, p in enumerate(pack['pages'], 1))
-    bodies.append('<h1>Answer Key</h1><p>Activity numbers match the student pages. Creative answers may vary.</p><div class="key">' + keys + '</div>')
+    bodies.append(answer_key_markup(pack,pack.get('answer_key_layout','standard')))
     return document_markup(bodies, config.get('student_font_pt', 13))
 
 
 def preflight_pack(pack: dict, config: dict) -> None:
-    """Check the assembled book including the answer sheet before image API spending."""
+    """Measure the final key and assembled book before any image API spending."""
     with RENDER_LOCK:
+        fit_answer_key(pack,config)
         doc = HTML(string=pack_markup(pack, config, preview=True), url_fetcher=data_only_fetcher).render()
         check_document(doc, len(pack['pages']) + 2)
 
@@ -348,6 +384,8 @@ def preflight_pack(pack: dict, config: dict) -> None:
 def build_creative_pdf(pack: dict, config: dict, output_path: str | Path) -> Path:
     """Preserve AI-authored cover and student designs and append one compact answer key."""
     with RENDER_LOCK:
+        if 'answer_key_layout' not in pack:
+            fit_answer_key(pack,config)
         doc = HTML(string=pack_markup(pack, config), url_fetcher=data_only_fetcher).render()
         check_document(doc, len(pack['pages']) + 2)
         target = Path(output_path)

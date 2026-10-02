@@ -57,6 +57,8 @@ def single_illustration_recovery(page: dict, minimum_font: int, visual_area: flo
     for caption in exercise.get('captions',[]):
         pieces.append(f'<p data-content="caption_{caption["id"]}" style="font-size:{minimum_font}pt;'
                       f'color:{accent};margin:0 0 2mm"></p>')
+    if re.search(r'Date:\s*_+',checked['html']):
+        pieces.append(f'<p data-content="date" style="font-size:{minimum_font}pt;margin:0 0 2mm"></p>')
     pieces.append(f'<div style="text-align:center;background-color:{wash};padding:2mm;'
                   f'border:0.5mm solid {accent};border-radius:4mm;margin:0 0 3mm">'
                   f'<img data-asset="{asset}" style="width:{side}mm;height:{side}mm"/></div>')
@@ -66,5 +68,6 @@ def single_illustration_recovery(page: dict, minimum_font: int, visual_area: flo
         pieces.append(f'<div data-content="question_{question["id"]}" style="font-size:{minimum_font}pt;'
                       f'padding:1mm;border-top:0.5mm solid {accent};margin:0 0 3mm"></div>')
     result = deepcopy(page)
+    result['exercise'] = deepcopy(exercise)
     result['html'] = ''.join(pieces)
     return result

@@ -146,6 +146,8 @@ class BoundLayout(HTMLParser):
             if heading==self.text_blocks['title']: matches = ['title']
         if not matches and re.fullmatch(r'name\s*:\s*[_\s]*',normalized):
             matches = ['name']
+        if not matches and re.fullmatch(r'date\s*:\s*[_\s]*',normalized):
+            matches = ['date']
         if len(matches)==1:
             key = matches[0]
             if key in self.used:
@@ -278,7 +280,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     if brief and any(exercise.get(k) != brief.get(k) for k in ('render_mode','mechanic')):
         raise ValueError('Preserve the planned render_mode and mechanic; do not replace this exercise with a different puzzle')
     exercise['goal'] = bounded_text(exercise.get('goal'), 'goal', 240)
-    blocks = {'title': html.escape(title), 'name': 'Name: ____________________'}
+    blocks = {'title': html.escape(title), 'name': 'Name: ____________________',
+              'date': 'Date: ____________________'}
     page['visuals'], page['calculations'] = [], []
     if exercise['render_mode'] == 'exact':
         visual = exercise.get('visual')
@@ -427,7 +430,7 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     bound_layout = bind_formatted_canonical_text(layout,blocks)
     parser = BoundLayout(blocks)
     parser.feed(bound_layout); parser.close()
-    required = set(blocks)-{'name'}
+    required = set(blocks)-{'name','date'}
     if parser.stack or not required.issubset(parser.used):
         raise ValueError(f'Use every required exercise content slot exactly once: missing {sorted(required-parser.used)}')
     compiled_visuals = page_visuals(page)
@@ -511,7 +514,9 @@ The prose answer must contain that same numeric result. Do not put
 answers in student prompts. For exact mode do not repeat the graphic's computed answer in questions.
 HTML is a freely designed layout with EMPTY data-content slots. ALL printed wording comes from
 exercise fields. Required title slot: <h1 data-content="title"></h1>; optional name slot:
-<p data-content="name"></p>. Authored directions slot: <p data-content="directions"></p>.
+<p data-content="name"></p>; optional blank date slot: <p data-content="date"></p>.
+Table headers and contextual labels (e.g. Zone ID) must also be exercise.captions with caption_ID slots.
+Authored directions slot: <p data-content="directions"></p>.
 Passage, if provided: <div data-content="passage"></div>. Context headings or picture labels use
 exercise.captions: [{id:"context",text:"Plants growing together"}] (optional, at most 6; each text
 <=120 chars). Print each once with <p data-content="caption_context"></p>. Keep captions factual,

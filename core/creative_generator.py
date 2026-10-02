@@ -526,7 +526,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'HTML text with an empty data-content="caption_context" slot. Use child-friendly '
                             'vocabulary for younger grades; do not move instructions or solutions into captions. '
                             'Retain existing correct wording and answer/criterion. Layout containers '
-                            'use data-content="title", "directions", "passage", "name", "caption_ID" or "question_ID". '
+                            'use data-content="title", "directions", "passage", "name", "date", "caption_ID" or "question_ID". '
                             'Bind the WHOLE container with one data-content attribute rather than only its '
                             'first text chunk. Move any genuinely additional wording into a separate canonical '
                             'question/direction/caption slot; never discard it as formatting. '

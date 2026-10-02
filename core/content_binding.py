@@ -106,10 +106,12 @@ class CanonicalTextContainers(HTMLParser):
                     heading = re.sub(r'^(?:page|activity)\s+#?\d+\s*[:.\-–—]\s*','',value)
                     if heading==self.text_blocks.get('title'): matches=['title']
                 if not matches and re.fullmatch(r'name\s*:\s*[_\s]*',value): matches=['name']
+                date_label = bool(re.fullmatch(r'date\s*:\s*[_\s]*',value))
+                if not matches and date_label and 'date' in self.text_blocks: matches=['date']
                 primary_title = (tag=='h1' and len(self.primary_headings)==1 and node is self.primary_headings[0]
                                  and not self.explicit_title and bool(value) and len(value)<=180)
                 if not matches and primary_title: matches=['title']
-                if len(matches)==1 and (primary_title or any(isinstance(c,dict) for c in node['children'])):
+                if len(matches)==1 and (primary_title or date_label or any(isinstance(c,dict) for c in node['children'])):
                     # Raw unformatted copies retain the established duplicate handling.
                     attrs.append(('data-content',matches[0]))
         attributes = ' '.join(f'{k}="{html.escape(v or "",quote=True)}"' for k,v in attrs)
@@ -133,7 +135,7 @@ def bind_formatted_canonical_text(layout: str, blocks: dict[str,str]) -> str:
 
 
 def bind_standard_heading(layout: str, exercise: dict) -> str:
-    """Register a standalone tip heading without accepting any independent task wording."""
+    """Register allowlisted standalone labels without accepting independent task wording."""
     parser = CanonicalTextContainers({})
     parser.feed(layout)
     parser.close()
@@ -148,8 +150,9 @@ def bind_standard_heading(layout: str, exercise: dict) -> str:
         slotted = inside_slot or any(k=='data-content' for k,_ in node['attrs'])
         if not slotted and TAG_ALIASES.get(node['tag'],node['tag']) in CONTAINERS:
             pieces = [parser.plain_text(c) for c in node['children']]
-            if all(p is not None for p in pieces) and ' '.join(''.join(pieces).split()).casefold()=='challenge tip:':
-                candidates.append(node)
+            value = ' '.join(''.join(pieces).split()) if all(p is not None for p in pieces) else ''
+            if value.casefold() in {'challenge tip:','zone id','zone id:'}:
+                candidates.append((node,value))
                 return
         for child in node['children']:
             visit(child,slotted)
@@ -158,14 +161,24 @@ def bind_standard_heading(layout: str, exercise: dict) -> str:
         visit(node)
     # Repeated labels and invalid/full caption manifests need normal validation.
     captions = exercise.get('captions',[])
-    if len(candidates)!=1 or not isinstance(captions,list) or len(captions)>=6:
+    if not candidates or not isinstance(captions,list) or len(captions)>=6:
         return layout
-    if any(isinstance(c,dict) and str(c.get('text','')).strip().casefold()=='challenge tip:' for c in captions):
+    changed = False
+    for node,text in candidates:
+        if sum(value.casefold()==text.casefold() for _,value in candidates)!=1:
+            continue
+        if any(isinstance(c,dict) and str(c.get('text','')).strip().casefold()==text.casefold() for c in captions):
+            continue
+        if len(captions)>=6:
+            break
+        used = {c.get('id') for c in captions if isinstance(c,dict)}
+        prefix = 'tip_label' if text.casefold()=='challenge tip:' else 'zone_label'
+        cid = next(f'{prefix}_{i}' for i in range(1,8) if f'{prefix}_{i}' not in used)
+        captions = list(captions)+[{'id':cid,'text':text}]
+        exercise['captions'] = captions
+        node['attrs'].append(('data-content','caption_'+cid))
+        node['children'] = []
+        changed = True
+    if not changed:
         return layout
-    used = {c.get('id') for c in captions if isinstance(c,dict)}
-    cid = next((f'tip_label_{i}' for i in range(1,8) if f'tip_label_{i}' not in used),None)
-    captions = list(captions)+[{'id':cid,'text':'Challenge Tip:'}]
-    exercise['captions'] = captions
-    candidates[0]['attrs'].append(('data-content','caption_'+cid))
-    candidates[0]['children'] = []
     return ''.join(parser.render(node) for node in parser.root)

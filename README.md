@@ -511,6 +511,12 @@ math, text-binding and print checks. A missing specification is never accepted a
 a blank worksheet. Shadow matching is planned as the supported `matching` tool
 with `mode: shadow`, rather than the unsupported `shadows` mechanic.
 
+Worksheet metadata supports optional `data-content="date"` and `name` slots.
+Complete blank Date labels bind locally, including inline formatting. Isolated
+`Zone ID` and `Challenge Tip:` labels register as canonical captions; their
+instructions, values and answers still require shared exercise fields. Local
+layout recovery retains these registered captions and the blank date field.
+
 Numeric-result recovery evaluates the existing declared expression and updates
 an unambiguous leading numeric answer or percentage in the shared key. Units,
 context quantities, question wording and the chosen operation are retained.

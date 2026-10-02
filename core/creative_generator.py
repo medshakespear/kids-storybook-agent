@@ -31,7 +31,7 @@ def parse_design_json(content: str) -> dict:
     return json.loads(value)
 
 
-def merge_answer_repair(original: dict, correction: dict, question_id: str) -> dict:
+def merge_answer_repair(original: dict, correction: dict, question_id: str, *, calculation: bool = False) -> dict:
     """Apply one bounded-answer correction without letting a retry replace artwork or tasks."""
     exercise = correction.get('exercise') if isinstance(correction,dict) else None
     questions = exercise.get('questions') if isinstance(exercise,dict) else None
@@ -43,6 +43,9 @@ def merge_answer_repair(original: dict, correction: dict, question_id: str) -> d
     if len(targets)!=1:
         raise ValueError('Answer-only repair requires an unambiguous original question ID')
     targets[0]['answer'] = deepcopy(matches[0]['answer'])
+    if calculation:
+        if 'calculation' in matches[0]: targets[0]['calculation'] = deepcopy(matches[0]['calculation'])
+        else: targets[0].pop('calculation',None)
     return result
 
 
@@ -50,6 +53,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
     """Retry validation defects separately from transient provider transport failures."""
     errors = []
     answer_repair_base, answer_repair_id = None, None
+    repair_calculation = False
     layout_repair_base = None
     floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
     minimum_font = int(floor_match[1]) if floor_match else 11
@@ -94,7 +98,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         )
                     draft = parse_design_json(content)
                     if answer_repair_base is not None:
-                        draft = merge_answer_repair(answer_repair_base,draft,answer_repair_id)
+                        draft = merge_answer_repair(answer_repair_base,draft,answer_repair_id,calculation=repair_calculation)
                     elif layout_repair_base is not None:
                         if not isinstance(draft,dict) or not isinstance(draft.get('html'),str):
                             raise ValueError('Layout-only repair must return a complete html fragment')
@@ -115,12 +119,14 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
 
                     # Answer-length repairs cannot remove illustrations or replace the original task.
                     answer_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) answer/criterion',str(exc))
+                    math_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|calculation expression|answer key|calculation does not solve|printed arithmetic)',str(exc))
                     if 'ONE shared source' in prompt and validated_draft is not None:
-                        if answer_match:
-                            answer_repair_base, answer_repair_id = validated_draft, answer_match[1]
+                        if answer_match or math_match:
+                            answer_repair_base, answer_repair_id = validated_draft, (answer_match or math_match)[1]
+                            repair_calculation = math_match is not None
                         else:
                             answer_repair_base, answer_repair_id = None, None
-                        if answer_match:
+                        if answer_match or math_match:
                             layout_repair_base = None
                         elif (isinstance(validated_draft,dict) and isinstance(validated_draft.get('html'),str)
                               and isinstance(validated_draft.get('exercise'),dict)
@@ -143,12 +149,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     asset_error = str(exc).lower()
                     if answer_repair_base is not None:
                         repair += (
-                            f' Correct ONLY the answer field for exercise.questions id {answer_repair_id}. '
+                            f' Correct ONLY the {"calculation and answer fields" if repair_calculation else "answer field"} for exercise.questions id {answer_repair_id}. '
                             'Return a nonempty concise solution or success criterion of at most 180 characters; '
                             'preserve every required value and essential condition. Do not truncate mid-sentence. '
-                            'Keep the original question IDs, prompts, calculations, response spaces, goal, '
+                            'Keep the original question IDs, prompts, other calculations, response spaces, goal, '
                             'captions, HTML and illustration manifest unchanged. Python applies only this '
-                            'answer correction to the retained original page, then validates it normally. '
+                            'identified field correction to the retained original page, then validates it normally. '
                         )
                     if layout_repair_base is not None:
                         repair += (
@@ -182,7 +188,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         )
                     if ('printed wording' in asset_error or 'content slot' in asset_error or
                             'required exercise content' in asset_error or 'inferred content slot' in asset_error or
-                            'entire text container' in asset_error):
+                            'entire text container' in asset_error or 'use a text container' in asset_error):
                         repair += (
                             ' Repair content binding only, not the activity. Return html, images, exercise. '
                             'All task wording belongs in exercise.directions, passage or questions[].prompt; '

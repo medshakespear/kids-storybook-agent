@@ -7,7 +7,7 @@ from html.parser import HTMLParser
 
 from core.print_tags import TAG_ALIASES
 
-CONTAINERS = {'h1','h2','h3','h4','p','div','section','span','td'}
+CONTAINERS = {'h1','h2','h3','h4','h5','h6','p','div','section','span','td','th','li','strong','b','em'}
 INLINE = {'span','strong','b','em','br'}
 TEXT_STYLES = {'color','background-color','font-size','font-weight','font-style','font-family',
                'text-decoration','text-align','line-height','white-space'}
@@ -21,6 +21,8 @@ class CanonicalTextContainers(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.root = []
         self.stack = []
+        self.primary_headings = []
+        self.explicit_title = False
         self.text_blocks = {}
         for key,value in blocks.items():
             parser = HTMLParser(convert_charrefs=True)
@@ -37,6 +39,8 @@ class CanonicalTextContainers(HTMLParser):
         """Build a balanced tree without changing tag names or attribute values."""
         node = {'tag':tag,'attrs':attrs,'children':[]}
         self.append(node)
+        if tag=='h1': self.primary_headings.append(node)
+        if dict(attrs).get('data-content')=='title': self.explicit_title = True
         if tag not in {'img','br'}: self.stack.append(node)
 
     def handle_endtag(self, tag: str) -> None:
@@ -89,7 +93,10 @@ class CanonicalTextContainers(HTMLParser):
                     heading = re.sub(r'^(?:page|activity)\s+#?\d+\s*[:.\-–—]\s*','',value)
                     if heading==self.text_blocks.get('title'): matches=['title']
                 if not matches and re.fullmatch(r'name\s*:\s*[_\s]*',value): matches=['name']
-                if len(matches)==1 and any(isinstance(c,dict) for c in node['children']):
+                primary_title = (tag=='h1' and len(self.primary_headings)==1 and node is self.primary_headings[0]
+                                 and not self.explicit_title and bool(value) and len(value)<=180)
+                if not matches and primary_title: matches=['title']
+                if len(matches)==1 and (primary_title or any(isinstance(c,dict) for c in node['children'])):
                     # Raw unformatted copies retain the established duplicate handling.
                     attrs.append(('data-content',matches[0]))
         attributes = ' '.join(f'{k}="{html.escape(v or "",quote=True)}"' for k,v in attrs)

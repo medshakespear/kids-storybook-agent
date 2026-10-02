@@ -85,7 +85,7 @@ class BoundLayout(HTMLParser):
             raise ValueError('Duplicate layout attributes')
         block = data.pop('data-content', None)
         if block is not None:
-            if tag not in {'h1','h2','h3','h4','p','div','span','section','td'}:
+            if tag not in {'h1','h2','h3','h4','h5','h6','p','div','span','section','td','th','li','strong','b','em'}:
                 raise ValueError('Use a text container for data-content slots')
             if block not in self.blocks or block in self.used:
                 raise ValueError(f'Unknown or repeated exercise content slot: {block}')
@@ -147,7 +147,7 @@ class BoundLayout(HTMLParser):
             key = matches[0]
             if key in self.used:
                 return  # Do not print a second copy of an already bound instruction.
-            if self.stack and self.stack[-1][0] in {'h1','h2','h3','h4','p','div','span','section','td'}:
+            if self.stack and self.stack[-1][0] in {'h1','h2','h3','h4','h5','h6','p','div','span','section','td','th','li','strong','b','em'}:
                 tag,_ = self.stack[-1]
                 self.stack[-1] = (tag,key)
                 self.used.add(key)

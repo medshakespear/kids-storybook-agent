@@ -399,6 +399,14 @@ question numbering. Local arithmetic checks validate declared results, explicit
 question computations and numerical key values. These checks reduce known errors;
 they cannot guarantee the correctness of every invented activity or image.
 
+Arithmetic validation repairs are scoped to the identified question's calculation
+and answer fields; they cannot change its prompt, layout, artwork or work space.
+A sole unbound text-only `h1` is treated as the page's headline draft and filled
+with the planned activity title. Additional unknown headings still need canonical
+caption fields. Static `label` maps to `span`; emphasis, small headings and table
+text cells support canonical slots. Images and structural tables cannot be text
+slots, and wrong math is still rejected by normal verification.
+
 Layout-only overflow/visual-size retries contribute HTML only; Python retains the
 original exercise and image manifest. A modest visual-area shortfall can be fixed
 locally by enlarging the main illustration by at most 35% per dimension, followed

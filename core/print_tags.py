@@ -2,6 +2,7 @@
 
 TAG_ALIASES = {
     'i': 'em',
+    'label': 'span',
     'header': 'div',
     'footer': 'div',
     'main': 'section',

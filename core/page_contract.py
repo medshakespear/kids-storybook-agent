@@ -472,7 +472,11 @@ EXERCISE_CONTRACT = '''Each student page returns ONLY html, images and exercise.
 ONE shared source. goal <=240 chars, directions <=180 chars for younger grades or <=350 for older;
 passage <=1500 chars (none for Pre-K). question prompt <=220 chars, answer/criterion <=180 chars;
 Keep answers concise without dropping solutions or success criteria; there is no combined character cap.
-Python checks actual final answer-sheet fit, not an arbitrary per-page aggregate length. exercise: {render_mode, mechanic, goal, directions?, passage?, captions?:[{id,text}], visual?, questions:[]}.
+Python checks actual final answer-sheet fit, not an arbitrary per-page aggregate length.
+The top-level JSON response MUST have html (string), images (list), and exercise (OBJECT).
+The exercise object is REQUIRED even when task wording is already visible in draft HTML.
+Never place exercise inside html, return it as a string, or replace it with a separate answers field.
+exercise: {render_mode, mechanic, goal, directions?, passage?, captions?:[{id,text}], visual?, questions:[]}.
 Preserve render_mode and mechanic from the planned brief. Do not substitute sorting for balancing,
 matching for mazes, or a maze for completing a pattern. If the chosen task cannot be rendered, repair
 THIS task rather than replacing it with another mechanism.

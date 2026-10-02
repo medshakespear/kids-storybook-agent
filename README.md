@@ -504,6 +504,13 @@ caption binding or other required content repairs can make a later page eligible
 Initial authored-page prompts also budget reading content by grade: roughly 60,
 90 or 120 passage words when combining text, large artwork and student workspace.
 These are authoring targets, not silent truncation or relaxed print checks.
+When a student-page response omits the shared `exercise` object, a focused retry
+requests only that object with explicit authored/exact JSON structures. Python
+retains the original illustration manifest and HTML, then runs the complete task,
+math, text-binding and print checks. A missing specification is never accepted as
+a blank worksheet. Shadow matching is planned as the supported `matching` tool
+with `mode: shadow`, rather than the unsupported `shadows` mechanic.
+
 Numeric-result recovery evaluates the existing declared expression and updates
 an unambiguous leading numeric answer or percentage in the shared key. Units,
 context quantities, question wording and the chosen operation are retained.

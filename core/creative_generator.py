@@ -241,6 +241,16 @@ def merge_manifest_repair(original: dict, correction: dict) -> dict:
     return result
 
 
+def merge_exercise_repair(original: dict, correction: dict) -> dict:
+    """Recover missing task data while retaining the page's artwork and layout."""
+    exercise = correction.get('exercise') if isinstance(correction,dict) else None
+    if not isinstance(exercise,dict) or not exercise:
+        raise ValueError('Exercise recovery must return a JSON object under the top-level exercise key; never null or a string')
+    result = deepcopy(original)
+    result['exercise'] = deepcopy(exercise)
+    return result
+
+
 def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
     """Retry validation defects separately from transient provider transport failures."""
     errors = []
@@ -248,6 +258,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
     repair_calculation = False
     layout_repair_base = None
     manifest_repair_base = None
+    exercise_repair_base = None
     prompt_repair_base, prompt_repair_id = None, None
     plan_mode_base, plan_mode_number = None, None
     layout_rescue_attempted = False
@@ -299,6 +310,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     draft = parse_design_json(content)
                     if plan_mode_base is not None:
                         draft = merge_plan_mode_repair(plan_mode_base,draft,plan_mode_number)
+                        scoped_merge = True
+                    elif exercise_repair_base is not None:
+                        draft = merge_exercise_repair(exercise_repair_base,draft)
                         scoped_merge = True
                     elif manifest_repair_base is not None:
                         draft = merge_manifest_repair(manifest_repair_base,draft)
@@ -378,6 +392,15 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         mode_match = re.search(r'^Planned page (\d+).*Each page needs render_mode',str(exc))
                         plan_mode_base,plan_mode_number = (validated_draft,int(mode_match[1])) if mode_match else (None,None)
                     if 'ONE shared source' in prompt and validated_draft is not None:
+                        missing_exercise = (('Return exercise as the shared source' in str(exc)
+                                             or 'Exercise recovery must return' in str(exc))
+                                            and isinstance(validated_draft,dict)
+                                            and not isinstance(validated_draft.get('exercise'),dict)
+                                            and isinstance(validated_draft.get('html'),str))
+                        if missing_exercise:
+                            exercise_repair_base = validated_draft
+                        elif exercise_repair_base is not None and isinstance(validated_draft.get('exercise'),dict):
+                            exercise_repair_base = None
                         missing_manifest = (('Illustration manifest images must be a JSON list' in str(exc)
                                              or 'Supply 1-4 meaningful illustrations' in str(exc)
                                              or 'Render every purposeful exercise illustration' in str(exc))
@@ -417,6 +440,25 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'after the closing brace. Include every required field in that one object.'
                         )
                     asset_error = str(exc).lower()
+                    if exercise_repair_base is not None:
+                        repair += (
+                            ' Return ONLY {"exercise":{...}}. exercise MUST be a JSON OBJECT, '
+                            'not HTML, null, a string, an array or an omitted field. Use the ORIGINAL '
+                            'page brief render_mode and mechanic and retain its actual student action. '
+                            'For authored: {"exercise":{"render_mode":"authored",'
+                            '"mechanic":"<planned mechanic>","goal":"<learning goal>",'
+                            '"directions":"<concise task>","questions":[{"id":"1",'
+                            '"prompt":"<student action>","answer":"<correct solution or success criterion>",'
+                            '"space_mm":50}]}}. Add passage/captions or numeric calculation only if '
+                            'needed for this original activity. For exact: {"exercise":{'
+                            '"render_mode":"exact","mechanic":"<planned exact tool>",'
+                            '"goal":"<learning goal>","visual":{"id":"<existing data-visual id>",'
+                            '"question":1,"kind":"<planned exact tool>","<required puzzle fields>":"<values>"},'
+                            '"questions":[]}}; supply real puzzle data from the exact tool contract, '
+                            'not placeholder text. No parallel answers/calculations/visuals fields. '
+                            'Python retains the original HTML and images, applies only exercise and '
+                            'then checks task correctness, bindings and printable layout. '
+                        )
                     if prompt_repair_base is not None:
                         repair += (
                             f' Correct ONLY exercise.questions id {prompt_repair_id} prompt to nonempty text '
@@ -1171,12 +1213,13 @@ Exact balance compares sizes, not weight. These tools support only circle,square
 For any other creative exercise use authored with an ORIGINAL short mechanism label describing its actual action.
 Authored tasks allow original design, investigation, craft, reading/writing or reasoning rather than a fixed menu.
 Favor context-specific authored invention for at least half the pages unless the requested subject requires exact puzzles.
-Closed-answer tasks cannot depend on precise AI picture features. Use exact for counts, mazes, shadows,
+Closed-answer tasks cannot depend on precise AI picture features. Use exact for counts, mazes, shadow matching,
 patterns and differences; use authored for open responses or supplied text/math questions. Avoid generic
 reflection repeated after every puzzle. For exact puzzles, repeat the same tool AND learning goal
 at most twice. Authored pages can share drawing/coloring/craft labels when their actual concepts
 and compositions differ meaningfully. Use render_mode authored for these open creative tasks,
 not exact. Canonical names for the exact tools are listed above. No teacher guide.'''
+    plan_prompt += '\nFor shadow matching use mechanic="matching" with mechanic_constraints={"mode":"shadow"}; never use mechanic="shadows".'
     plan_prompt += '\nPer-page content budget: '+density_guidance(config)
     plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True), 'Creative plan', 6000)
     context = json.dumps({k: plan[k] for k in ('title', 'art_direction', 'character_description')})

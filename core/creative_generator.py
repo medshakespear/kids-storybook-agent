@@ -412,7 +412,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         prompt_repair_base, prompt_repair_id = (validated_draft,prompt_match[1]) if prompt_match else (None,None)
                         if answer_match or math_match:
                             answer_repair_base, answer_repair_id = validated_draft, (answer_match or math_match)[1]
-                            repair_calculation = math_match is not None
+                            repair_calculation = math_match is not None and 'answer key must contain' not in str(exc)
                         else:
                             answer_repair_base, answer_repair_id = None, None
                         if answer_match or math_match or prompt_match:

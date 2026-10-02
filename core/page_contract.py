@@ -413,6 +413,10 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             numeric_key = numeric_display_text(answer)
             candidates = re.findall(r'(?<![\w.])-?(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+)?(?![\w.])', numeric_key)
             values = []
+            from core.number_word_answers import whole_number_word_answer
+            written_number = whole_number_word_answer(answer)
+            if written_number is not None:
+                values.append(Fraction(written_number))
             for value in candidates:
                 try: values.append(Fraction(value))
                 except (ValueError,ZeroDivisionError): continue
@@ -422,7 +426,10 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
                     values.append(Fraction(whole)+(-part if whole.startswith('-') else part))
                 except (ValueError,ZeroDivisionError): continue
             if actual not in values:
-                raise ValueError(f'Question {qid}: answer key must contain its verified calculation answer')
+                raise ValueError(f'Question {qid}: answer key must contain its verified calculation answer; '
+                                 f'expected {actual} from {calculation["expression"]!r}, '
+                                 f'received {answer!r}. Correct only this question\'s prose answer; '
+                                 'retain its verified calculation, printed prompt and response space')
     page['answers'] = ' '.join(answers)
     # Each answer and question count is already bounded. Check final sheet geometry
     # during pack preflight rather than imposing a contradictory aggregate character cap.

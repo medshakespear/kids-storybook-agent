@@ -517,6 +517,14 @@ Complete blank Date labels bind locally, including inline formatting. Isolated
 instructions, values and answers still require shared exercise fields. Local
 layout recovery retains these registered captions and the blank date field.
 
+When the calculation is already verified but the prose
+key is inconsistent, the provider correction is restricted to that question's
+answer field; the verified expression/result, task and artwork cannot change.
+Validation feedback includes the computed expected value and received key.
+Complete elementary cardinal answers from zero to ninety-nine (optionally with
+a simple counting unit, such as `twenty beads`) are recognized exactly. Fractions,
+ambiguous narrative wording and incorrect number words still require correction.
+
 Numeric-result recovery evaluates the existing declared expression and updates
 an unambiguous leading numeric answer or percentage in the shared key. Units,
 context quantities, question wording and the chosen operation are retained.

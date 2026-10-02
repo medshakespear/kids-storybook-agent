@@ -399,6 +399,14 @@ question numbering. Local arithmetic checks validate declared results, explicit
 question computations and numerical key values. These checks reduce known errors;
 they cannot guarantee the correctness of every invented activity or image.
 
+When a single answer/criterion exceeds its 180-character limit or is empty, the
+retry applies only that answer field to the retained original page. Model changes
+to questions, response areas, HTML or illustration manifests are ignored during
+this scoped repair. The repaired page still passes normal math, content and print
+checks. Answers are never truncated automatically. Small-visual diagnostics report
+measured total and largest artwork areas; repair prompts retain exercises and work
+space while recomposing meaningful artwork at the grade-specific size floor.
+
 Exact puzzle graphics own their numbered directions and computed answers. A normal
 exact page uses `exercise.questions: []`, omits directions/passage and places the
 graphic once. Optional additional actions use different question IDs and matching

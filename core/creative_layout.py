@@ -436,4 +436,6 @@ def check_visual_quality(document, profile: dict, *, cover: bool = False) -> Non
     minimum = profile['visual_area_mm2']
     if not cover and (area < minimum or largest < minimum * .55):
         raise ValueError(f'Visuals are too small: use at least {minimum:g} square mm of meaningful artwork/diagrams, '
-                         'including one large main visual; preserve response space')
+                         f'including one large main visual of at least {minimum*.55:g} square mm; '
+                         f'measured total {area:.0f} square mm and largest visual {largest:.0f} square mm. '
+                         'Preserve response space')

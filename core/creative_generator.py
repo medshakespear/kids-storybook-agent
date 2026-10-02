@@ -31,9 +31,25 @@ def parse_design_json(content: str) -> dict:
     return json.loads(value)
 
 
+def merge_answer_repair(original: dict, correction: dict, question_id: str) -> dict:
+    """Apply one bounded-answer correction without letting a retry replace artwork or tasks."""
+    exercise = correction.get('exercise') if isinstance(correction,dict) else None
+    questions = exercise.get('questions') if isinstance(exercise,dict) else None
+    matches = [q for q in questions if isinstance(q,dict) and str(q.get('id'))==question_id] if isinstance(questions,list) else []
+    if len(matches)!=1 or 'answer' not in matches[0]:
+        raise ValueError(f'Answer-only repair must supply one exercise.questions answer for id {question_id}; preserve its ID')
+    result = deepcopy(original)
+    targets = [q for q in result['exercise']['questions'] if isinstance(q,dict) and str(q.get('id'))==question_id]
+    if len(targets)!=1:
+        raise ValueError('Answer-only repair requires an unambiguous original question ID')
+    targets[0]['answer'] = deepcopy(matches[0]['answer'])
+    return result
+
+
 def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
     """Retry validation defects separately from transient provider transport failures."""
     errors = []
+    answer_repair_base, answer_repair_id = None, None
     floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
     minimum_font = int(floor_match[1]) if floor_match else 11
     messages = [
@@ -56,6 +72,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
             transport_failures = 0
             while validation_attempt < max_validation_attempts:
                 content = None
+                validated_draft = None
                 try:
                     LOGGER.info('%s: %s / %s attempt %s', label, provider, model,
                                 validation_attempt + 1)
@@ -74,7 +91,11 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'Response was truncated by the token limit; return a shorter complete '
                             'design with concise markup'
                         )
-                    result = validate(parse_design_json(content))
+                    draft = parse_design_json(content)
+                    if answer_repair_base is not None:
+                        draft = merge_answer_repair(answer_repair_base,draft,answer_repair_id)
+                    validated_draft = deepcopy(draft)
+                    result = validate(draft)
                     return result
                 except (ValueError, TypeError, KeyError, IndexError) as exc:
                     validation_attempt += 1
@@ -85,6 +106,14 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     if validation_attempt >= max_validation_attempts:
                         break
 
+                    # Answer-length repairs cannot remove illustrations or replace the original task.
+                    answer_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) answer/criterion',str(exc))
+                    if 'ONE shared source' in prompt and validated_draft is not None:
+                        if answer_match:
+                            answer_repair_base, answer_repair_id = validated_draft, answer_match[1]
+                        else:
+                            answer_repair_base, answer_repair_id = None, None
+                        content = json.dumps(validated_draft)
                     # Keep only the latest draft/correction instead of an expanding conversation.
                     messages = messages[:2]
                     if content:
@@ -97,6 +126,26 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'Preserve the exercise and design rather than inventing a different page.'
                         )
                     asset_error = str(exc).lower()
+                    if answer_repair_base is not None:
+                        repair += (
+                            f' Correct ONLY the answer field for exercise.questions id {answer_repair_id}. '
+                            'Return a nonempty concise solution or success criterion of at most 180 characters; '
+                            'preserve every required value and essential condition. Do not truncate mid-sentence. '
+                            'Keep the original question IDs, prompts, calculations, response spaces, goal, '
+                            'captions, HTML and illustration manifest unchanged. Python applies only this '
+                            'answer correction to the retained original page, then validates it normally. '
+                        )
+                    if 'visuals are too small' in asset_error:
+                        repair += (
+                            ' Repair visual dimensions and layout ONLY, preserving exercise content and every '
+                            'answer criterion, response space and image ID/prompt. Enlarge the useful artwork '
+                            'rather than adding blank panels, logos or duplicate decorative thumbnails. '
+                            'A main image around width:150mm;height:90mm provides 13500mm2; use dimensions '
+                            'meeting the reported total and main-visual minimums. Count all margins, borders '
+                            'and response spaces inside a 235mm height budget. Recompose panels and reduce '
+                            'decorative spacing if needed; never shrink student text or essential work space. '
+                            'Return the complete html, images and exercise. '
+                        )
                     if label == 'Creative plan' and ('mechanic' in asset_error or 'render_mode' in asset_error):
                         repair += (
                             ' Correct only the affected page briefs. render_mode exact uses a precise drawing '

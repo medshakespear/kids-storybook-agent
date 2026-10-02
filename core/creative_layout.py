@@ -14,6 +14,7 @@ import tinycss2
 from weasyprint import HTML, default_url_fetcher
 from core.paths import BASE_DIR
 from core.print_tags import TAG_ALIASES
+from core.content_binding import CanonicalTextContainers
 from core.task_visuals import page_visuals, answer_text
 
 RENDER_LOCK = RLock()
@@ -322,6 +323,47 @@ def _tighten_explicit_spacing(html_value: str, *, preserve_heights: bool = False
     return re.sub(pattern, replace, html_value, flags=re.I)
 
 
+def reflow_outer_panels(markup: str) -> str:
+    """Remove redundant wrapper heights only around artwork and an explicit canonical work area."""
+    parser = CanonicalTextContainers({})
+    parser.feed(markup); parser.close()
+    if parser.stack: return markup
+    changed = False
+
+    def inspect(node):
+        """Find real media and independently dimensioned response space without editing either."""
+        nonlocal changed
+        if isinstance(node,str) or 'comment' in node: return False,False
+        flags = [inspect(child) for child in node['children']]
+        data = dict(node['attrs'])
+        style = data.get('style','') or ''
+        art = node['tag']=='img' and bool(data.get('data-asset') or data.get('data-visual'))
+        response = (node['tag']=='span' and 'height:' in style and
+                    re.search(r'border\s*:\s*0\.4mm\s+solid\s+#809aa6',style,re.I) is not None)
+        child_art = any(a for a,_ in flags)
+        child_response = any(r for _,r in flags)
+        if node['tag'] in {'div','section','table','td'} and child_art and child_response:
+            cleaned = re.sub(r'(?:^|;)\s*(?:height|min-height|max-height)\s*:[^;]*(?:;|$)', ';',style,flags=re.I)
+            # A second adjacent dimension can follow the first replaced separator.
+            cleaned = re.sub(r'(?:^|;)\s*(?:height|min-height|max-height)\s*:[^;]*(?:;|$)', ';',cleaned,flags=re.I)
+            if cleaned!=style:
+                node['attrs'] = [(key,cleaned if key=='style' else value) for key,value in node['attrs']]
+                changed = True
+        return art or child_art,response or child_response
+
+    def render(node):
+        """Serialize the retained tree without canonical-slot inference or dropping any content."""
+        if isinstance(node,str): return html.escape(node,quote=False)
+        if 'comment' in node: return '<!--'+node['comment']+'-->'
+        attrs = ' '.join(f'{key}="{html.escape(value or "",quote=True)}"' for key,value in node['attrs'])
+        start = f'<{node["tag"]} {attrs}>'
+        if node['tag'] in {'img','br'}: return start
+        return start+''.join(render(child) for child in node['children'])+f'</{node["tag"]}>'
+
+    for node in parser.root: inspect(node)
+    return ''.join(render(node) for node in parser.root) if changed else markup
+
+
 def grow_main_artwork(markup: str, document, profile: dict) -> str | None:
     """Recover modest area shortfalls without upscaling thumbnails or changing task content."""
     areas = [box.width*box.height*(25.4/96)**2 for box in document.pages[0]._page_box.descendants()
@@ -355,9 +397,10 @@ def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: boo
     last_overflow = ''
     rendered_markup = set()
     with RENDER_LOCK:
-        for tightened in (False, True):
-            if tightened:
-                page['html'] = _tighten_explicit_spacing(original_html, preserve_heights=bool(page.get('quality_profile')))
+        tightened_html = _tighten_explicit_spacing(original_html, preserve_heights=bool(page.get('quality_profile')))
+        panel_html = reflow_outer_panels(tightened_html) if page.get('exercise_binding') else tightened_html
+        for candidate_html in (original_html,tightened_html,panel_html):
+            page['html'] = candidate_html
             for mode in ('', 'reflow', 'compact'):
                 if mode:
                     page['print_layout'] = mode

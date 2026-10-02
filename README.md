@@ -399,7 +399,7 @@ question numbering. Local arithmetic checks validate declared results, explicit
 question computations and numerical key values. These checks reduce known errors;
 they cannot guarantee the correctness of every invented activity or image.
 
-Missing/null illustration manifests recover by page type. Exact pages with an
+Missing/null and empty authored illustration manifests recover by page type. Exact pages with an
 explicit computed graphic and no raster image slots normalize to `images: []`.
 Authored pages use a narrow AI prompt requesting only the missing ID/prompt list;
 Python retains the original task and existing image layout. If no image slots exist,
@@ -414,6 +414,13 @@ with the planned activity title. Additional unknown headings still need canonica
 caption fields. Static `label` maps to `span`; emphasis, small headings and table
 text cells support canonical slots. Images and structural tables cannot be text
 slots, and wrong math is still rejected by normal verification.
+
+As a final local overflow fallback, fixed heights on compound outer panels can
+be removed when the panel contains artwork and an independently dimensioned
+canonical response area. Image dimensions, canonical response heights, text and
+answers stay intact. Empty panels or unidentified work spaces retain their heights,
+and healthy page layouts remain unchanged. Actual A4 bounds and visual minimums
+are checked after this reflow.
 
 Layout-only overflow/visual-size retries contribute HTML only; Python retains the
 original exercise and image manifest. A modest visual-area shortfall can be fixed

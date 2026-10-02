@@ -155,9 +155,11 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     answer_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) answer/criterion',str(exc))
                     math_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|calculation expression|answer key|calculation does not solve|printed arithmetic)',str(exc))
                     if 'ONE shared source' in prompt and validated_draft is not None:
-                        missing_manifest = ('Illustration manifest images must be a JSON list' in str(exc)
+                        missing_manifest = (('Illustration manifest images must be a JSON list' in str(exc)
+                                             or 'Supply 1-4 meaningful illustrations' in str(exc)
+                                             or 'Render every purposeful exercise illustration' in str(exc))
                                             and isinstance(validated_draft,dict)
-                                            and validated_draft.get('images') is None
+                                            and validated_draft.get('images') in (None,[])
                                             and isinstance(validated_draft.get('exercise'),dict)
                                             and isinstance(validated_draft.get('html'),str))
                         manifest_repair_base = validated_draft if missing_manifest else None

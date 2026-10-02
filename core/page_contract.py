@@ -201,6 +201,12 @@ def validate_brief(page: dict, *, planning: bool = False) -> None:
 def normalize_illustration_ids(page: dict) -> None:
     """Normalize only equivalent asset spellings; never guess between different subjects."""
     images = page.get('images')
+    exercise = page.get('exercise')
+    if (images is None and isinstance(exercise,dict)
+            and str(exercise.get('render_mode','')).strip().casefold()=='exact'
+            and isinstance(exercise.get('visual'),dict)
+            and not re.search(r'\bdata-asset\s*=',page.get('html',''),re.I)):
+        images = []  # An already authored precise graphic needs no invented raster art.
     if isinstance(images,dict) and {'id','prompt'} & set(images) and set(images)!={'id','prompt'}:
         raise ValueError('Illustration manifest singleton must contain exactly id and prompt; do not mix image fields with a keyed image map')
     if isinstance(images,dict) and set(images)=={'id','prompt'}:

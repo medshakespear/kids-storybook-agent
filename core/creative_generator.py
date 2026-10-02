@@ -7,6 +7,7 @@ import random
 import re
 import time
 from copy import deepcopy
+from html.parser import HTMLParser
 from uuid import uuid4
 
 from core.activity_generator import ActivityGenerationError, _text
@@ -49,12 +50,43 @@ def merge_answer_repair(original: dict, correction: dict, question_id: str, *, c
     return result
 
 
+def illustration_references(markup: str) -> list[str]:
+    """Read authored image slots without guessing subjects or depending on quoting style."""
+    parser = HTMLParser(convert_charrefs=True)
+    refs = []
+    def visit(tag, attrs):
+        """Collect only actual img data-asset references, including unquoted attributes."""
+        if tag=='img' and dict(attrs).get('data-asset'):
+            refs.append(dict(attrs)['data-asset'])
+    parser.handle_starttag = visit
+    parser.feed(markup)
+    return list(dict.fromkeys(refs))
+
+
+def merge_manifest_repair(original: dict, correction: dict) -> dict:
+    """Recover authored prompts while retaining the original task and existing image layout."""
+    images = correction.get('images') if isinstance(correction,dict) else None
+    if not isinstance(images,list) or not 1<=len(images)<=4 or any(
+            not isinstance(a,dict) or not isinstance(a.get('id'),str) or not a['id'].strip()
+            or not isinstance(a.get('prompt'),str) or not a['prompt'].strip() for a in images):
+        raise ValueError('Illustration manifest recovery must return images as 1-4 explicit nonempty id/prompt objects; never null')
+    result = deepcopy(original)
+    result['images'] = deepcopy(images)
+    if not illustration_references(original['html']):
+        markup = correction.get('html')
+        if not isinstance(markup,str) or not markup.strip():
+            raise ValueError('Illustration manifest recovery must also add visible image slots when the original HTML has none')
+        result['html'] = markup
+    return result
+
+
 def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
     """Retry validation defects separately from transient provider transport failures."""
     errors = []
     answer_repair_base, answer_repair_id = None, None
     repair_calculation = False
     layout_repair_base = None
+    manifest_repair_base = None
     floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
     minimum_font = int(floor_match[1]) if floor_match else 11
     messages = [
@@ -97,7 +129,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'design with concise markup'
                         )
                     draft = parse_design_json(content)
-                    if answer_repair_base is not None:
+                    if manifest_repair_base is not None:
+                        draft = merge_manifest_repair(manifest_repair_base,draft)
+                    elif answer_repair_base is not None:
                         draft = merge_answer_repair(answer_repair_base,draft,answer_repair_id,calculation=repair_calculation)
                     elif layout_repair_base is not None:
                         if not isinstance(draft,dict) or not isinstance(draft.get('html'),str):
@@ -121,6 +155,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     answer_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) answer/criterion',str(exc))
                     math_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|calculation expression|answer key|calculation does not solve|printed arithmetic)',str(exc))
                     if 'ONE shared source' in prompt and validated_draft is not None:
+                        missing_manifest = ('Illustration manifest images must be a JSON list' in str(exc)
+                                            and isinstance(validated_draft,dict)
+                                            and validated_draft.get('images') is None
+                                            and isinstance(validated_draft.get('exercise'),dict)
+                                            and isinstance(validated_draft.get('html'),str))
+                        manifest_repair_base = validated_draft if missing_manifest else None
                         if answer_match or math_match:
                             answer_repair_base, answer_repair_id = validated_draft, (answer_match or math_match)[1]
                             repair_calculation = math_match is not None
@@ -362,7 +402,29 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                                    'Put corrections in exercise.visual or exercise.questions and use EMPTY '
                                    'data-content slots in html. Do not return legacy visuals/answers/calculations '
                                    'fields or fill slots with text. Preserve planned render_mode and mechanic.')
-                    messages.append({'role': 'user', 'content': repair})
+                    if manifest_repair_base is not None:
+                        refs = illustration_references(manifest_repair_base['html'])
+                        instructions = (
+                            'Recover ONLY missing illustration prompts for this existing classroom activity. '
+                            'Return JSON with images as a NONEMPTY list of 1-4 objects {id,prompt}; never null. '
+                            'Each prompt must be <=650 characters, original and meaningful for the supplied task, '
+                            'grade and art direction. No text, numbers, worksheets or borders in generated art. '
+                            'Keep the exercise, answers, questions and response space unchanged. '
+                        )
+                        if refs:
+                            instructions += ('Use these exact existing image slot IDs: '+json.dumps(refs)+
+                                             '. Return ONLY images; the original HTML will be retained. ')
+                        else:
+                            instructions += (
+                                'Also return html with the same canonical content slots and added visible '
+                                'data-asset images. Preserve all original task wording, panels and work space; '
+                                'choose useful print dimensions meeting the original grade guidance. '
+                            )
+                        messages = [messages[0],{'role':'user','content': instructions+
+                                    '\nGrade/context/art guidance:\n'+prompt[:7000]+
+                                    '\nExisting page (data to preserve):\n'+json.dumps(manifest_repair_base)}]
+                    else:
+                        messages.append({'role': 'user', 'content': repair})
                     time.sleep(min(2 ** max(validation_attempt - 1, 0) + random.random(), 10))
                 except Exception as exc:
                     failure = safe_api_error(provider, exc, model=model)

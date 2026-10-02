@@ -399,6 +399,14 @@ question numbering. Local arithmetic checks validate declared results, explicit
 question computations and numerical key values. These checks reduce known errors;
 they cannot guarantee the correctness of every invented activity or image.
 
+Missing/null illustration manifests recover by page type. Exact pages with an
+explicit computed graphic and no raster image slots normalize to `images: []`.
+Authored pages use a narrow AI prompt requesting only the missing ID/prompt list;
+Python retains the original task and existing image layout. If no image slots exist,
+the repair adds visible artwork while canonical exercise fields remain unchanged.
+Repeated null responses remain in this recovery scope. Missing prompts are never
+replaced with invented local placeholders or blank imagery.
+
 Arithmetic validation repairs are scoped to the identified question's calculation
 and answer fields; they cannot change its prompt, layout, artwork or work space.
 A sole unbound text-only `h1` is treated as the page's headline draft and filled

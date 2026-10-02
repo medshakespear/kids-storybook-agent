@@ -492,6 +492,13 @@ or open-task mechanic. Equivalent names such as SVG/computed and AI-authored map
 to the corresponding mode. Ambiguous values identify the failing page and receive
 a mode-only correction with an explicit page number; book metadata, task concepts
 and layout briefs are retained. Exercise designs still require an explicit mode.
+Layout retries request compact HTML-only JSON instead of repeating the entire
+exercise and image manifest. After a failed layout retry, a single-illustration
+authored page may use local measured recomposition with its existing palette,
+large square artwork and canonical text slots. Original binding and math must
+validate first; original questions, answers, captions, image prompts and response
+spaces remain unchanged. The result must pass all ordinary print checks. Complex
+multi-image layouts and unresolved unbound wording stay on the AI repair path.
 
 Cloudflare artwork is for expressive scenes and open-ended inspiration. Exact-count
 and precise hidden-detail answers must not depend on generated pixels. Gemini image

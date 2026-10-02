@@ -250,8 +250,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
     manifest_repair_base = None
     prompt_repair_base, prompt_repair_id = None, None
     plan_mode_base, plan_mode_number = None, None
+    layout_rescue_attempted = False
     floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
     minimum_font = int(floor_match[1]) if floor_match else 11
+    layout_visual_area = 10500 if minimum_font>=14 else 10000 if minimum_font==13 else 8000 if minimum_font==12 else 6000
     messages = [
         {'role': 'system', 'content': (
             'You are an original elementary curriculum designer and print art director. '
@@ -314,6 +316,21 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     result = validate(draft)
                     return result
                 except (ValueError, TypeError, KeyError, IndexError) as exc:
+                    visual_match = re.search(r'Visuals are too small: use at least (\d+) square mm',str(exc))
+                    if visual_match:
+                        layout_visual_area = int(visual_match[1])
+                    if layout_repair_base is not None and not layout_rescue_attempted:
+                        from core.layout_recovery import single_illustration_recovery
+                        layout_rescue_attempted = True
+                        rescue = single_illustration_recovery(layout_repair_base,minimum_font,layout_visual_area)
+                        if rescue is not None:
+                            try:
+                                recovered = validate(rescue)
+                            except (ValueError,TypeError,KeyError,IndexError):
+                                pass  # No clipping, hidden wording or smaller response areas.
+                            else:
+                                LOGGER.info('%s: measured single-illustration layout recovery succeeded',label)
+                                return recovered
                     locally_repaired = set()
                     while validated_draft is not None:
                         local_math = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|answer key)',str(exc))
@@ -647,6 +664,27 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'If an explanation follows the object, remove only that explanation; preserve '
                             'all exercise and illustration data inside the object. Parser error: '+str(exc)+
                             '\nResponse to serialize:\n'+(content or '')[:36000]}]
+                    elif layout_repair_base is not None:
+                        messages = [messages[0],{'role':'user','content':
+                            'Repair ONLY this existing printable layout. Return JSON containing html only; '
+                            'Repair visual dimensions and layout ONLY, preserving the original task. '
+                            'do not repeat images, questions, answers or the complete exercise. Preserve '
+                            'every data-content slot and data-asset/data-visual ID exactly once. Keep all '
+                            'task wording and response space unchanged; no new headings or captions. '
+                            'Python applies ONLY the corrected HTML, plus captions binding exact original labels. '
+                            f'A4 content width 186mm, height 265mm; minimum text {minimum_font}pt. '
+                            f'Useful visual area must total at least {layout_visual_area} square mm, '
+                            f'with one main visual at least {layout_visual_area*.55:g} square mm. '
+                            'Recompose large artwork and work panels; no fixed full-page-height wrapper. '
+                            'Reduce decorative spacing; never shrink student text or response space. '
+                            'Example main-image style: width:150mm;height:90mm; keep artwork uncropped. '
+                            'If an existing raw context label needs binding, you may additionally return '
+                            'exercise.captions with its EXACT already printed wording and matching slot. '
+                            'Example: captions [{id:"context",text:"original label"}] and an empty '
+                            'data-content="caption_context" text container. '
+                            'Never add new wording or alter an existing caption. Validation: '+str(exc)+
+                            '\nOriginal grade/context guidance:\n'+prompt[:3500]+
+                            '\nRetained page:\n'+json.dumps(layout_repair_base)}]
                     elif manifest_repair_base is not None:
                         refs = illustration_references(manifest_repair_base['html'])
                         instructions = (

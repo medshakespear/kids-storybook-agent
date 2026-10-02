@@ -67,7 +67,9 @@ class CaptionLayoutRecoveryTests(unittest.TestCase):
         original=authored_page();original['html']=original['html'].replace('width:175mm;height:75mm','width:28mm;height:24mm')
         enlarged=self.labelled_page()
         corrected=self.bound_correction();corrected['images']=None
-        result,api=self.ask([original,enlarged,corrected])
+        # Exercise the author-directed path independently of the new local rescue.
+        with patch('core.layout_recovery.single_illustration_recovery',return_value=None):
+            result,api=self.ask([original,enlarged,corrected])
         self.assertEqual(api.chat.completions.create.call_count,3)
         self.assertEqual(result['images'],original['images'])
         self.assertIn('width:175mm;height:75mm',result['html'])

@@ -399,6 +399,14 @@ question numbering. Local arithmetic checks validate declared results, explicit
 question computations and numerical key values. These checks reduce known errors;
 they cannot guarantee the correctness of every invented activity or image.
 
+Exact puzzle graphics own their numbered directions and computed answers. A normal
+exact page uses `exercise.questions: []`, omits directions/passage and places the
+graphic once. Optional additional actions use different question IDs and matching
+`question_ID` slots. Repair feedback identifies reserved labels and parallel
+directions together, and consistently requests `html`, `images`, `exercise` rather
+than the legacy separate visual/answer drafts. Unknown instructions are corrected,
+not silently discarded; actual extra student tasks and response space are preserved.
+
 Optional canonical `exercise.captions` contain short contextual headings or image
 labels, printed through `data-content="caption_ID"` slots. Captions join the shared
 content specification and text proofreading; arbitrary unbound HTML text remains

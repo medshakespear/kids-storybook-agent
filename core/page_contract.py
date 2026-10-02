@@ -210,8 +210,6 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     blocks = {'title': html.escape(title), 'name': 'Name: ____________________'}
     page['visuals'], page['calculations'] = [], []
     if exercise['render_mode'] == 'exact':
-        if exercise.get('directions') or exercise.get('passage'):
-            raise ValueError('Exact visual prints its own verified directions; omit parallel directions/passage to avoid task mismatches')
         visual = exercise.get('visual')
         if not isinstance(visual,dict) or not isinstance(visual.get('kind'),str):
             raise ValueError('Exercise visual kind must match its planned exact mechanic')
@@ -232,6 +230,18 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         page['visuals'] = [visual]
         normalize_visual_metadata(page)
         exercise['visual'] = page['visuals'][0]
+        problems = []
+        if exercise.get('directions') or exercise.get('passage'):
+            problems.append('Exact visual prints its own verified directions; omit parallel directions/passage to avoid task mismatches')
+        visual_question = str(exercise['visual'].get('question'))
+        for index,question in enumerate(exercise.get('questions',[]) if isinstance(exercise.get('questions',[]),list) else [],1):
+            if isinstance(question,dict) and str(question.get('id')).strip()==visual_question:
+                problems.append(f'Exercise question IDs must not duplicate visual question numbers: questions item {index} '
+                                f'uses reserved label {visual_question}. If it repeats the exact puzzle, do not author '
+                                'a second question/answer about it; if it is a genuinely additional action, assign '
+                                'an unused label and update its question_ID slot together')
+        if problems:
+            raise ValueError('; '.join(problems))
         page_visuals(page)
     else:
         if exercise.get('visual'):
@@ -276,7 +286,9 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         qid = question.get('id')
         if type(qid) is int: qid = str(qid)
         if not isinstance(qid,str) or not re.fullmatch(r'[1-9]\d?(?:[A-Za-z])?',qid) or qid in reserved:
-            raise ValueError('Exercise question IDs must be distinct printed labels, e.g. 1 or 2A; do not duplicate visual question numbers')
+            raise ValueError(f'Exercise question IDs must be distinct printed labels, e.g. 1 or 2A; '
+                             f'got {qid!r}, already used/reserved {sorted(reserved)}. '
+                             'Do not duplicate visual question numbers; update the question ID and question_ID slot together')
         question['id'] = qid
         reserved.add(qid)
         prompt = bounded_text(question.get('prompt'), f'question {qid} prompt', 220)
@@ -378,6 +390,13 @@ THIS task rather than replacing it with another mechanism.
   Python prints the computed task directions inside that graphic. Include the graphic once via img
   data-visual. questions may contain related optional actions with DIFFERENT IDs; no duplicated
   directions or answers about the exact visual. Do not return a parallel top-level visuals list.
+  Default exact page: questions:[], NO directions/passage and NO directions/passage/question slots.
+  visual.question=1 owns printed task 1 AND its computed answer. It is NOT a questions[] item.
+  For a genuinely additional open action use id:"2" (or another unused label) and question_2.
+  Context belongs in the title or a short non-instruction caption, not invented puzzle directions.
+  Counting graphics ask students to count and WRITE each row's total; do not add connecting/matching
+  directions to a count graphic. Matching, sort, patterns and other tools likewise print their own action.
+  No independent instruction paragraphs before or after the exact graphic.
 - authored: Gemini invents the complete original creative task: craft, coloring, role-play planning,
   reading, writing, mathematical reasoning or another age-appropriate mechanism; not a fixed menu.
   directions is the single concise task instruction, passage optional. Questions are required.

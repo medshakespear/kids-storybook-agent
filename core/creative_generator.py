@@ -141,19 +141,46 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'subjects, but never replace an exact-answer puzzle with AI art. Return the '
                             'complete page and preserve images, visuals, answers and calculations.'
                         )
+                    if ('exercise question ids' in asset_error or 'parallel directions' in asset_error
+                            or 'verified directions' in asset_error or 'unbound wording' in asset_error) and 'ONE shared source' in prompt:
+                        repair += (
+                            ' Resolve content and numbering together in the CURRENT shared exercise schema. '
+                            'If render_mode is exact, exercise.visual owns its printed question number and '
+                            'computed answer; do not also list that puzzle in exercise.questions. '
+                            'Omit exercise.directions and exercise.passage AND their HTML slots for exact pages. '
+                            'Remove only duplicate raw puzzle directions/answers from HTML; the exact graphic '
+                            'already supplies its verified action. Keep all genuinely additional student actions '
+                            'in exercise.questions with unused IDs, correct criteria and matching question_ID slots. '
+                            'Keep context in title or short non-instruction exercise.captions, not invented '
+                            'instructions such as connecting pictures on a count-and-write graphic. '
+                            'For authored pages retain canonical directions and every task; fix invalid/duplicate '
+                            'IDs and update each corresponding question_ID slot without changing the task. '
+                            'Return ONLY html, images and exercise. Preserve the planned mechanic and graphic '
+                            'data; never replace the precise puzzle with an AI illustration.'
+                        )
                     if ('visual question' in asset_error or 'visual needs' in asset_error or
                             'visual ids' in asset_error or 'data-visual' in asset_error or
                             'visuals must' in asset_error):
-                        repair += (
-                            ' Repair exact visual metadata and references together. Each visuals object '
-                            'needs id matching [a-z][a-z0-9_]{0,30}, a unique question JSON integer 1-30 '
-                            'matching its printed task, and kind with all required puzzle fields. '
-                            'Use the exact SAME id in img data-visual. Do not use zero, null, string '
-                            'question numbers, illustration prompts or page labels as metadata. '
-                            'Preserve puzzle content, artwork and calculations. Return the complete page '
-                            'including html, images, visuals and answers; do not replace a puzzle with '
-                            'an AI illustration or invent missing task numbers.'
-                        )
+                        if 'ONE shared source' in prompt:
+                            repair += (
+                                ' Repair exercise.visual (singular), never a top-level visuals list. '
+                                'It needs id matching [a-z][a-z0-9_]{0,30}, question as a JSON integer 1-30 '
+                                'and kind with the required puzzle data. Its question number is reserved for '
+                                'the computed puzzle, not a duplicate exercise.questions item. '
+                                'Use exactly the same id in img data-visual. Keep artwork and all actual tasks. '
+                                'Return ONLY html, images and exercise; no independent answers or calculations. '
+                            )
+                        else:
+                            repair += (
+                                ' Repair exact visual metadata and references together. Each visuals object '
+                                'needs id matching [a-z][a-z0-9_]{0,30}, a unique question JSON integer 1-30 '
+                                'matching its printed task, and kind with all required puzzle fields. '
+                                'Use the exact SAME id in img data-visual. Do not use zero, null, string '
+                                'question numbers, illustration prompts or page labels as metadata. '
+                                'Preserve puzzle content, artwork and calculations. Return the complete page '
+                                'including html, images, visuals and answers; do not replace a puzzle with '
+                                'an AI illustration or invent missing task numbers.'
+                            )
                     if ('calculation' in asset_error or 'arithmetic' in asset_error or 'only numbers' in asset_error
                             or 'only integer/decimal literals' in asset_error):
                         if 'ONE shared source' in prompt:

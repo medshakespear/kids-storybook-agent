@@ -522,8 +522,12 @@ and ambiguous references still require a semantic correction. Whole canonical
 text can also bind through nested text-only paragraphs; extra instructions,
 media, empty block panels and dimensioned working areas are not discarded.
 Complete blank Date labels bind locally, including inline formatting. Isolated
-`Zone ID` and `Challenge Tip:` labels register as canonical captions; their
-instructions, values and answers still require shared exercise fields. Local
+`Zone ID` and `Challenge Tip:` labels register as canonical captions. Short
+indexed diagram identifiers also bind locally (e.g. Node A, Point 1,
+Station B or Zone 2). Only complete identifiers qualify; text describing actions,
+numeric results or relationships still needs canonical exercise fields. The
+existing six-caption limit and duplicate-label checks remain active.
+Instructions, values and answers still require shared exercise fields. Local
 layout recovery retains these registered captions and the blank date field.
 
 When the calculation is already verified but the prose

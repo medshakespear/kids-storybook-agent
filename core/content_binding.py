@@ -13,6 +13,13 @@ TEXT_STYLES = {'color','background-color','font-size','font-weight','font-style'
                'text-decoration','text-align','line-height','white-space'}
 
 
+def diagram_label(value: str) -> bool:
+    """Recognize a complete short diagram identifier, never directions or answers."""
+    return bool(re.fullmatch(r'(?:node|point|station|zone|vertex)\s+'
+                             r'(?:[a-z](?:[1-9]|[12][0-9]|30)?|[1-9]|[12][0-9]|30):?',
+                             value.strip(),re.I))
+
+
 class CanonicalTextContainers(HTMLParser):
     """Inspect complete text-only containers without dropping graphics, work areas or extra tasks."""
 
@@ -173,7 +180,7 @@ def bind_standard_heading(layout: str, exercise: dict) -> str:
         if not slotted and TAG_ALIASES.get(node['tag'],node['tag']) in CONTAINERS:
             pieces = [parser.plain_text(c) for c in node['children']]
             value = ' '.join(''.join(pieces).split()) if all(p is not None for p in pieces) else ''
-            if value.casefold() in {'challenge tip:','zone id','zone id:'}:
+            if value.casefold() in {'challenge tip:','zone id','zone id:'} or diagram_label(value):
                 candidates.append((node,value))
                 return
         for child in node['children']:
@@ -194,7 +201,8 @@ def bind_standard_heading(layout: str, exercise: dict) -> str:
         if len(captions)>=6:
             break
         used = {c.get('id') for c in captions if isinstance(c,dict)}
-        prefix = 'tip_label' if text.casefold()=='challenge tip:' else 'zone_label'
+        prefix = ('tip_label' if text.casefold()=='challenge tip:' else
+                  'diagram_label' if diagram_label(text) else 'zone_label')
         cid = next(f'{prefix}_{i}' for i in range(1,8) if f'{prefix}_{i}' not in used)
         captions = list(captions)+[{'id':cid,'text':text}]
         exercise['captions'] = captions

@@ -525,6 +525,7 @@ HTML is a freely designed layout with EMPTY data-content slots. ALL printed word
 exercise fields. Required title slot: <h1 data-content="title"></h1>; optional name slot:
 <p data-content="name"></p>; optional blank date slot: <p data-content="date"></p>.
 Table headers and contextual labels (e.g. Zone ID) must also be exercise.captions with caption_ID slots.
+Diagram identifiers such as Node A, Node B or Point 1 are captions too, not independent HTML text.
 Authored directions slot: <p data-content="directions"></p>.
 Passage, if provided: <div data-content="passage"></div>. Context headings or picture labels use
 exercise.captions: [{id:"context",text:"Plants growing together"}] (optional, at most 6; each text

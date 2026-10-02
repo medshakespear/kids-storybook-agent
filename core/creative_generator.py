@@ -129,6 +129,42 @@ def merge_prompt_repair(original: dict, correction: dict, question_id: str) -> d
     return result
 
 
+def exact_wording_requires_content_repair(page: dict, error: str) -> bool:
+    """Treat exact-puzzle instruction conflicts as content defects, not decorative captions."""
+    exercise = page.get('exercise') if isinstance(page,dict) else None
+    if not isinstance(exercise,dict) or exercise.get('render_mode')!='exact':
+        return False
+    return error.startswith(('Put ALL printed wording', 'Exact captions must not contain task directions')) or (
+        error.startswith('Unknown or repeated exercise content slot:') and
+        any(f'content slot: {slot};' in error for slot in ('directions','passage')))
+
+
+def merge_exact_wording_repair(original: dict, correction: dict) -> dict:
+    """Accept corrected wording bindings while pinning the existing puzzle and valid actions."""
+    if not isinstance(correction,dict) or not isinstance(correction.get('exercise'),dict):
+        raise ValueError('Exact wording repair must return a complete shared exercise and HTML')
+    result = deepcopy(correction)
+    retained = original['exercise']
+    exercise = result['exercise']
+    for key in ('render_mode','mechanic','goal','visual','mechanic_constraints'):
+        if key in retained:
+            exercise[key] = deepcopy(retained[key])
+        else:
+            exercise.pop(key,None)
+    reserved = str(retained.get('visual',{}).get('question'))
+    old_questions = retained.get('questions',[])
+    new_questions = exercise.get('questions',[])
+    if not isinstance(old_questions,list) or not isinstance(new_questions,list):
+        raise ValueError('Exact wording repair must retain canonical questions as a list')
+    for question in old_questions:
+        if isinstance(question,dict) and str(question.get('id'))!=reserved:
+            matches = [q for q in new_questions if isinstance(q,dict) and str(q.get('id'))==str(question.get('id'))]
+            if len(matches)!=1 or matches[0]!=question:
+                raise ValueError('Exact wording repair must preserve existing additional questions, answers and response space')
+    result['images'] = deepcopy(original.get('images',[]))
+    return result
+
+
 def merge_layout_repair(original: dict, correction: dict) -> dict:
     """Retain task data while binding previously printed contextual headings as captions."""
     from core.content_binding import CanonicalTextContainers, CONTAINERS
@@ -272,6 +308,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     layout_repair_base = None
     manifest_repair_base = None
     exercise_repair_base = None
+    exact_repair_base = None
     prompt_repair_base, prompt_repair_id = None, None
     plan_mode_base, plan_mode_number = None, None
     plan_repair_field = "render_mode"
@@ -357,6 +394,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         scoped_merge = True
                     elif manifest_repair_base is not None:
                         draft = merge_manifest_repair(manifest_repair_base,draft)
+                        scoped_merge = True
+                    elif exact_repair_base is not None:
+                        draft = merge_exact_wording_repair(exact_repair_base,draft)
                         scoped_merge = True
                     elif prompt_repair_base is not None:
                         draft = merge_prompt_repair(prompt_repair_base,draft,prompt_repair_id)
@@ -467,7 +507,8 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             repair_calculation = math_match is not None and 'answer key must contain' not in str(exc)
                         else:
                             answer_repair_base, answer_repair_id = None, None
-                        if answer_match or math_match or prompt_match:
+                        exact_repair_base = validated_draft if exact_wording_requires_content_repair(validated_draft,str(exc)) else None
+                        if answer_match or math_match or prompt_match or exact_repair_base is not None:
                             layout_repair_base = None
                         elif (isinstance(validated_draft,dict) and isinstance(validated_draft.get('html'),str)
                               and isinstance(validated_draft.get('exercise'),dict)
@@ -528,6 +569,19 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             'Keep the original question IDs, prompts, other calculations, response spaces, goal, '
                             'captions, HTML and illustration manifest unchanged. Python applies only this '
                             'identified field correction to the retained original page, then validates it normally. '
+                        )
+                    if exact_wording_requires_content_repair(validated_draft,str(exc)):
+                        repair += (
+                            ' This is an EXACT-PUZZLE CONTENT/BINDING repair, not a layout-only repair. '
+                            'The graphic owns its verified instructions. Do not convert task directions into '
+                            'exercise.captions or create caption_directions. Remove only parallel instructions '
+                            'that duplicate the computed task; preserve genuinely additional student actions '
+                            'as canonical questions with unused IDs, correct criteria and response space. '
+                            'Do not rename generic shapes as cultural artifacts or claim unsupported art features. '
+                            'Preserve the planned mechanic, visual data and already valid questions. Bind factual '
+                            'context labels as captions, and match every remaining slot to an actual canonical '
+                            'field. Exact pages have NO directions/passage slots. Return complete html, images '
+                            'and exercise; Python validates this repaired shared content and the printable page. '
                         )
                     if layout_repair_base is not None:
                         repair += (

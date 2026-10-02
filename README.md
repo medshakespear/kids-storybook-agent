@@ -630,3 +630,12 @@ Planner options are now conditional on the selected tool: matching supports only
 If an older or malformed response mixes these fields, a scoped correction retains
 the entire plan and changes only the affected page's `mechanic_constraints`.
 Explicit rules implied by aliases such as shadow matching remain protected.
+
+Exact-puzzle wording conflicts now use a shared-content repair, rather than a
+layout-only caption merge. The original exact graphic data, existing additional
+questions/answers/workspace and illustration manifest are retained. Parallel
+puzzle directions cannot be hidden in captions (including `caption_directions`)
+or bound to nonexistent `directions`/`passage` slots. Factual contextual captions
+remain supported; genuinely additional student actions belong in canonical
+questions and the final answer key. The repaired page still undergoes full
+content and print-fit validation.

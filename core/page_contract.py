@@ -352,6 +352,11 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             raise ValueError('Caption IDs must be distinct short lowercase identifiers')
         caption_ids.add(cid)
         caption['text'] = bounded_text(caption.get('text'),f'caption {cid}',120)
+        if exercise['render_mode']=='exact' and (
+                cid in {'directions','instructions','passage'} or
+                re.search(r'\b(?:help\b.{0,70}\b(?:sort|count|match|find)|(?:sort|count|match|circle|connect|draw|write)\s+(?:the|these|each|all|a|your)\b)',caption['text'],re.I)):
+            raise ValueError('Exact captions must not contain task directions; the computed graphic owns its instructions. '
+                             'Keep genuinely additional actions in exercise.questions, not captions')
         blocks['caption_'+cid] = html.escape(caption['text'])
     questions = exercise.get('questions', [])
     if not isinstance(questions,list) or len(questions)>config.get('items_per_page',4):
@@ -504,6 +509,7 @@ THIS task rather than replacing it with another mechanism.
   visual.question=1 owns printed task 1 AND its computed answer. It is NOT a questions[] item.
   For a genuinely additional open action use id:"2" (or another unused label) and question_2.
   Context belongs in the title or a short non-instruction caption, not invented puzzle directions.
+  Never put directions in captions or use caption IDs directions/instructions/passage.
   Counting graphics ask students to count and WRITE each row's total; do not add connecting/matching
   directions to a count graphic. Matching, sort, patterns and other tools likewise print their own action.
   No independent instruction paragraphs before or after the exact graphic.

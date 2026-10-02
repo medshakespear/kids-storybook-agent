@@ -338,9 +338,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             break
                         corrected = repair_printed_arithmetic(validated_draft,local_math[1])
                         if corrected is None:
+                            from core.math_result_recovery import repair_declared_result
+                            corrected = repair_declared_result(validated_draft,local_math[1])
+                        if corrected is None:
                             break
                         locally_repaired.add(local_math[1])
-                        LOGGER.info('%s: computing standalone printed arithmetic for question %s locally',label,local_math[1])
+                        LOGGER.info('%s: computing the declared calculation result and key for question %s locally',label,local_math[1])
                         validated_draft = corrected
                         try:
                             return validate(deepcopy(corrected))

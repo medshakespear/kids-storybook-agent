@@ -504,6 +504,12 @@ caption binding or other required content repairs can make a later page eligible
 Initial authored-page prompts also budget reading content by grade: roughly 60,
 90 or 120 passage words when combining text, large artwork and student workspace.
 These are authoring targets, not silent truncation or relaxed print checks.
+Numeric-result recovery evaluates the existing declared expression and updates
+an unambiguous leading numeric answer or percentage in the shared key. Units,
+context quantities, question wording and the chosen operation are retained.
+Exact fractions and explicitly requested rounding use the same arithmetic source.
+Ambiguous or multi-step answer prose still needs semantic repair, and normal
+text proofreading still verifies that the chosen operation solves the word problem.
 
 Cloudflare artwork is for expressive scenes and open-ended inspiration. Exact-count
 and precise hidden-detail answers must not depend on generated pixels. Gemini image

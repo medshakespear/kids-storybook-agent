@@ -501,6 +501,8 @@ must match the exact computation unless the question explicitly asks for roundin
 cent or two decimal places). Then use that rounded numeric result in both calculation.answer and
 the answer key. Python applies exact half-up rounding from the PRINTED question only; never
 silently round a repeating decimal. Without a rounding instruction, use an exact fraction string.
+For elementary percentage word problems with repeating-decimal results, print a clear rounding
+instruction unless exact fractional percentages are the actual learning goal.
 The prose answer must contain that same numeric result. Do not put
 answers in student prompts. For exact mode do not repeat the graphic's computed answer in questions.
 HTML is a freely designed layout with EMPTY data-content slots. ALL printed wording comes from

@@ -21,7 +21,7 @@ class MathHeadingRepairTests(unittest.TestCase):
     def math_page(self):
         """Supply one wrong declared result with otherwise coherent original task data."""
         page=authored_page()
-        page['exercise']['questions']=[dict(id='2',prompt='A class has 12 pencils and receives 8 more. How many pencils are there?',answer='21',space_mm=25,
+        page['exercise']['questions']=[dict(id='2',prompt='A class has 12 pencils and receives 8 more. How many pencils are there?',answer='21 pencils, with 12 initially and 8 new.',space_mm=25,
                                           calculation={'expression':'12+8','answer':21})]
         page['html']=page['html'].replace('question_1','question_2')
         return page

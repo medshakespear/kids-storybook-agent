@@ -368,7 +368,7 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             raise ValueError(f'Question {qid}: printed arithmetic requires a calculation in the shared specification')
         if calculation is not None:
             if not isinstance(calculation,dict): raise ValueError('Question calculation must contain expression and answer')
-            from core.exercise_quality import calculate, normalize_calculation
+            from core.exercise_quality import calculate, normalize_calculation, expected_calculation
             original_expression = calculation.get('expression')
             try:
                 calculation['expression'] = normalize_calculation(original_expression)
@@ -376,17 +376,22 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
                 raise ValueError(f'Question {qid}: calculation expression {str(original_expression)[:80]!r}: {exc}') from None
             page['calculations'].append(dict(question=qid,expression=calculation['expression'],answer=calculation.get('answer')))
             # The numeric answer printed in the key is also computed from this same object.
-            actual = calculate(calculation['expression'])
+            exact = calculate(calculation['expression'])
+            try:
+                actual = expected_calculation(calculation['expression'],prompt)
+            except ValueError as exc:
+                raise ValueError(f'Question {qid}: calculation expression: {exc}') from None
             from fractions import Fraction
             try: supplied = Fraction(str(calculation.get('answer')))
             except (ValueError,ZeroDivisionError): raise ValueError('Question calculation answer must be numeric') from None
-            if len(numeric_facts)==1 and not re.search(r'[()]',prompt) and calculate(numeric_facts[0])!=actual:
+            if len(numeric_facts)==1 and not re.search(r'[()]',prompt) and calculate(numeric_facts[0])!=exact:
                 raise ValueError(f'Question {qid}: calculation does not solve the printed arithmetic')
             if actual != supplied:
                 raise ValueError(f'Question {qid}: declared math answer is incorrect; '
                                  f'calculation {calculation["expression"]!r} evaluates to {actual}, '
                                  f'not {supplied}. Correct calculation.answer and the shared answer key; '
-                                 'preserve the printed question and verify that this operation solves it')
+                                 'preserve the printed question and verify that this operation solves it. '
+                                 'Rounding is allowed only when explicitly requested in the printed question')
             # Require the prose key to contain the exact numeric answer, never an unrelated narrative.
             numeric_key = numeric_display_text(answer)
             candidates = re.findall(r'(?<![\w.])-?(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+)?(?![\w.])', numeric_key)
@@ -478,7 +483,11 @@ question includes calculation.expression as a numeric computation such as "20-8"
 or "200*15/100". No variables, equals signs, function calls, units, powers or wording in expression.
 For a missing-number equation x+8=20 printed in the prompt, expression is "20-8", not "x+8=20".
 Never use a variable name or verbal formula such as "total_cost" as expression. calculation.answer
-is its final numeric value or fraction string; its prose answer must contain that same numeric result. Do not put
+must match the exact computation unless the question explicitly asks for rounding (e.g. nearest
+cent or two decimal places). Then use that rounded numeric result in both calculation.answer and
+the answer key. Python applies exact half-up rounding from the PRINTED question only; never
+silently round a repeating decimal. Without a rounding instruction, use an exact fraction string.
+The prose answer must contain that same numeric result. Do not put
 answers in student prompts. For exact mode do not repeat the graphic's computed answer in questions.
 HTML is a freely designed layout with EMPTY data-content slots. ALL printed wording comes from
 exercise fields. Required title slot: <h1 data-content="title"></h1>; optional name slot:

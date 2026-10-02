@@ -109,6 +109,29 @@ def repair_printed_arithmetic(page: dict, question_id: str) -> dict | None:
     return result
 
 
+def merge_prompt_repair(original: dict, correction: dict, question_id: str) -> dict:
+    """Shorten only one task prompt while retaining its numbers, answer, artwork and space."""
+    from collections import Counter
+    from core.exercise_quality import numeric_display_text, rounding_precision
+    questions = correction.get('exercise',{}).get('questions') if isinstance(correction,dict) and isinstance(correction.get('exercise'),dict) else None
+    matches = [q for q in questions if isinstance(q,dict) and str(q.get('id'))==question_id] if isinstance(questions,list) else []
+    targets = [q for q in original['exercise']['questions'] if isinstance(q,dict) and str(q.get('id'))==question_id]
+    if len(matches)!=1 or len(targets)!=1 or not isinstance(matches[0].get('prompt'),str):
+        raise ValueError(f'Prompt-only repair must supply one exercise.questions prompt for id {question_id}')
+    new = matches[0]['prompt'].strip()
+    old = targets[0].get('prompt')
+    def numbers(text):
+        """Compare explicit numeric data without mistaking grouping commas for separate values."""
+        return Counter(re.findall(r'(?<![\w.])-?(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+)?(?![\w.])',numeric_display_text(text)))
+    if isinstance(old,str) and numbers(old)!=numbers(new):
+        raise ValueError(f'Prompt-only repair for question {question_id} must preserve every numeric value and quantity')
+    if isinstance(old,str) and rounding_precision(old)!=rounding_precision(new):
+        raise ValueError(f'Prompt-only repair for question {question_id} must preserve the printed rounding precision')
+    result = deepcopy(original)
+    next(q for q in result['exercise']['questions'] if str(q.get('id'))==question_id)['prompt'] = new
+    return result
+
+
 def illustration_references(markup: str) -> list[str]:
     """Read authored image slots without guessing subjects or depending on quoting style."""
     parser = HTMLParser(convert_charrefs=True)
@@ -146,6 +169,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
     repair_calculation = False
     layout_repair_base = None
     manifest_repair_base = None
+    prompt_repair_base, prompt_repair_id = None, None
     floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
     minimum_font = int(floor_match[1]) if floor_match else 11
     messages = [
@@ -157,6 +181,8 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
         {'role': 'user', 'content': prompt},
     ]
     max_validation_attempts = int_setting('DESIGN_VALIDATION_ATTEMPTS', 4, 3, 6)
+    progress_allowance = 2
+    previous_defect = None
     # A real Gemini 503 incident can last longer than a few seconds. Keep the
     # current sticky key and back off slowly; only 429 quota handling may rotate.
     max_transport_failures = int_setting('GEMINI_TRANSPORT_ATTEMPTS', 8, 3, 12)
@@ -169,6 +195,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
             while validation_attempt < max_validation_attempts:
                 content = None
                 validated_draft = None
+                scoped_merge = False
                 try:
                     LOGGER.info('%s: %s / %s attempt %s', label, provider, model,
                                 validation_attempt + 1)
@@ -190,14 +217,20 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     draft = parse_design_json(content)
                     if manifest_repair_base is not None:
                         draft = merge_manifest_repair(manifest_repair_base,draft)
+                        scoped_merge = True
+                    elif prompt_repair_base is not None:
+                        draft = merge_prompt_repair(prompt_repair_base,draft,prompt_repair_id)
+                        scoped_merge = True
                     elif answer_repair_base is not None:
                         draft = merge_answer_repair(answer_repair_base,draft,answer_repair_id,calculation=repair_calculation)
+                        scoped_merge = True
                     elif layout_repair_base is not None:
                         if not isinstance(draft,dict) or not isinstance(draft.get('html'),str):
                             raise ValueError('Layout-only repair must return a complete html fragment')
                         retained = deepcopy(layout_repair_base)
                         retained['html'] = draft['html']
                         draft = retained
+                        scoped_merge = True
                     validated_draft = deepcopy(draft)
                     result = validate(draft)
                     return result
@@ -218,6 +251,19 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         except (ValueError,TypeError,KeyError,IndexError) as remaining:
                             exc = remaining
                     validation_attempt += 1
+                    # A verified scoped correction exposing a different defect is
+                    # progress, not another failure of the same repair. At most two
+                    # extra calls per unit; unchanged defects get no extra budget.
+                    defect = re.search(r'(Exercise question [1-9]\d?[A-Za-z]? (?:prompt|answer/criterion)|Question [1-9]\d?[A-Za-z]?:)',str(exc))
+                    defect = defect[1] if defect else next((k for k in (
+                        'Design overflow', 'Design content extends outside printable bounds',
+                        'Visuals are too small', 'Illustration manifest', 'Supply 1-4',
+                        'Render every purposeful') if str(exc).startswith(k)),str(exc).split(';',1)[0])
+                    if scoped_merge and validated_draft is not None and previous_defect is not None and defect!=previous_defect and progress_allowance:
+                        validation_attempt -= 1
+                        progress_allowance -= 1
+                        LOGGER.info('%s: scoped repair succeeded; allowing repair of the next independent defect',label)
+                    previous_defect = defect
                     transport_failures = 0
                     reason = f'{label}: {provider}: {exc}'
                     errors.append(reason)
@@ -227,6 +273,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
 
                     # Answer-length repairs cannot remove illustrations or replace the original task.
                     answer_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) answer/criterion',str(exc))
+                    prompt_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) prompt must',str(exc))
                     math_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|calculation expression|answer key|calculation does not solve|printed arithmetic)',str(exc))
                     if 'ONE shared source' in prompt and validated_draft is not None:
                         missing_manifest = (('Illustration manifest images must be a JSON list' in str(exc)
@@ -237,12 +284,13 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                                             and isinstance(validated_draft.get('exercise'),dict)
                                             and isinstance(validated_draft.get('html'),str))
                         manifest_repair_base = validated_draft if missing_manifest else None
+                        prompt_repair_base, prompt_repair_id = (validated_draft,prompt_match[1]) if prompt_match else (None,None)
                         if answer_match or math_match:
                             answer_repair_base, answer_repair_id = validated_draft, (answer_match or math_match)[1]
                             repair_calculation = math_match is not None
                         else:
                             answer_repair_base, answer_repair_id = None, None
-                        if answer_match or math_match:
+                        if answer_match or math_match or prompt_match:
                             layout_repair_base = None
                         elif (isinstance(validated_draft,dict) and isinstance(validated_draft.get('html'),str)
                               and isinstance(validated_draft.get('exercise'),dict)
@@ -265,6 +313,15 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'after the closing brace. Include every required field in that one object.'
                         )
                     asset_error = str(exc).lower()
+                    if prompt_repair_base is not None:
+                        repair += (
+                            f' Correct ONLY exercise.questions id {prompt_repair_id} prompt to nonempty text '
+                            'of at most 220 characters. Preserve every number, unit, condition, requested '
+                            'student action and rounding instruction. Do not truncate mid-sentence or remove '
+                            'a subtask. Keep answers, calculations, IDs, response spaces, images and HTML '
+                            'unchanged. Return exercise.questions with the identified id and prompt; Python '
+                            'applies only this prompt correction and validates the retained complete page. '
+                        )
                     if answer_repair_base is not None:
                         repair += (
                             f' Correct ONLY the {"calculation and answer fields" if repair_calculation else "answer field"} for exercise.questions id {answer_repair_id}. '

@@ -473,6 +473,13 @@ For a standalone printed arithmetic expression with a bare numeric answer, Pytho
 can correct the declared result and answer key locally after checking the calculation
 against the printed expression. The complete page is then validated again. Word
 problems, mismatched operations and prose criteria still require semantic repair.
+Long or missing question prompts receive a field-only repair; Python retains all
+other fields and requires the same numeric quantities. A successful scoped repair
+that reveals a different defect can earn at most two additional repair calls per
+unit; repeated failures of the same defect receive no extra budget. Correct prior
+repairs remain in the retained page. Explicit printed rounding instructions (nearest
+cent, tenth, hundredth, or a stated number of decimal places) use exact half-up
+rounding in both math checks. Without an instruction, exact arithmetic remains required.
 
 Cloudflare artwork is for expressive scenes and open-ended inspiration. Exact-count
 and precise hidden-detail answers must not depend on generated pixels. Gemini image

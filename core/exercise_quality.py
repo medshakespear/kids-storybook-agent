@@ -108,6 +108,41 @@ def numeric_display_text(value: str) -> str:
     return re.sub(r'[$£€](?=\s*(?:\d|\.\d))','',value)
 
 
+def rounding_precision(prompt: str) -> int | None:
+    """Read one unambiguous explicit printed decimal precision; never assume currency rounding."""
+    text = prompt.casefold()
+    precisions = set()
+    units = {'cent':2,'cents':2,'hundredth':2,'hundredths':2,'tenth':1,'tenths':1,
+             'thousandth':3,'thousandths':3,'whole number':0,'whole dollar':0,'dollar':0}
+    for match in re.finditer(r'\bnearest\s+(cent[s]?|hundredths?|tenths?|thousandths?|whole number|whole dollar|dollar)\b',text):
+        precisions.add(units[match[1]])
+    words = {'zero':0,'one':1,'two':2,'three':3,'four':4}
+    for match in re.finditer(r'\b(?:round(?:ed)?(?:\s+(?:the\s+)?(?:answer|result))?\s+to|to)\s+(\d+|zero|one|two|three|four)\s+decimal places?\b',text):
+        places = words[match[1]] if match[1] in words else int(match[1])
+        if places>4:
+            raise ValueError('Use at most four decimal places in printed rounding instructions')
+        precisions.add(places)
+    if len(precisions)>1:
+        raise ValueError('Printed rounding instructions conflict; specify one precision')
+    if not precisions:
+        return None
+    return next(iter(precisions))
+
+
+def expected_calculation(expression: str, prompt: str = '') -> Fraction:
+    """Apply only an explicit printed rounding instruction, using exact half-up arithmetic."""
+    actual = calculate(expression)
+    places = rounding_precision(prompt)
+    if places is None:
+        return actual
+    scale = 10**places
+    scaled = abs(actual)*scale
+    whole, remainder = divmod(scaled.numerator,scaled.denominator)
+    if remainder*2 >= scaled.denominator:
+        whole += 1
+    return Fraction((-whole if actual<0 else whole),scale)
+
+
 def normalize_calculation(expression: str) -> str:
     """Canonicalize explicit numeric notation without guessing equations or running model code."""
     if not isinstance(expression,str) or len(expression)>80:
@@ -172,7 +207,10 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
             raise ValueError('Calculation question references must be unique')
         numbers.add(item['question'])
         try:
-            actual = calculate(item.get('expression'))
+            canonical = page.get('exercise',{}).get('questions',[]) if page.get('exercise_binding') else []
+            task = next((q.get('prompt','') for q in canonical if str(q.get('id'))==item['question']), '')
+            raw_result = calculate(item.get('expression'))
+            actual = expected_calculation(item.get('expression'),task)
         except ValueError as exc:
             raise ValueError(f'Question {item["question"]}: calculation expression '
                              f'{str(item.get("expression"))[:80]!r}: {exc}') from None
@@ -182,9 +220,9 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
             raise ValueError('Calculation answer must be a number or fraction string') from None
         if provided != actual:
             raise ValueError(f'Question {item["question"]}: {item["expression"]} equals {actual}, not {item["answer"]}')
-        if actual < 0 or actual > config.get('max_result', 10000):
+        if raw_result < 0 or raw_result > config.get('max_result', 10000):
             raise ValueError('Arithmetic result is outside this grade band; simplify the calculation')
-        if config.get('max_result', 10000) <= 100 and actual.denominator != 1:
+        if config.get('max_result', 10000) <= 100 and raw_result.denominator != 1:
             raise ValueError('Use whole-number results for younger grades')
     if visuals and not page.get('exercise_binding') and len(answer_text(page)) > 650:
         raise ValueError('Keep the combined exact-puzzle and written answers within 650 characters')

@@ -326,6 +326,7 @@ def check_page(page: dict, font: int, *, cover: bool = False) -> None:
     page.pop('print_layout', None)
     original_html = page['html']
     last_overflow = ''
+    rendered_markup = set()
     with RENDER_LOCK:
         for tightened in (False, True):
             if tightened:
@@ -336,6 +337,9 @@ def check_page(page: dict, font: int, *, cover: bool = False) -> None:
                 else:
                     page.pop('print_layout', None)
                 markup = document_markup([cover_fragment(page, True) if cover else fragment(page, True)], font)
+                if markup in rendered_markup:
+                    continue  # Unchanged spacing does not need three identical renders again.
+                rendered_markup.add(markup)
                 doc = HTML(string=markup, url_fetcher=data_only_fetcher).render()
                 try:
                     check_document(doc, 1)

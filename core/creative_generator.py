@@ -113,8 +113,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         repair += (
                             ' Repair content binding only, not the activity. Return html, images, exercise. '
                             'All task wording belongs in exercise.directions, passage or questions[].prompt; '
-                            'retain the existing correct wording and answer/criterion there. Layout containers '
-                            'use data-content="title", "directions", "passage", "name" or "question_ID". '
+                            'For a contextual heading or illustration label, preserve its wording in '
+                            'exercise.captions [{id:"context",text:"original label"}] and replace the raw '
+                            'HTML text with an empty data-content="caption_context" slot. Use child-friendly '
+                            'vocabulary for younger grades; do not move instructions or solutions into captions. '
+                            'Retain existing correct wording and answer/criterion. Layout containers '
+                            'use data-content="title", "directions", "passage", "name", "caption_ID" or "question_ID". '
                             'Use each required slot once, with no duplicate unbound instructions or labels. '
                             'Keep image elements outside text slots and retain every graphic ID and task. '
                             'Use div or section for layout wrappers, not unsupported semantic tags. '
@@ -205,10 +209,23 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'table widths including cell padding and spacing below 186mm. Avoid explicit '
                             'percentage widths on table cells; use equal auto-width cells or a stacked layout. '
                             f'Do not hide overflow, remove questions, shrink text below {minimum_font}pt or remove essential '
-                            'response space. Return the complete page including images, visuals, answers '
-                            'and calculations. Preserve image IDs/prompts and data-asset/data-visual '
+                            'response space. '
+                            + ('Return the complete page with html, images and exercise; no parallel answer/visual/calculation drafts. '
+                               if 'ONE shared source' in prompt else
+                               'Return the complete page including images, visuals, answers and calculations. ')
+                            + 'Preserve image IDs/prompts and data-asset/data-visual '
                             'references together; never omit the images list during a layout repair.'
                         )
+                        if 'ONE shared source' in prompt:
+                            repair += (
+                                ' Preserve exercise fields, every question, answer criterion and space_mm. '
+                                'Remove oversized fixed heights/min-heights from outer panels (use auto height), '
+                                'stack or regroup existing content, and reduce decorative padding/margins. '
+                                'Keep exact graphic labels readable and purposeful art large enough for the grade. '
+                                'Count each question space_mm PLUS its prompt, 3mm top margin and border in the '
+                                'vertical budget. A full-page height wrapper beneath a heading cannot fit. '
+                                'Do not expand wording during repair or introduce independent layout text. '
+                            )
                         if label == 'Cover design':
                             repair += (
                                 ' The cover also reserves 41mm for the real store logo: keep YOUR fragment '

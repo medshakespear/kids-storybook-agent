@@ -399,6 +399,12 @@ question numbering. Local arithmetic checks validate declared results, explicit
 question computations and numerical key values. These checks reduce known errors;
 they cannot guarantee the correctness of every invented activity or image.
 
+Optional canonical `exercise.captions` contain short contextual headings or image
+labels, printed through `data-content="caption_ID"` slots. Captions join the shared
+content specification and text proofreading; arbitrary unbound HTML text remains
+rejected. Local page fitting skips duplicate markup attempts. Overflow repairs
+preserve task content, readable fonts and response space while recomposing panels.
+
 Cloudflare artwork is for expressive scenes and open-ended inspiration. Exact-count
 and precise hidden-detail answers must not depend on generated pixels. Gemini image
 checking stays disabled. The real cover logo, one final answer page and grade-specific

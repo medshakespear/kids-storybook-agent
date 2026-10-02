@@ -250,6 +250,20 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             if config.get('student_font_pt',13)>=15:
                 raise ValueError('Pre-K tasks must be picture-led, not independent reading passages')
             blocks['passage'] = html.escape(passage).replace('\n','<br/>')
+    # Context captions are canonical content too, not a second instruction draft.
+    captions = exercise.get('captions', [])
+    if not isinstance(captions,list) or len(captions)>6:
+        raise ValueError('Exercise captions must be a list of at most six short contextual labels')
+    caption_ids = set()
+    for caption in captions:
+        if not isinstance(caption,dict):
+            raise ValueError('Exercise caption must contain id and text')
+        cid = caption.get('id')
+        if not isinstance(cid,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,23}',cid) or cid in caption_ids:
+            raise ValueError('Caption IDs must be distinct short lowercase identifiers')
+        caption_ids.add(cid)
+        caption['text'] = bounded_text(caption.get('text'),f'caption {cid}',120)
+        blocks['caption_'+cid] = html.escape(caption['text'])
     questions = exercise.get('questions', [])
     if not isinstance(questions,list) or len(questions)>config.get('items_per_page',4):
         raise ValueError('Exercise questions must be a short list within this grade band item limit')
@@ -356,7 +370,7 @@ EXERCISE_CONTRACT = '''Each student page returns ONLY html, images and exercise.
 ONE shared source. goal <=240 chars, directions <=180 chars for younger grades or <=350 for older;
 passage <=1500 chars (none for Pre-K). question prompt <=220 chars, answer/criterion <=180 chars;
 Keep answers concise without dropping solutions or success criteria; there is no combined character cap.
-Python checks actual final answer-sheet fit, not an arbitrary per-page aggregate length. exercise: {render_mode, mechanic, goal, directions?, passage?, visual?, questions:[]}.
+Python checks actual final answer-sheet fit, not an arbitrary per-page aggregate length. exercise: {render_mode, mechanic, goal, directions?, passage?, captions?:[{id,text}], visual?, questions:[]}.
 Preserve render_mode and mechanic from the planned brief. Do not substitute sorting for balancing,
 matching for mazes, or a maze for completing a pattern. If the chosen task cannot be rendered, repair
 THIS task rather than replacing it with another mechanism.
@@ -379,7 +393,11 @@ answers in student prompts. For exact mode do not repeat the graphic's computed 
 HTML is a freely designed layout with EMPTY data-content slots. ALL printed wording comes from
 exercise fields. Required title slot: <h1 data-content="title"></h1>; optional name slot:
 <p data-content="name"></p>. Authored directions slot: <p data-content="directions"></p>.
-Passage, if provided: <div data-content="passage"></div>. Each question needs exactly one slot:
+Passage, if provided: <div data-content="passage"></div>. Context headings or picture labels use
+exercise.captions: [{id:"context",text:"Plants growing together"}] (optional, at most 6; each text
+<=120 chars). Print each once with <p data-content="caption_context"></p>. Keep captions factual,
+grade-appropriate and short. Instructions and questions still belong in their own fields, never in
+captions; captions do not supply answers. Each question needs exactly one slot:
 <div data-content="question_1"></div>. Python fills prompt, number and response space together.
 Use ordinary div/section/table/panels, inline styles and images to invent original compositions.
 Do not put independent text, numbers, labels, comments or task instructions in html. Do not fill

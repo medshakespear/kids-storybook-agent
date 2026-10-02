@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import html
 import re
+from collections import Counter
 from copy import deepcopy
 from html.parser import HTMLParser
 
@@ -196,10 +197,41 @@ def validate_brief(page: dict, *, planning: bool = False) -> None:
         page['mechanic'] = ' '.join(original.split()).casefold()
 
 
+def normalize_illustration_ids(page: dict) -> None:
+    """Normalize only equivalent asset spellings; never guess between different subjects."""
+    images = page.get('images')
+    if not isinstance(images,list):
+        raise ValueError('Illustration manifest images must be a JSON list')
+    declared = set()
+    for asset in images:
+        original = asset.get('id') if isinstance(asset,dict) else None
+        if not isinstance(original,str):
+            raise ValueError('Illustration IDs must be short lowercase text identifiers')
+        normalized = re.sub(r'[\s-]+','_',original.strip().casefold())
+        if not re.fullmatch(r'[a-z][a-z0-9_]{0,30}',normalized):
+            raise ValueError(f'Illustration ID {original!r} must be a short lowercase identifier')
+        if normalized in declared:
+            raise ValueError(f'Illustration IDs collide after normalization: {normalized!r}; keep distinct purposeful subjects under distinct IDs')
+        declared.add(normalized)
+        asset['id'] = normalized
+
+    def replace(match):
+        """Update a quoted or unquoted HTML reference only for its equivalent declared ID."""
+        value = html.unescape(match[2] if match[2] is not None else match[3] if match[3] is not None else match[4])
+        normalized = re.sub(r'[\s-]+','_',value.strip().casefold())
+        if normalized not in declared:
+            return match[0]
+        return match[1]+'"'+normalized+'"'
+
+    page['html'] = re.sub(r'''(\bdata-asset\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>]+))''',
+                          replace,page['html'],flags=re.I)
+
+
 def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = None) -> None:
     """Build printed tasks, calculation checks and answer key from the same data."""
     if any(page.get(k) for k in ('answers','visuals','calculations')):
         raise ValueError('Use only the shared exercise specification, not independent answers/visuals/calculations drafts')
+    normalize_illustration_ids(page)
     exercise = deepcopy(page.get('exercise'))
     if not isinstance(exercise, dict):
         raise ValueError('Return exercise as the shared source of task content, visuals and answers')
@@ -369,7 +401,15 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             raise ValueError('Exact visual labels would be too small: enlarge its width/height while preserving page fit')
     expected_assets = {a['id'] for a in page.get('images',[]) if isinstance(a,dict) and 'id' in a}
     if set(parser.assets)!=expected_assets or len(parser.assets)!=len(expected_assets):
-        raise ValueError('Render every purposeful exercise illustration exactly once')
+        counts = Counter(parser.assets)
+        missing = sorted(expected_assets-set(counts))
+        undeclared = sorted(set(counts)-expected_assets)
+        repeated = {key:value for key,value in sorted(counts.items()) if value>1}
+        raise ValueError('Render every purposeful exercise illustration exactly once: '
+                         f'missing HTML data-asset IDs {missing}; undeclared HTML IDs {undeclared}; '
+                         f'repeated HTML IDs/counts {repeated}. Keep each purposeful image prompt and '
+                         'synchronize its images[].id with exactly one img data-asset reference; '
+                         'distinct subjects need distinct IDs/prompts')
     page['html'] = ''.join(parser.parts)
     page['source_layout'] = layout
     page['exercise'] = exercise

@@ -272,6 +272,19 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'Do not rename an ID on only one side: synchronize images[].id and every data-asset '
                             'reference in the same response. Keep the existing activity content and layout.'
                         )
+                        if 'ONE shared source' in prompt:
+                            repair += (
+                                ' Repair the reported illustration ID lists without redesigning the exercise. '
+                                'For missing HTML IDs, place each existing declared image in its intended panel. '
+                                'For undeclared HTML IDs, restore the correct declared reference; if the panel '
+                                'requires a genuinely different subject, supply its own complete prompt and ID '
+                                'within the four-image limit, never reuse an unrelated picture. '
+                                'For repeated IDs, remove only accidental duplicate decorative placements; '
+                                'retain every task-relevant panel with distinct meaningful images if needed. '
+                                'Preserve exercise fields, questions, answers, response space and planned intent. '
+                                'Use exercise.visual (singular) for exact graphics, not a top-level visuals list. '
+                                'Return ONLY html, images and exercise with empty data-content slots. '
+                            )
                         if label == 'Cover design':
                             repair += (
                                 ' This is a COVER: keep at least one purposeful illustration and place it visibly '

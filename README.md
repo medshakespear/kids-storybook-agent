@@ -399,6 +399,12 @@ question numbering. Local arithmetic checks validate declared results, explicit
 question computations and numerical key values. These checks reduce known errors;
 they cannot guarantee the correctness of every invented activity or image.
 
+Shared exercise pages normalize equivalent illustration ID spellings (case, spaces
+and hyphens) in both manifests and HTML. Different subjects are never rebound by
+position. True missing, undeclared or repeated references report their exact IDs
+and counts. Repair guidance preserves purposeful prompts and task content, and ID
+normalization collisions remain errors so distinct artwork cannot be merged.
+
 When a single answer/criterion exceeds its 180-character limit or is empty, the
 retry applies only that answer field to the retained original page. Model changes
 to questions, response areas, HTML or illustration manifests are ignored during

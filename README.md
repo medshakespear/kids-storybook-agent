@@ -487,6 +487,11 @@ by identical text; redundant empty copies of a known caption print once. Unknown
 empty slots and duplicated question slots remain errors with available-slot feedback.
 Tiny artwork requires actual recomposition into a large meaningful main visual;
 visual area and student response-space checks remain enforced.
+Planner mode recovery derives a missing `render_mode` only from a known exact tool
+or open-task mechanic. Equivalent names such as SVG/computed and AI-authored map
+to the corresponding mode. Ambiguous values identify the failing page and receive
+a mode-only correction with an explicit page number; book metadata, task concepts
+and layout briefs are retained. Exercise designs still require an explicit mode.
 
 Cloudflare artwork is for expressive scenes and open-ended inspiration. Exact-count
 and precise hidden-detail answers must not depend on generated pixels. Gemini image

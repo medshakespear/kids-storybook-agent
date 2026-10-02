@@ -171,8 +171,19 @@ def validate_brief(page: dict, *, planning: bool = False) -> None:
     """Normalize concrete mechanics without turning unsupported closed puzzles into AI guesses."""
     mode = page.get('render_mode')
     mode = mode.strip().casefold() if isinstance(mode,str) else mode
+    aliases = {'svg':'exact','python':'exact','computed':'exact','deterministic':'exact',
+               'exact_visual':'exact','ai_authored':'authored','open_ended':'authored'}
+    if isinstance(mode,str):
+        mode = aliases.get(re.sub(r'[\s-]+','_',mode),mode)
+    if planning and mode in (None,'') and isinstance(page.get('mechanic'),str):
+        kind,_ = canonical_mechanic(page['mechanic'])
+        if kind in EXACT_MECHANICS:
+            mode = 'exact'
+        elif kind in OPEN_MECHANICS:
+            mode = 'authored'
     if mode not in {'exact','authored'}:
-        raise ValueError('Each page needs render_mode exact or authored')
+        raise ValueError(f'Each page needs render_mode exact or authored; received {mode!r}. '
+                         'Use one literal value, never "exact or authored"')
     original = bounded_text(page.get('mechanic'),'mechanic',50)
     kind,constraints = canonical_mechanic(original)
     if mode=='exact' and kind not in EXACT_MECHANICS:

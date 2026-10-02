@@ -197,6 +197,20 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
     return result
 
 
+def merge_plan_mode_repair(original: dict, correction: dict, page_number: int) -> dict:
+    """Repair one planned mode without replacing concepts, titles or art direction."""
+    pages = correction.get('pages') if isinstance(correction,dict) else None
+    matches = [p for p in pages if isinstance(p,dict) and type(p.get('page_number')) is int
+               and p['page_number']==page_number] if isinstance(pages,list) else []
+    if len(matches)!=1 or matches[0].get('render_mode') not in {'exact','authored'}:
+        raise ValueError(f'Plan mode repair must return one page_number {page_number} with render_mode exact or authored')
+    if not 1<=page_number<=len(original['pages']):
+        raise ValueError('Plan mode repair page number is outside the retained plan')
+    result = deepcopy(original)
+    result['pages'][page_number-1]['render_mode'] = matches[0]['render_mode']
+    return result
+
+
 def illustration_references(markup: str) -> list[str]:
     """Read authored image slots without guessing subjects or depending on quoting style."""
     parser = HTMLParser(convert_charrefs=True)
@@ -235,6 +249,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
     layout_repair_base = None
     manifest_repair_base = None
     prompt_repair_base, prompt_repair_id = None, None
+    plan_mode_base, plan_mode_number = None, None
     floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
     minimum_font = int(floor_match[1]) if floor_match else 11
     messages = [
@@ -280,7 +295,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'design with concise markup'
                         )
                     draft = parse_design_json(content)
-                    if manifest_repair_base is not None:
+                    if plan_mode_base is not None:
+                        draft = merge_plan_mode_repair(plan_mode_base,draft,plan_mode_number)
+                        scoped_merge = True
+                    elif manifest_repair_base is not None:
                         draft = merge_manifest_repair(manifest_repair_base,draft)
                         scoped_merge = True
                     elif prompt_repair_base is not None:
@@ -336,6 +354,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     answer_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) answer/criterion',str(exc))
                     prompt_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) prompt must',str(exc))
                     math_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|calculation expression|answer key|calculation does not solve|printed arithmetic)',str(exc))
+                    if label=='Creative plan' and validated_draft is not None:
+                        mode_match = re.search(r'^Planned page (\d+).*Each page needs render_mode',str(exc))
+                        plan_mode_base,plan_mode_number = (validated_draft,int(mode_match[1])) if mode_match else (None,None)
                     if 'ONE shared source' in prompt and validated_draft is not None:
                         missing_manifest = (('Illustration manifest images must be a JSON list' in str(exc)
                                              or 'Supply 1-4 meaningful illustrations' in str(exc)
@@ -608,7 +629,16 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                                    'Put corrections in exercise.visual or exercise.questions and use EMPTY '
                                    'data-content slots in html. Do not return legacy visuals/answers/calculations '
                                    'fields or fill slots with text. Preserve planned render_mode and mechanic.')
-                    if isinstance(exc,json.JSONDecodeError):
+                    if plan_mode_base is not None:
+                        brief = plan_mode_base['pages'][plan_mode_number-1]
+                        messages = [messages[0],{'role':'user','content':
+                            'Repair ONLY the render_mode of this existing activity brief. Do not regenerate '
+                            'the plan, mechanic, title, learning goal, concept or layout. Select the literal '
+                            'string "exact" for a supported precise puzzle, or "authored" for an original '
+                            'open task. Return one JSON object: {"pages":[{"page_number":'+str(plan_mode_number)+
+                            ',"render_mode":"authored"}]}. Use the appropriate single mode, not "exact or '
+                            'authored". Existing brief:\n'+json.dumps(brief)+'\nValidation: '+str(exc)}]
+                    elif isinstance(exc,json.JSONDecodeError):
                         messages = [messages[0],{'role':'user','content':
                             'Repair JSON serialization only for the response below. Return exactly ONE '
                             'JSON object, with every original field and value preserved. No prose, fences, '
@@ -672,13 +702,17 @@ def validate_plan(raw: dict, count: int, *, require_coherent: bool = False) -> d
         plan[key] = _text(plan.get(key), key, limit)
     if not isinstance(plan.get('pages'), list) or len(plan['pages']) != count:
         raise ValueError(f'Plan exactly {count} student activities')
-    for page in plan['pages']:
+    for number,page in enumerate(plan['pages'],1):
         if not isinstance(page, dict):
             raise ValueError('Each planned page must be an object')
         for key in ('title', 'learning_goal', 'activity_concept', 'layout_brief'):
             page[key] = _text(page.get(key), key, 80 if key == 'title' else 650)
         page['title'] = _text(activity_title(page['title']), 'activity title without page label', 80)
-        if require_coherent: validate_brief(page,planning=True)
+        if require_coherent:
+            try:
+                validate_brief(page,planning=True)
+            except ValueError as exc:
+                raise ValueError(f'Planned page {number} ({page["title"]!r}): {exc}') from None
     for key in ('title', 'activity_concept', 'layout_brief'):
         if len({p[key].strip().casefold() for p in plan['pages']}) != count:
             raise ValueError(f'Each page needs a different {key}; do not repeat a worksheet pattern')
@@ -1070,6 +1104,10 @@ rendering style only, no character or scene instructions), character_description
 cover_brief <=800, pages exactly {count}: each title <=80, learning_goal <=650,
 activity_concept <=650, layout_brief <=650, render_mode and mechanic.
 render_mode is exact or authored. For exact choose mechanic maze/sort/differences/pattern/matching/balance/count.
+Every pages item MUST include its own top-level render_mode string and mechanic string,
+alongside title, learning_goal, activity_concept and layout_brief. Do not omit these fields or
+put them only inside an exercise object. Write "render_mode":"exact" or "render_mode":"authored",
+never the literal combined string "exact or authored", a list, null, or a boolean.
 Exact balance compares sizes, not weight. These tools support only circle,square,triangle,star,leaf,pumpkin,ghost,bat.
 For any other creative exercise use authored with an ORIGINAL short mechanism label describing its actual action.
 Authored tasks allow original design, investigation, craft, reading/writing or reasoning rather than a fixed menu.

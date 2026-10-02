@@ -24,6 +24,7 @@ class CanonicalTextContainers(HTMLParser):
         self.primary_headings = []
         self.explicit_title = False
         self.seen_captions = set()
+        self.seen_metadata = set()
         self.text_blocks = {}
         for key,value in blocks.items():
             parser = HTMLParser(convert_charrefs=True)
@@ -111,9 +112,21 @@ class CanonicalTextContainers(HTMLParser):
                 primary_title = (tag=='h1' and len(self.primary_headings)==1 and node is self.primary_headings[0]
                                  and not self.explicit_title and bool(value) and len(value)<=180)
                 if not matches and primary_title: matches=['title']
-                if len(matches)==1 and (primary_title or date_label or any(isinstance(c,dict) for c in node['children'])):
+                if len(matches)==1 and (primary_title or matches[0] in {'name','date'} or any(isinstance(c,dict) for c in node['children'])):
                     # Raw unformatted copies retain the established duplicate handling.
                     attrs.append(('data-content',matches[0]))
+        metadata = dict(attrs).get('data-content')
+        if not inside_slot and metadata in {'name','date'}:
+            pieces = [self.plain_text(child) for child in node['children']]
+            if all(p is not None for p in pieces):
+                value = ' '.join(''.join(pieces).split()).casefold()
+                harmless = not value or bool(re.fullmatch(metadata+r'\s*:\s*[_\s]*',value))
+                if harmless:
+                    if metadata in self.seen_metadata:
+                        # Omit only a redundant blank identification field. Never
+                        # remove a question, media asset or meaningful filled value.
+                        return ''
+                    self.seen_metadata.add(metadata)
         attributes = ' '.join(f'{k}="{html.escape(v or "",quote=True)}"' for k,v in attrs)
         start = f'<{tag} {attributes}>'
         if tag in {'img','br'}: return start

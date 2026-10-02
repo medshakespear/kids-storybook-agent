@@ -485,6 +485,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'except new exercise.captions may bind complete contextual labels already '
                             'printed in the retained HTML. Supply their exact original wording and one '
                             'matching caption_ID slot. Existing captions and all tasks remain unchanged. '
+                            'Name/date are optional metadata, not exercise captions: keep at most one '
+                            'name slot and one date slot. Do not invent new directions or turn a '
+                            'count-and-write task into count-and-match. For exact pages the graphic '
+                            'already prints its verified directions; do not add parallel puzzle wording. '
                             'print bounds and visual minimums again. Keep all existing data-content slots '
                             'and data-asset/data-visual IDs. '
                         )

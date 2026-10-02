@@ -512,6 +512,9 @@ a blank worksheet. Shadow matching is planned as the supported `matching` tool
 with `mode: shadow`, rather than the unsupported `shadows` mechanic.
 
 Worksheet metadata supports optional `data-content="date"` and `name` slots.
+Repeated blank Name/Date containers are removed locally before compilation,
+including raw, formatted and explicitly bound copies. Filled metadata, pictures,
+instructions and duplicate question slots are never removed by this recovery.
 Complete blank Date labels bind locally, including inline formatting. Isolated
 `Zone ID` and `Challenge Tip:` labels register as canonical captions; their
 instructions, values and answers still require shared exercise fields. Local

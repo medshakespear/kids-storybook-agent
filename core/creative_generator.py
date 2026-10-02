@@ -1064,6 +1064,11 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
     if quality is not None:
         design['html'] = reveal_print_content(design['html'])
     if require_coherent and not cover:
+        if (quality or {}).get('purposeful_activity_layout') and brief:
+            from core.activity_presentation import prepare_activity_presentation
+            design['planned_title'] = expected_title
+            design, brief = prepare_activity_presentation(design, brief, quality)
+            expected_title = design.get('title', expected_title)
         compile_exercise(design, quality or {}, expected_title or '', brief)
     if cover:
         # Cover art has no exercise numbers. Ignore unused exercise metadata,
@@ -1332,7 +1337,7 @@ Every pages item MUST include its own top-level render_mode string and mechanic 
 alongside title, learning_goal, activity_concept and layout_brief. Do not omit these fields or
 put them only inside an exercise object. Write "render_mode":"exact" or "render_mode":"authored",
 never the literal combined string "exact or authored", a list, null, or a boolean.
-Exact balance compares sizes, not weight. These tools support only circle,square,triangle,star,leaf,pumpkin,ghost,bat.
+Exact balance compares sizes, not weight. These tools support only circle,square,triangle,star,leaf,pumpkin,ghost,bat,candy_corn.
 For any other creative exercise use authored with an ORIGINAL short mechanism label describing its actual action.
 Authored tasks allow original design, investigation, craft, reading/writing or reasoning rather than a fixed menu.
 Favor context-specific authored invention for at least half the pages unless the requested subject requires exact puzzles.
@@ -1347,6 +1352,8 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                     'sort may specify ONLY attribute=shape/color/size. For maze/count/balance/pattern/'
                     'differences and authored tasks OMIT mechanic_constraints. Never add mode or attribute '
                     'from another tool. Retain these choices consistently in the subsequent page brief.')
+    from core.activity_presentation import activity_quality_guidance
+    plan_prompt += '\n'+activity_quality_guidance(grade_band)
     plan_prompt += '\nPer-page content budget: '+density_guidance(config)
     from core.response_schemas import plan_schema, design_schema
     plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True),
@@ -1367,13 +1374,13 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                   f'User context: {source_context or theme}. Skills: {config["skill_notes"]}.\n'
                   f'Art direction: {context}\nThis page brief: {json.dumps(brief)}\n'
                   f'Maximum question/action count on this page: {config.get("items_per_page",4)}.\n'
-                  + density_guidance(config)+'\n'
+                  + density_guidance(config)+'\n'+activity_quality_guidance(grade_band)+'\n'
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
                   + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + f'\nThe title slot will print: {brief["title"]}.')
         page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title'], require_coherent=True, brief=brief), f'Activity design {number}',
                         response_schema=design_schema(brief,config))
         page = compact_answers(page, number)
-        page.update(title=brief['title'], page_number=number)
+        page.update(title=page.get('title', brief['title']), page_number=number)
         LOGGER.info('Activity design %s/%s complete', number, count)
         return page
     requested_workers = int_setting('DESIGN_WORKERS', 3, 1, 4)

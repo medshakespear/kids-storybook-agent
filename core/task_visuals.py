@@ -15,7 +15,7 @@ COLORS = {'orange': '#ED8936', 'teal': '#219E9A', 'purple': '#9063B5',
           'yellow': '#F2C94C', 'red': '#DF5763', 'blue': '#508FCC', 'green': '#62A86E',
           'white': '#FFFFFF', 'black': '#252A34', 'pink': '#F09DB9', 'brown': '#A06A42',
           'gray': '#88939E'}
-SHAPES = {'circle', 'square', 'triangle', 'star', 'leaf', 'pumpkin', 'ghost', 'bat'}
+SHAPES = {'circle', 'square', 'triangle', 'star', 'leaf', 'pumpkin', 'ghost', 'bat', 'candy_corn'}
 SIZES = {'small': 0.65, 'large': 1.0}
 
 
@@ -68,6 +68,10 @@ def icon(item: dict, x: float, y: float, scale: float = 1, *, silhouette: bool =
                 f'<g fill="{eyes}" stroke="none"><circle cx="-8" cy="-6" r="3"/>'
                 '<circle cx="8" cy="-6" r="3"/><path d="M-5,7 Q0,12 5,7" fill="none" '
                 f'stroke="{eyes}" stroke-width="2"/></g>')
+    elif shape == 'candy_corn':
+        body = ('<path d="M0,-32 Q5,-32 9,-22 L30,23 Q34,31 23,32 H-23 Q-34,31 -30,23 L-9,-22 Q-5,-32 0,-32 Z"/>'
+                '<path d="M-21,5 H21 L9,-22 Q0,-40 -9,-22 Z" fill="#F18A35"/>'
+                '<path d="M-10,-19 Q0,-42 10,-19 Z" fill="#FFFFFF"/>')
     elif shape == 'bat':
         body = '<path d="M0,-8 L-7,-21 L-11,-7 L-36,-23 L-30,3 Q-20,-3 -16,15 Q-8,10 0,25 Q8,10 16,15 Q20,-3 30,3 L36,-23 L11,-7 L7,-21 Z"/>'
     else:
@@ -287,14 +291,18 @@ def build_visual(spec: dict) -> tuple[str, str]:
             if not isinstance(row,list) or not 1 <= len(row) <= 10:
                 raise ValueError('Counting row needs 1-10 actual symbols')
             items = [symbol(v,f'Counting row {i+1}, item {j}') for j,v in enumerate(row,1)]
-            y = 135+i*145
-            parts.append(text(30,y,str(i+1),26))
+            spacing_y = 220 if len(rows) == 3 else 145
+            y = 145+i*spacing_y
+            if len(rows) == 3:
+                wash = ('#FFF8E7', '#EAF6F3', '#FFF1EB')[i]
+                parts.append(f'<rect x="15" y="{y-80}" width="690" height="180" rx="18" fill="{wash}" stroke="none"/>')
+            parts.append(text(35,y,str(i+1),26))
             spacing = 480/max(len(items),5)
             for j,v in enumerate(items):
                 parts.append(icon(v,65+(j+.5)*spacing,y,min(1.35,spacing/95)))
             parts.append(f'<rect x="590" y="{y-40}" width="85" height="80" rx="10" fill="#F1F8FA"/>')
             results.append(f'{i+1}: {len(items)}')
-        height = 225+(len(rows)-1)*145
+        height = 270+(len(rows)-1)*(220 if len(rows) == 3 else 145)
         answer = f'{q}. '+ '; '.join(results)+'.'
     else:
         raise ValueError('Visual kind must be maze, differences, sort, pattern, matching, balance or count')
@@ -373,7 +381,7 @@ exact puzzle objects. Never put illustration prompts in visuals or omit id/quest
   Each index occurs once; change exactly one visible field. Python draws BOTH numbered rows.
 - sort: attribute shape/color/size; items list of 4-8 {shape,color,size} with 2-3 distinct values
   for that attribute. Python derives exhaustive, disjoint bins and exact membership. Height:140mm.
-Shapes: circle,square,triangle,star,leaf,pumpkin,ghost,bat.
+Shapes: circle,square,triangle,star,leaf,pumpkin,ghost,bat,candy_corn.
 Colors: orange,teal,purple,yellow,red,blue,green,white,black,pink,brown,gray.
 Every item MUST explicitly contain shape and color from these lists, plus size: small or large.
 Do not invent unsupported objects or palette names in exact visuals. Use images for other subjects.
@@ -400,7 +408,7 @@ Every component has id (short lowercase identifier), question (integer 1-30), ki
 - balance: rows 1-3 {left:symbol,right:symbol}, same shape/color, different sizes. This compares SIZE,
   never physical weight. Printed directions ask for the larger picture. Height 140mm.
 - count: rows 1-3 lists of 1-10 symbols; Python draws actual items and blank number boxes. Height 140mm.
-Every symbol: {shape,color,size}. Shapes circle,square,triangle,star,leaf,pumpkin,ghost,bat.
+Every symbol: {shape,color,size}. Shapes circle,square,triangle,star,leaf,pumpkin,ghost,bat,candy_corn.
 Colors orange,teal,purple,yellow,red,blue,green,white,black,pink,brown,gray. Size small/large.
 For other subjects, use authored creative tasks plus original Cloudflare illustrations. These optional
 exact tools do not restrict authored invention. Do not call plain stars candy or infer weight from size.

@@ -658,3 +658,16 @@ validated SVG aspect ratio; illustrations get bounded sizing defaults and remain
 uncropped. Already valid dimensions are retained. Zero/negative sizes, duplicate
 attributes and unsafe CSS remain errors. Every normalized page still passes the
 same content, font, artwork-area and one-page overflow checks.
+
+### Activity presentation quality
+
+Student pages use task-specific artwork instructions: blank outlines for face drawing,
+line art for coloring, and separated pieces for making activities. Gemini chooses the
+creative activities; exact closed-answer puzzles are drawn and answered by Python.
+The grade configuration enables `purposeful_activity_layout`: exact pages use large,
+consistent printable panels, their titles describe the actual puzzle, and counting
+pages include three rows with distinct quantities. Candy corn is supported as a real
+vector symbol. Additional questions and their response spaces are retained. Authored
+drawing prompts use neutral answer-box references to avoid incorrect above/below wording.
+These checks do not enable Gemini image review or guarantee artistic quality; inspect
+new PDFs before listing them for sale.

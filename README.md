@@ -623,3 +623,10 @@ The offline reliability regression runs the complete 12-page generation pipeline
 including retained-data repairs, fixture artwork embedding and PDF writing. It
 uses simulated provider responses and does not measure live Gemini availability
 or Cloudflare image quality.
+
+Planner options are now conditional on the selected tool: matching supports only
+`mode` (`shadow` or `identical`), sorting supports only `attribute` (`shape`,
+`color` or `size`), and other exact tools and authored tasks omit those options.
+If an older or malformed response mixes these fields, a scoped correction retains
+the entire plan and changes only the affected page's `mechanic_constraints`.
+Explicit rules implied by aliases such as shadow matching remain protected.

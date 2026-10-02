@@ -27,7 +27,8 @@ class GeminiStructuredGenerationTests(unittest.TestCase):
         """Null manifests and missing render modes cannot satisfy production request schemas."""
         plan = plan_schema(10)
         self.assertEqual(plan['properties']['pages']['minItems'],10)
-        self.assertIn('render_mode',plan['properties']['pages']['items']['required'])
+        for branch in plan['properties']['pages']['items']['anyOf']:
+            self.assertIn('render_mode',branch['required'])
         page = design_schema({'render_mode':'authored','mechanic':'invent'},load_grade_config()['5th-6th'])
         self.assertEqual(page['required'],['html','images','exercise'])
         self.assertEqual(page['properties']['images']['type'],'array')

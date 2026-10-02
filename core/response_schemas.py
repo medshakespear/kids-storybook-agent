@@ -100,17 +100,35 @@ def design_schema(brief: dict | None = None, config: dict | None = None, *, cove
     return obj(properties)
 
 
+def mechanic_constraints_schema(mechanic: str) -> dict:
+    """Allow only the selected tool's options, retaining rules implied by aliases."""
+    from core.page_contract import canonical_mechanic
+    kind, implied = canonical_mechanic(mechanic)
+    properties = {}
+    if kind == 'matching':
+        properties['mode'] = enum([implied['mode']] if 'mode' in implied else ['shadow','identical'])
+    elif kind == 'sort':
+        properties['attribute'] = enum([implied['attribute']] if 'attribute' in implied else ['shape','color','size'])
+    return obj(properties, list(implied))
+
+
 def plan_schema(count: int) -> dict:
-    """Require each planned page's mode and concrete mechanism independently."""
-    page = obj({'title': text(80), 'learning_goal': text(650), 'activity_concept': text(650),
-                'layout_brief': text(650), 'render_mode': enum(['authored', 'exact']),
-                'mechanic': text(50, 'Exact uses only maze/count/balance/pattern/matching/sort/differences; authored uses an original action label.'),
-                'mechanic_constraints': obj({'mode': enum(['shadow', 'identical']),
-                                             'attribute': enum(['shape', 'color', 'size'])}, [])},
-               ['title', 'learning_goal', 'activity_concept', 'layout_brief', 'render_mode', 'mechanic'])
+    """Bind optional matching/sorting options to their actual planned tool."""
+    common = {'title':text(80), 'learning_goal':text(650), 'activity_concept':text(650),
+              'layout_brief':text(650)}
+    branches = []
+    authored = {**common, 'render_mode':enum(['authored']),
+                'mechanic':text(50,'Original creative action label.')}
+    branches.append(obj(authored))
+    for kinds in [['matching'], ['sort'], ['maze','count','balance','pattern','differences']]:
+        fields = {**common, 'render_mode':enum(['exact']), 'mechanic':enum(kinds)}
+        required = list(fields)
+        if len(kinds) == 1:
+            fields['mechanic_constraints'] = mechanic_constraints_schema(kinds[0])
+        branches.append(obj(fields,required))
     return obj({**{k: text(n) for k, n in {'title': 80, 'overview': 350, 'art_direction': 650,
                                          'character_description': 350, 'cover_brief': 800}.items()},
-                'pages': array(page, count, count)})
+                'pages': array({'anyOf':branches},count,count)})
 
 
 def field_repair_schema(question_id: str, field: str, *, calculation: bool = False) -> dict:

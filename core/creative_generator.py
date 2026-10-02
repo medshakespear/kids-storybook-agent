@@ -208,6 +208,22 @@ def merge_plan_mode_repair(original: dict, correction: dict, page_number: int) -
     return result
 
 
+def merge_plan_constraints_repair(original: dict, correction: dict, page_number: int) -> dict:
+    """Apply and validate only one page's options, retaining all curriculum and tool choices."""
+    pages = correction.get('pages') if isinstance(correction,dict) else None
+    matches = [p for p in pages if isinstance(p,dict) and type(p.get('page_number')) is int
+               and p['page_number']==page_number] if isinstance(pages,list) else []
+    if len(matches)!=1 or not isinstance(matches[0].get('mechanic_constraints'),dict):
+        raise ValueError(f'Plan constraints repair must return one page_number {page_number} with mechanic_constraints object')
+    if not 1<=page_number<=len(original['pages']):
+        raise ValueError('Plan constraints repair page number is outside the retained plan')
+    result = deepcopy(original)
+    target = result['pages'][page_number-1]
+    target['mechanic_constraints'] = deepcopy(matches[0]['mechanic_constraints'])
+    validate_brief(target,planning=True)
+    return result
+
+
 def illustration_references(markup: str) -> list[str]:
     """Read authored image slots without guessing subjects or depending on quoting style."""
     parser = HTMLParser(convert_charrefs=True)
@@ -258,6 +274,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     exercise_repair_base = None
     prompt_repair_base, prompt_repair_id = None, None
     plan_mode_base, plan_mode_number = None, None
+    plan_repair_field = "render_mode"
     layout_rescue_attempted = False
     floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
     minimum_font = int(floor_match[1]) if floor_match else 11
@@ -293,8 +310,11 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     schema = response_schema
                     # Match the schema to exactly the fields this repair is allowed to change.
                     if plan_mode_base is not None:
+                        from core.response_schemas import mechanic_constraints_schema
+                        field_schema = (mechanic_constraints_schema(plan_mode_base['pages'][plan_mode_number-1]['mechanic'])
+                                        if plan_repair_field=='mechanic_constraints' else enum(['authored','exact']))
                         schema = obj({'pages': array(obj({'page_number': integer(plan_mode_number,plan_mode_number),
-                                                        'render_mode': enum(['authored','exact'])}),1,1)})
+                                                        plan_repair_field: field_schema}),1,1)})
                     elif exercise_repair_base is not None and response_schema is not None:
                         schema = obj({'exercise': response_schema['properties']['exercise']})
                     elif manifest_repair_base is not None:
@@ -329,7 +349,8 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         )
                     draft = parse_design_json(content)
                     if plan_mode_base is not None:
-                        draft = merge_plan_mode_repair(plan_mode_base,draft,plan_mode_number)
+                        merger = merge_plan_constraints_repair if plan_repair_field=='mechanic_constraints' else merge_plan_mode_repair
+                        draft = merger(plan_mode_base,draft,plan_mode_number)
                         scoped_merge = True
                     elif exercise_repair_base is not None:
                         draft = merge_exercise_repair(exercise_repair_base,draft)
@@ -418,7 +439,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     math_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|calculation expression|answer key|calculation does not solve|printed arithmetic)',str(exc))
                     if label=='Creative plan' and validated_draft is not None:
                         mode_match = re.search(r'^Planned page (\d+).*Each page needs render_mode',str(exc))
-                        plan_mode_base,plan_mode_number = (validated_draft,int(mode_match[1])) if mode_match else (None,None)
+                        constraints_match = re.search(r'^Planned page (\d+).*Exact mechanic (?:constraints|alias)',str(exc))
+                        match = mode_match or constraints_match
+                        plan_mode_base,plan_mode_number = (validated_draft,int(match[1])) if match else (None,None)
+                        plan_repair_field = 'render_mode' if mode_match else 'mechanic_constraints'
                     if 'ONE shared source' in prompt and validated_draft is not None:
                         missing_exercise = (('Return exercise as the shared source' in str(exc)
                                              or 'Exercise recovery must return' in str(exc))
@@ -725,7 +749,19 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                                    'fields or fill slots with text. Preserve planned render_mode and mechanic.')
                     if plan_mode_base is not None:
                         brief = plan_mode_base['pages'][plan_mode_number-1]
-                        messages = [messages[0],{'role':'user','content':
+                        if plan_repair_field=='mechanic_constraints':
+                            from core.response_schemas import mechanic_constraints_schema
+                            messages = [messages[0],{'role':'user','content':
+                                'Repair ONLY mechanic_constraints for the retained planned page. Keep its '
+                                'mechanic, render_mode, title, concept, goal and layout unchanged. Matching allows '
+                                'only mode shadow/identical; sort allows only attribute shape/color/size. '
+                                'All other tools require an empty object {}. Honor explicit rules in the original '
+                                'concept and aliases; do not change the student task. Return ONLY '
+                                '{"pages":[{"page_number":'+str(plan_mode_number)+',"mechanic_constraints":{...}}]}. '
+                                'Allowed options: '+json.dumps(mechanic_constraints_schema(brief['mechanic']))+
+                                '\nRetained brief: '+json.dumps(brief)+'\nValidation: '+str(exc)}]
+                        else:
+                            messages = [messages[0],{'role':'user','content':
                             'Repair ONLY the render_mode of this existing activity brief. Do not regenerate '
                             'the plan, mechanic, title, learning goal, concept or layout. Select the literal '
                             'string "exact" for a supported precise puzzle, or "authored" for an original '
@@ -1255,6 +1291,10 @@ at most twice. Authored pages can share drawing/coloring/craft labels when their
 and compositions differ meaningfully. Use render_mode authored for these open creative tasks,
 not exact. Canonical names for the exact tools are listed above. No teacher guide.'''
     plan_prompt += '\nFor shadow matching use mechanic="matching" with mechanic_constraints={"mode":"shadow"}; never use mechanic="shadows".'
+    plan_prompt += ('\nmechanic_constraints is optional: matching may specify ONLY mode=shadow/identical; '
+                    'sort may specify ONLY attribute=shape/color/size. For maze/count/balance/pattern/'
+                    'differences and authored tasks OMIT mechanic_constraints. Never add mode or attribute '
+                    'from another tool. Retain these choices consistently in the subsequent page brief.')
     plan_prompt += '\nPer-page content budget: '+density_guidance(config)
     from core.response_schemas import plan_schema, design_schema
     plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True),

@@ -399,6 +399,14 @@ question numbering. Local arithmetic checks validate declared results, explicit
 question computations and numerical key values. These checks reduce known errors;
 they cannot guarantee the correctness of every invented activity or image.
 
+Explicit singleton illustration objects and keyed ID-to-prompt maps normalize to
+an image list while preserving authored prompts. Missing or ambiguous manifests
+still need correction. The content binder compares whole formatted text containers
+with canonical exercise fields before assigning slots, so harmless emphasis and
+line breaks do not cause retries. Unrelated wording, media and dimensioned work
+areas cannot be swallowed as formatting; original source layouts remain available
+for subsequent repairs and answer-key compaction.
+
 Shared exercise pages normalize equivalent illustration ID spellings (case, spaces
 and hyphens) in both manifests and HTML. Different subjects are never rebound by
 position. True missing, undeclared or repeated references report their exact IDs

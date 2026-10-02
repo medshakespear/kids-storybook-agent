@@ -158,7 +158,8 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'other page briefs and the pack art direction. Return the complete plan.'
                         )
                     if ('printed wording' in asset_error or 'content slot' in asset_error or
-                            'required exercise content' in asset_error):
+                            'required exercise content' in asset_error or 'inferred content slot' in asset_error or
+                            'entire text container' in asset_error):
                         repair += (
                             ' Repair content binding only, not the activity. Return html, images, exercise. '
                             'All task wording belongs in exercise.directions, passage or questions[].prompt; '
@@ -168,6 +169,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'vocabulary for younger grades; do not move instructions or solutions into captions. '
                             'Retain existing correct wording and answer/criterion. Layout containers '
                             'use data-content="title", "directions", "passage", "name", "caption_ID" or "question_ID". '
+                            'Bind the WHOLE container with one data-content attribute rather than only its '
+                            'first text chunk. Move any genuinely additional wording into a separate canonical '
+                            'question/direction/caption slot; never discard it as formatting. '
                             'Use each required slot once, with no duplicate unbound instructions or labels. '
                             'Keep image elements outside text slots and retain every graphic ID and task. '
                             'Use div or section for layout wrappers, not unsupported semantic tags. '

@@ -8,6 +8,7 @@ from copy import deepcopy
 from html.parser import HTMLParser
 
 from core.print_tags import TAG_ALIASES
+from core.content_binding import bind_formatted_canonical_text
 from core.task_visuals import normalize_visual_metadata, page_visuals
 
 EXACT_MECHANICS = {'maze', 'sort', 'differences', 'pattern', 'matching', 'balance', 'count'}
@@ -200,8 +201,26 @@ def validate_brief(page: dict, *, planning: bool = False) -> None:
 def normalize_illustration_ids(page: dict) -> None:
     """Normalize only equivalent asset spellings; never guess between different subjects."""
     images = page.get('images')
+    if isinstance(images,dict) and {'id','prompt'} & set(images) and set(images)!={'id','prompt'}:
+        raise ValueError('Illustration manifest singleton must contain exactly id and prompt; do not mix image fields with a keyed image map')
+    if isinstance(images,dict) and set(images)=={'id','prompt'}:
+        images = [images]  # An explicitly authored singleton, not missing artwork.
+    elif isinstance(images,dict) and images and all(isinstance(k,str) for k in images):
+        entries = []
+        for key,value in images.items():
+            if isinstance(value,str) and value.strip():
+                entries.append({'id':key,'prompt':value})
+            elif isinstance(value,dict) and set(value)<= {'id','prompt'} and isinstance(value.get('prompt'),str) and value['prompt'].strip():
+                if 'id' in value and value['id']!=key:
+                    raise ValueError('Illustration manifest map key contradicts its declared image id')
+                entries.append({'id':key,'prompt':value['prompt']})
+            else:
+                raise ValueError('Illustration manifest images must be a JSON list of explicit id/prompt objects')
+        images = entries
     if not isinstance(images,list):
-        raise ValueError('Illustration manifest images must be a JSON list')
+        raise ValueError(f'Illustration manifest images must be a JSON list; received {type(images).__name__}. '
+                         'Supply explicit id/prompt objects and matching HTML data-asset references')
+    page['images'] = images
     declared = set()
     for asset in images:
         original = asset.get('id') if isinstance(asset,dict) else None
@@ -375,8 +394,9 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     # Each answer and question count is already bounded. Check final sheet geometry
     # during pack preflight rather than imposing a contradictory aggregate character cap.
     layout = page['html']
+    bound_layout = bind_formatted_canonical_text(layout,blocks)
     parser = BoundLayout(blocks)
-    parser.feed(layout); parser.close()
+    parser.feed(bound_layout); parser.close()
     required = set(blocks)-{'name'}
     if parser.stack or not required.issubset(parser.used):
         raise ValueError(f'Use every required exercise content slot exactly once: missing {sorted(required-parser.used)}')

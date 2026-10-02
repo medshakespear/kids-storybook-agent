@@ -334,8 +334,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     if visual_match:
                         layout_visual_area = int(visual_match[1])
                     if layout_repair_base is not None and not layout_rescue_attempted:
-                        from core.layout_recovery import single_illustration_recovery
+                        from core.layout_recovery import single_illustration_recovery, single_exact_visual_recovery
                         rescue = single_illustration_recovery(layout_repair_base,minimum_font,layout_visual_area)
+                        if rescue is None:
+                            rescue = single_exact_visual_recovery(layout_repair_base,minimum_font,layout_visual_area)
                         if rescue is not None:
                             layout_rescue_attempted = True
                             try:
@@ -343,7 +345,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             except (ValueError,TypeError,KeyError,IndexError):
                                 pass  # No clipping, hidden wording or smaller response areas.
                             else:
-                                LOGGER.info('%s: measured single-illustration layout recovery succeeded',label)
+                                LOGGER.info('%s: measured single-visual layout recovery succeeded',label)
                                 return recovered
                     locally_repaired = set()
                     while validated_draft is not None:

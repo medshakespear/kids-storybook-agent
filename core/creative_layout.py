@@ -373,7 +373,7 @@ def grow_main_artwork(markup: str, document, profile: dict) -> str | None:
     candidates = []
     for match in re.finditer(r'<img\b[^>]*>',markup,re.I):
         tag = match[0]
-        if not re.search(r'\bdata-asset\s*=',tag,re.I): continue
+        if not re.search(r'\bdata-(?:asset|visual)\s*=',tag,re.I): continue
         width = re.search(r'(?<!-)\bwidth\s*:\s*([0-9.]+)mm',tag,re.I)
         height = re.search(r'(?<!-)\bheight\s*:\s*([0-9.]+)mm',tag,re.I)
         if width and height:
@@ -384,7 +384,7 @@ def grow_main_artwork(markup: str, document, profile: dict) -> str | None:
     measured = max(areas)
     target = max(measured+max(0,minimum-sum(areas)),minimum*.55)
     scale = math.sqrt(target/measured)*1.015
-    if not 1<scale<=1.35 or w*scale>180 or h*scale>160: return None
+    if not 1<scale<=2 or w*scale>180 or h*scale>160: return None
     tag = re.sub(r'(?<!-)\bwidth\s*:\s*[0-9.]+mm',f'width:{w*scale:.2f}mm',match[0],flags=re.I)
     tag = re.sub(r'(?<!-)\bheight\s*:\s*[0-9.]+mm',f'height:{h*scale:.2f}mm',tag,flags=re.I)
     return markup[:match.start()]+tag+markup[match.end():]

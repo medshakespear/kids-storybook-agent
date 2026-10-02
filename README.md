@@ -512,6 +512,12 @@ a blank worksheet. Shadow matching is planned as the supported `matching` tool
 with `mode: shadow`, rather than the unsupported `shadows` mechanic.
 
 Worksheet metadata supports optional `data-content="date"` and `name` slots.
+Measured visual growth supports both AI illustration and computed SVG slots.
+If a valid single-diagram exact page still overflows after layout repair, a local
+recomposition uses the diagram's aspect ratio, visual-area target and minimum
+printed glyph size. Puzzle data, captions, additional questions and their response
+spaces remain intact. Every candidate is revalidated; independent blank working
+panels, unbound wording and invalid puzzle content cannot be discarded to fit.
 Repeated blank Name/Date containers are removed locally before compilation,
 including raw, formatted and explicitly bound copies. Filled metadata, pictures,
 instructions and duplicate question slots are never removed by this recovery.

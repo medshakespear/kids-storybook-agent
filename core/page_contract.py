@@ -382,7 +382,11 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             except (ValueError,ZeroDivisionError): raise ValueError('Question calculation answer must be numeric') from None
             if len(numeric_facts)==1 and not re.search(r'[()]',prompt) and calculate(numeric_facts[0])!=actual:
                 raise ValueError(f'Question {qid}: calculation does not solve the printed arithmetic')
-            if actual != supplied: raise ValueError(f'Question {qid}: declared math answer is incorrect; correct the shared specification')
+            if actual != supplied:
+                raise ValueError(f'Question {qid}: declared math answer is incorrect; '
+                                 f'calculation {calculation["expression"]!r} evaluates to {actual}, '
+                                 f'not {supplied}. Correct calculation.answer and the shared answer key; '
+                                 'preserve the printed question and verify that this operation solves it')
             # Require the prose key to contain the exact numeric answer, never an unrelated narrative.
             numeric_key = numeric_display_text(answer)
             candidates = re.findall(r'(?<![\w.])-?(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+)?(?![\w.])', numeric_key)

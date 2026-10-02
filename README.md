@@ -469,6 +469,10 @@ An isolated `Challenge Tip:` heading is registered locally as a canonical captio
 the tip itself must still come from the shared exercise fields. JSON decoding accepts
 Markdown fences or identical object echoes, but rejects conflicting objects and
 trailing prose rather than silently discarding content.
+For a standalone printed arithmetic expression with a bare numeric answer, Python
+can correct the declared result and answer key locally after checking the calculation
+against the printed expression. The complete page is then validated again. Word
+problems, mismatched operations and prose criteria still require semantic repair.
 
 Cloudflare artwork is for expressive scenes and open-ended inspiration. Exact-count
 and precise hidden-detail answers must not depend on generated pixels. Gemini image

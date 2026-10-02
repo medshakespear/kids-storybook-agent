@@ -21,7 +21,7 @@ class MathHeadingRepairTests(unittest.TestCase):
     def math_page(self):
         """Supply one wrong declared result with otherwise coherent original task data."""
         page=authored_page()
-        page['exercise']['questions']=[dict(id='2',prompt='What is 12 + 8?',answer='21',space_mm=25,
+        page['exercise']['questions']=[dict(id='2',prompt='A class has 12 pencils and receives 8 more. How many pencils are there?',answer='21',space_mm=25,
                                           calculation={'expression':'12+8','answer':21})]
         page['html']=page['html'].replace('question_1','question_2')
         return page
@@ -42,13 +42,15 @@ class MathHeadingRepairTests(unittest.TestCase):
              patch('core.creative_generator.time.sleep'):
             result=ask_json(layout_contract(11,11,coherent=True),self.validate,'Activity design 1')
         question=result['exercise']['questions'][0]
-        self.assertEqual(question['prompt'],'What is 12 + 8?')
+        self.assertEqual(question['prompt'],bad['exercise']['questions'][0]['prompt'])
         self.assertEqual(question['space_mm'],25)
         self.assertEqual(question['answer'],'20')
         self.assertEqual(question['calculation']['answer'],20)
         self.assertEqual(result['source_layout'],bad['html'])
         self.assertEqual(result['images'],bad['images'])
         self.assertIn('Correct ONLY the calculation and answer fields',
+                      api.chat.completions.create.call_args.kwargs['messages'][-1]['content'])
+        self.assertIn('evaluates to 20, not 21',
                       api.chat.completions.create.call_args.kwargs['messages'][-1]['content'])
         self.assertEqual(api.chat.completions.create.call_count,2)
 

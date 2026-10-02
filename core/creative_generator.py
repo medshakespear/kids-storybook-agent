@@ -70,6 +70,45 @@ def merge_answer_repair(original: dict, correction: dict, question_id: str, *, c
     return result
 
 
+def repair_printed_arithmetic(page: dict, question_id: str) -> dict | None:
+    """Compute a standalone printed expression; leave word problems for semantic repair."""
+    from core.exercise_quality import calculate, normalize_calculation, numeric_display_text
+    from fractions import Fraction
+    exercise = page.get('exercise') if isinstance(page,dict) else None
+    questions = exercise.get('questions') if isinstance(exercise,dict) else None
+    matches = [q for q in questions if isinstance(q,dict) and str(q.get('id'))==question_id] if isinstance(questions,list) else []
+    if len(matches)!=1:
+        return None
+    question = matches[0]
+    prompt = numeric_display_text(str(question.get('prompt','')))
+    match = re.fullmatch(r'\s*(?:(?:what is|calculate|solve|evaluate|find the value of)\s+)?'
+                         r'([\d.()+−×÷*/\s-]+)\s*[?=]?\s*',prompt,re.I)
+    answer = str(question.get('answer','')).strip()
+    if not match or not re.fullmatch(r'-?(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+)?',answer):
+        return None
+    calculation = question.get('calculation')
+    if not isinstance(calculation,dict):
+        return None
+    try:
+        printed = normalize_calculation(match[1])
+        expression = normalize_calculation(calculation.get('expression'))
+        actual = calculate(printed)
+        if calculate(expression)!=actual:
+            return None
+        supplied = Fraction(str(calculation.get('answer')))
+        keyed = Fraction(answer)
+    except (ValueError,TypeError,ZeroDivisionError):
+        return None
+    if supplied==actual and keyed==actual:
+        return None
+    result = deepcopy(page)
+    target = next(q for q in result['exercise']['questions'] if str(q.get('id'))==question_id)
+    # Fractions keep nonterminating division exact; the shared validator accepts them.
+    target['calculation'] = {'expression':expression,'answer':str(actual)}
+    target['answer'] = str(actual)
+    return result
+
+
 def illustration_references(markup: str) -> list[str]:
     """Read authored image slots without guessing subjects or depending on quoting style."""
     parser = HTMLParser(convert_charrefs=True)
@@ -163,6 +202,21 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     result = validate(draft)
                     return result
                 except (ValueError, TypeError, KeyError, IndexError) as exc:
+                    locally_repaired = set()
+                    while validated_draft is not None:
+                        local_math = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|answer key)',str(exc))
+                        if not local_math or local_math[1] in locally_repaired:
+                            break
+                        corrected = repair_printed_arithmetic(validated_draft,local_math[1])
+                        if corrected is None:
+                            break
+                        locally_repaired.add(local_math[1])
+                        LOGGER.info('%s: computing standalone printed arithmetic for question %s locally',label,local_math[1])
+                        validated_draft = corrected
+                        try:
+                            return validate(deepcopy(corrected))
+                        except (ValueError,TypeError,KeyError,IndexError) as remaining:
+                            exc = remaining
                     validation_attempt += 1
                     transport_failures = 0
                     reason = f'{label}: {provider}: {exc}'

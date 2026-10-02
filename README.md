@@ -499,6 +499,11 @@ large square artwork and canonical text slots. Original binding and math must
 validate first; original questions, answers, captions, image prompts and response
 spaces remain unchanged. The result must pass all ordinary print checks. Complex
 multi-image layouts and unresolved unbound wording stay on the AI repair path.
+An ineligible recovery attempt does not consume the local recovery opportunity;
+caption binding or other required content repairs can make a later page eligible.
+Initial authored-page prompts also budget reading content by grade: roughly 60,
+90 or 120 passage words when combining text, large artwork and student workspace.
+These are authoring targets, not silent truncation or relaxed print checks.
 
 Cloudflare artwork is for expressive scenes and open-ended inspiration. Exact-count
 and precise hidden-detail answers must not depend on generated pixels. Gemini image

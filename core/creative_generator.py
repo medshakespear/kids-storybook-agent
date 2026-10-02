@@ -321,9 +321,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         layout_visual_area = int(visual_match[1])
                     if layout_repair_base is not None and not layout_rescue_attempted:
                         from core.layout_recovery import single_illustration_recovery
-                        layout_rescue_attempted = True
                         rescue = single_illustration_recovery(layout_repair_base,minimum_font,layout_visual_area)
                         if rescue is not None:
+                            layout_rescue_attempted = True
                             try:
                                 recovered = validate(rescue)
                             except (ValueError,TypeError,KeyError,IndexError):
@@ -1115,6 +1115,24 @@ If an activity needs a precise picture feature, use an exact visual or change to
 No teacher guide, teaching tips, answer page, or teacher instructions in this fragment.'''
 
 
+def density_guidance(config: dict) -> str:
+    """Budget initial reading pages without truncating authored content or changing tasks."""
+    floor = config.get('minimum_text_pt',config.get('student_font_pt',11))
+    if floor>=14:
+        reading = 'Use picture-led tasks, no independent reading passage, and one or two brief adult-read actions.'
+    else:
+        words = 60 if floor>=13 else 90 if floor>=12 else 120
+        workspace = 50 if floor>=13 else 65 if floor>=12 else 80
+        reading = (f'For a page combining a passage and a large illustration, aim for at most {words} '
+                   f'passage words, one or two short questions, and about {workspace}mm total response '
+                   'space. Use a shorter passage or split the learning sequence across planned activities '
+                   'if more writing space is needed; preserve the actual task and facts.')
+    return (reading+' Reserve roughly 100mm vertical space for lower-grade main artwork (less for '
+            'upper grades), plus the heading, prompts, borders and margins. Avoid filling every '
+            'field to its individual maximum. These are planning targets; final readable print '
+            'bounds, useful visual area and required response-space checks remain mandatory.')
+
+
 def generate_creative_pack(theme: str, grade_band: str, grade_config: dict, *, source_context: str | None = None) -> dict:
     """Plan a varied pack, then author and print-check each original page independently."""
     config = grade_config[grade_band]
@@ -1156,6 +1174,7 @@ reflection repeated after every puzzle. For exact puzzles, repeat the same tool 
 at most twice. Authored pages can share drawing/coloring/craft labels when their actual concepts
 and compositions differ meaningfully. Use render_mode authored for these open creative tasks,
 not exact. Canonical names for the exact tools are listed above. No teacher guide.'''
+    plan_prompt += '\nPer-page content budget: '+density_guidance(config)
     plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True), 'Creative plan', 6000)
     context = json.dumps({k: plan[k] for k in ('title', 'art_direction', 'character_description')})
     def design_unit(number):
@@ -1172,6 +1191,7 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                   f'User context: {source_context or theme}. Skills: {config["skill_notes"]}.\n'
                   f'Art direction: {context}\nThis page brief: {json.dumps(brief)}\n'
                   f'Maximum question/action count on this page: {config.get("items_per_page",4)}.\n'
+                  + density_guidance(config)+'\n'
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
                   + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + f'\nThe title slot will print: {brief["title"]}.')
         page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title'], require_coherent=True, brief=brief), f'Activity design {number}')

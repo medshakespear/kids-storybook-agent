@@ -69,6 +69,30 @@ class SingleLayoutRecoveryTests(unittest.TestCase):
         page=authored_page();page['html']+='<div style="height:80mm;border:1mm solid teal"></div>'
         self.assertIsNone(single_illustration_recovery(page,13,10000))
 
+    def test_blocked_recovery_remains_available_after_caption_binding(self):
+        """An invalid early heading cannot consume recovery before the corrected page exists."""
+        original=authored_page()
+        original['html']=original['html'].replace('<p data-content="directions">',
+                           '<h2 style="font-size:13pt">Story Check &amp; Math Practice</h2><p data-content="directions">')
+        original['html']=original['html'].replace('width:175mm;height:75mm','width:150mm;height:38mm')
+        bound=original['html'].replace('>Story Check &amp; Math Practice</h2>',
+                                     ' data-content="caption_context"></h2>')
+        captions=[{'id':'context','text':'Story Check & Math Practice'}]
+        replies=[original,{'html':bound,'exercise':{'captions':captions}},
+                 {'html':bound.replace('height:38mm','height:40mm')}]
+        api=Mock()
+        api.chat.completions.create.side_effect=[SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content=json.dumps(r)),finish_reason='stop')]) for r in replies]
+        with patch('core.creative_generator.text_provider_names',return_value=['gemini']), \
+             patch('core.creative_generator.text_client',return_value=(api,'test')), \
+             patch('core.creative_generator.time.sleep'):
+            result=ask_json(layout_contract(14,13,coherent=True),self.validate,'Activity design 1')
+        self.assertEqual(api.chat.completions.create.call_count,3)
+        self.assertEqual(result['exercise']['captions'],captions)
+        self.assertEqual(result['exercise']['questions'],original['exercise']['questions'])
+        self.assertIn('width:102mm;height:102mm',result['html'])
+        self.assertIn('Story Check &amp; Math Practice',result['html'])
+
 
 if __name__=='__main__':
     unittest.main()

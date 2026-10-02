@@ -389,7 +389,11 @@ solutions come from identical data. A size comparison asks about size, never ass
 physical weight from a picture. Unsupported subjects use meaningful original artwork
 and open activities rather than silently being replaced by generic shapes.
 
-A plan can use a mechanic at most twice. Text proofreading checks planned intent,
+Plans normalize ordinary tool names such as "counting" and "shadow matching" while
+preserving their precise rules. Open drawing, coloring and craft briefs mislabeled
+as exact puzzles recover authored mode. An exact tool with the same learning goal
+can appear at most twice; different authored concepts may share broad mechanic
+labels. Unsupported closed puzzles still require correction. Text proofreading checks planned intent,
 actual printed questions and the shared key, including comprehension evidence and
 question numbering. Local arithmetic checks validate declared results, explicit
 question computations and numerical key values. These checks reduce known errors;

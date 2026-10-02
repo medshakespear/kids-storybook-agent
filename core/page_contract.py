@@ -12,6 +12,30 @@ from core.task_visuals import normalize_visual_metadata, page_visuals
 EXACT_MECHANICS = {'maze', 'sort', 'differences', 'pattern', 'matching', 'balance', 'count'}
 
 
+EXACT_ALIASES = {
+    'counting':('count',{}), 'picture_counting':('count',{}), 'count_objects':('count',{}),
+    'sorting':('sort',{}), 'picture_sorting':('sort',{}),
+    'shape_sorting':('sort',{'attribute':'shape'}), 'color_sorting':('sort',{'attribute':'color'}),
+    'size_sorting':('sort',{'attribute':'size'}),
+    'patterns':('pattern',{}), 'pattern_completion':('pattern',{}), 'repeating_pattern':('pattern',{}),
+    'complete_pattern':('pattern',{}), 'picture_matching':('matching',{}),
+    'shadow_matching':('matching',{'mode':'shadow'}), 'identical_matching':('matching',{'mode':'identical'}),
+    'spot_the_difference':('differences',{}), 'spot_the_differences':('differences',{}),
+    'find_differences':('differences',{}), 'size_comparison':('balance',{}),
+    'size_comparisons':('balance',{}), 'compare_sizes':('balance',{}), 'mazes':('maze',{}),
+}
+OPEN_MECHANICS = {'drawing','coloring','colouring','craft','crafting','collage','color_and_draw',
+                  'draw_and_color','design','design_challenge','invention','reflection','discussion',
+                  'role_play','storytelling','creative_writing','pattern_creation','create_pattern'}
+
+
+def canonical_mechanic(value: str) -> tuple[str, dict]:
+    """Normalize explicit tool aliases while retaining their declared sorting/matching rules."""
+    name = re.sub(r'[\s-]+','_',value.strip().casefold())
+    kind,constraints = EXACT_ALIASES.get(name,(name,{}))
+    return kind,dict(constraints)
+
+
 def bounded_text(value, name: str, limit: int, *, optional: bool = False) -> str:
     """Validate readable content without interpreting it as HTML or executable code."""
     if value is None and optional:
@@ -138,13 +162,38 @@ class BoundLayout(HTMLParser):
         raise ValueError('Do not put content or comments in the exercise layout')
 
 
-def validate_brief(page: dict) -> None:
-    """Require a concrete planned mechanism without restricting authored creative tasks."""
-    if page.get('render_mode') not in {'exact','authored'}:
+def validate_brief(page: dict, *, planning: bool = False) -> None:
+    """Normalize concrete mechanics without turning unsupported closed puzzles into AI guesses."""
+    mode = page.get('render_mode')
+    mode = mode.strip().casefold() if isinstance(mode,str) else mode
+    if mode not in {'exact','authored'}:
         raise ValueError('Each page needs render_mode exact or authored')
-    mechanic = bounded_text(page.get('mechanic'), 'mechanic', 50)
-    if page['render_mode'] == 'exact' and mechanic not in EXACT_MECHANICS:
-        raise ValueError(f'Exact mechanic must be one of {sorted(EXACT_MECHANICS)}; use authored for other creative exercises')
+    original = bounded_text(page.get('mechanic'),'mechanic',50)
+    kind,constraints = canonical_mechanic(original)
+    if mode=='exact' and kind not in EXACT_MECHANICS:
+        complete_open_task = bool(page.get('directions')) and isinstance(page.get('questions'),list) and bool(page['questions'])
+        if kind in OPEN_MECHANICS and not page.get('visual') and (planning or complete_open_task):
+            mode = 'authored'  # This changes a mislabeled mode, never the proposed creative task.
+        else:
+            raise ValueError(f'Unsupported exact mechanic {original!r}. Exact tools are {sorted(EXACT_MECHANICS)}; '
+                             'use authored for an open drawing, craft, writing or other original task. '
+                             'Do not turn an unsupported closed-answer puzzle into an illustrative AI picture')
+    page['render_mode'] = mode
+    if mode=='exact':
+        previous = page.get('mechanic_constraints',{})
+        if not isinstance(previous,dict) or set(previous)-{'mode','attribute'}:
+            raise ValueError('Exact mechanic constraints may specify only matching mode or sorting attribute')
+        allowed = {'matching': {'mode': {'shadow','identical'}},
+                   'sort': {'attribute': {'shape','color','size'}}}.get(kind,{})
+        if any(key not in allowed or not isinstance(value,str) or value not in allowed[key]
+               for key,value in previous.items()):
+            raise ValueError('Exact mechanic constraints must match the selected tool and its supported rules')
+        if any(key in previous and previous[key]!=value for key,value in constraints.items()):
+            raise ValueError('Exact mechanic alias contradicts its declared matching/sorting rule')
+        page['mechanic'] = kind
+        if constraints or previous: page['mechanic_constraints'] = {**previous,**constraints}
+    else:
+        page['mechanic'] = ' '.join(original.split()).casefold()
 
 
 def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = None) -> None:
@@ -164,8 +213,22 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         if exercise.get('directions') or exercise.get('passage'):
             raise ValueError('Exact visual prints its own verified directions; omit parallel directions/passage to avoid task mismatches')
         visual = exercise.get('visual')
-        if not isinstance(visual,dict) or visual.get('kind') != exercise['mechanic']:
+        if not isinstance(visual,dict) or not isinstance(visual.get('kind'),str):
             raise ValueError('Exercise visual kind must match its planned exact mechanic')
+        kind,visual_constraints = canonical_mechanic(visual['kind'])
+        if kind!=exercise['mechanic']:
+            raise ValueError('Exercise visual kind must match its planned exact mechanic')
+        visual['kind'] = kind
+        constraints = {}
+        for source in ((brief or {}).get('mechanic_constraints',{}),exercise.get('mechanic_constraints',{}),visual_constraints):
+            for key,value in source.items():
+                if key in constraints and constraints[key]!=value:
+                    raise ValueError('Preserve the planned exact matching/sorting rule')
+                constraints[key] = value
+        for key,value in constraints.items():
+            if key in visual and visual[key]!=value:
+                raise ValueError('Preserve the planned exact matching/sorting rule')
+            visual[key] = value
         page['visuals'] = [visual]
         normalize_visual_metadata(page)
         exercise['visual'] = page['visuals'][0]

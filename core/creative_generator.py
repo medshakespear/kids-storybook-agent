@@ -97,6 +97,17 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'Preserve the exercise and design rather than inventing a different page.'
                         )
                     asset_error = str(exc).lower()
+                    if label == 'Creative plan' and ('mechanic' in asset_error or 'render_mode' in asset_error):
+                        repair += (
+                            ' Correct only the affected page briefs. render_mode exact uses a precise drawing '
+                            'tool: maze, count, sort, pattern, matching, differences or balance (size comparison). '
+                            'Use render_mode authored for drawing, coloring, crafts, role-play, original writing '
+                            'and other creative tasks; preserve their original concepts and layouts. Do not replace '
+                            'a creative activity with a generic sorting puzzle to satisfy the schema. Distinct '
+                            'authored activities may share a mechanic label. For repeated exact tasks with the '
+                            'same learning goal, vary the concrete task of the identified page only. Keep all '
+                            'other page briefs and the pack art direction. Return the complete plan.'
+                        )
                     if ('printed wording' in asset_error or 'content slot' in asset_error or
                             'required exercise content' in asset_error):
                         repair += (
@@ -251,14 +262,22 @@ def validate_plan(raw: dict, count: int, *, require_coherent: bool = False) -> d
         for key in ('title', 'learning_goal', 'activity_concept', 'layout_brief'):
             page[key] = _text(page.get(key), key, 80 if key == 'title' else 650)
         page['title'] = _text(activity_title(page['title']), 'activity title without page label', 80)
-        if require_coherent: validate_brief(page)
+        if require_coherent: validate_brief(page,planning=True)
     for key in ('title', 'activity_concept', 'layout_brief'):
         if len({p[key].strip().casefold() for p in plan['pages']}) != count:
             raise ValueError(f'Each page needs a different {key}; do not repeat a worksheet pattern')
     if require_coherent:
-        mechanics = [p['mechanic'].casefold() for p in plan['pages']]
-        if any(mechanics.count(m)>2 for m in set(mechanics)):
-            raise ValueError('Use no more than two pages with the same exercise mechanic; vary actual student actions')
+        groups = {}
+        for number,page in enumerate(plan['pages'],1):
+            if page['render_mode']=='exact':
+                key = (page['mechanic'],' '.join(page['learning_goal'].split()).casefold(),
+                       tuple(sorted(page.get('mechanic_constraints',{}).items())))
+                groups.setdefault(key,[]).append(number)
+        repeated = [numbers for numbers in groups.values() if len(numbers)>2]
+        if repeated:
+            raise ValueError(f'Repeat the same exercise mechanic and learning goal at most twice for exact puzzles; '
+                             f'vary the actual task on pages {repeated}. Authored drawing/craft pages may share a '
+                             'mechanic when their concrete concepts and compositions differ')
     return plan
 
 
@@ -641,7 +660,10 @@ Authored tasks allow original design, investigation, craft, reading/writing or r
 Favor context-specific authored invention for at least half the pages unless the requested subject requires exact puzzles.
 Closed-answer tasks cannot depend on precise AI picture features. Use exact for counts, mazes, shadows,
 patterns and differences; use authored for open responses or supplied text/math questions. Avoid generic
-reflection repeated after every puzzle. At most two pages with the same mechanic. No teacher guide.'''
+reflection repeated after every puzzle. For exact puzzles, repeat the same tool AND learning goal
+at most twice. Authored pages can share drawing/coloring/craft labels when their actual concepts
+and compositions differ meaningfully. Use render_mode authored for these open creative tasks,
+not exact. Canonical names for the exact tools are listed above. No teacher guide.'''
     plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True), 'Creative plan', 6000)
     context = json.dumps({k: plan[k] for k in ('title', 'art_direction', 'character_description')})
     def design_unit(number):

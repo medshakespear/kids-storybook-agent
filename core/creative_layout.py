@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import html
+import math
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -321,7 +322,33 @@ def _tighten_explicit_spacing(html_value: str, *, preserve_heights: bool = False
     return re.sub(pattern, replace, html_value, flags=re.I)
 
 
-def check_page(page: dict, font: int, *, cover: bool = False) -> None:
+def grow_main_artwork(markup: str, document, profile: dict) -> str | None:
+    """Recover modest area shortfalls without upscaling thumbnails or changing task content."""
+    areas = [box.width*box.height*(25.4/96)**2 for box in document.pages[0]._page_box.descendants()
+             if box.element_tag=='img' and hasattr(box,'replacement')]
+    if not areas: return None
+    minimum = profile['visual_area_mm2']
+    candidates = []
+    for match in re.finditer(r'<img\b[^>]*>',markup,re.I):
+        tag = match[0]
+        if not re.search(r'\bdata-asset\s*=',tag,re.I): continue
+        width = re.search(r'(?<!-)\bwidth\s*:\s*([0-9.]+)mm',tag,re.I)
+        height = re.search(r'(?<!-)\bheight\s*:\s*([0-9.]+)mm',tag,re.I)
+        if width and height:
+            w,h = float(width[1]),float(height[1])
+            if w>0 and h>0: candidates.append((w*h,match,w,h))
+    if not candidates: return None
+    _,match,w,h = max(candidates,key=lambda entry:entry[0])
+    measured = max(areas)
+    target = max(measured+max(0,minimum-sum(areas)),minimum*.55)
+    scale = math.sqrt(target/measured)*1.015
+    if not 1<scale<=1.35 or w*scale>180 or h*scale>160: return None
+    tag = re.sub(r'(?<!-)\bwidth\s*:\s*[0-9.]+mm',f'width:{w*scale:.2f}mm',match[0],flags=re.I)
+    tag = re.sub(r'(?<!-)\bheight\s*:\s*[0-9.]+mm',f'height:{h*scale:.2f}mm',tag,flags=re.I)
+    return markup[:match.start()]+tag+markup[match.end():]
+
+
+def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: bool = True) -> None:
     """Try measured local reflow before requesting another model-authored design."""
     page.pop('print_layout', None)
     original_html = page['html']
@@ -346,7 +373,22 @@ def check_page(page: dict, font: int, *, cover: bool = False) -> None:
                 except ValueError as exc:
                     last_overflow = str(exc)
                     continue
-                check_visual_quality(doc, page.get('quality_profile', {}), cover=cover)
+                try:
+                    check_visual_quality(doc, page.get('quality_profile', {}), cover=cover)
+                except ValueError as quality_error:
+                    if not cover and _allow_growth and str(quality_error).startswith('Visuals are too small'):
+                        grown = grow_main_artwork(page['html'],doc,page['quality_profile'])
+                        if grown:
+                            retained_html, retained_mode = page['html'],page.get('print_layout')
+                            page['html'] = grown
+                            try:
+                                check_page(page,font,cover=cover,_allow_growth=False)
+                                return
+                            except ValueError:
+                                page['html'] = retained_html
+                                if retained_mode: page['print_layout'] = retained_mode
+                                else: page.pop('print_layout',None)
+                    raise quality_error
                 return
         page['html'] = original_html
         page.pop('print_layout', None)

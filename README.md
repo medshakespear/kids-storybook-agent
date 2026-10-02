@@ -399,6 +399,14 @@ question numbering. Local arithmetic checks validate declared results, explicit
 question computations and numerical key values. These checks reduce known errors;
 they cannot guarantee the correctness of every invented activity or image.
 
+Layout-only overflow/visual-size retries contribute HTML only; Python retains the
+original exercise and image manifest. A modest visual-area shortfall can be fixed
+locally by enlarging the main illustration by at most 35% per dimension, followed
+by the same real page-fit, font and visual-area checks. Tiny thumbnails and pages
+that cannot fit still require redesign; response areas and text never shrink.
+`DESIGN_VALIDATION_ATTEMPTS` defaults to 4 (allowed 3–6), independently of transient
+API retry settings, giving distinct content defects one additional bounded repair.
+
 Explicit singleton illustration objects and keyed ID-to-prompt maps normalize to
 an image list while preserving authored prompts. Missing or ambiguous manifests
 still need correction. The content binder compares whole formatted text containers

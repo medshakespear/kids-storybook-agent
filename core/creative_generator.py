@@ -50,6 +50,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
     """Retry validation defects separately from transient provider transport failures."""
     errors = []
     answer_repair_base, answer_repair_id = None, None
+    layout_repair_base = None
     floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
     minimum_font = int(floor_match[1]) if floor_match else 11
     messages = [
@@ -60,7 +61,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
         )},
         {'role': 'user', 'content': prompt},
     ]
-    max_validation_attempts = 3
+    max_validation_attempts = int_setting('DESIGN_VALIDATION_ATTEMPTS', 4, 3, 6)
     # A real Gemini 503 incident can last longer than a few seconds. Keep the
     # current sticky key and back off slowly; only 429 quota handling may rotate.
     max_transport_failures = int_setting('GEMINI_TRANSPORT_ATTEMPTS', 8, 3, 12)
@@ -94,6 +95,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     draft = parse_design_json(content)
                     if answer_repair_base is not None:
                         draft = merge_answer_repair(answer_repair_base,draft,answer_repair_id)
+                    elif layout_repair_base is not None:
+                        if not isinstance(draft,dict) or not isinstance(draft.get('html'),str):
+                            raise ValueError('Layout-only repair must return a complete html fragment')
+                        retained = deepcopy(layout_repair_base)
+                        retained['html'] = draft['html']
+                        draft = retained
                     validated_draft = deepcopy(draft)
                     result = validate(draft)
                     return result
@@ -113,6 +120,14 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             answer_repair_base, answer_repair_id = validated_draft, answer_match[1]
                         else:
                             answer_repair_base, answer_repair_id = None, None
+                        if answer_match:
+                            layout_repair_base = None
+                        elif (isinstance(validated_draft,dict) and isinstance(validated_draft.get('html'),str)
+                              and isinstance(validated_draft.get('exercise'),dict)
+                              and isinstance(validated_draft.get('images'),(list,dict))
+                              and (layout_repair_base is not None or str(exc).startswith(
+                                  ('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small')))):
+                            layout_repair_base = validated_draft
                         content = json.dumps(validated_draft)
                     # Keep only the latest draft/correction instead of an expanding conversation.
                     messages = messages[:2]
@@ -134,6 +149,14 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'Keep the original question IDs, prompts, calculations, response spaces, goal, '
                             'captions, HTML and illustration manifest unchanged. Python applies only this '
                             'answer correction to the retained original page, then validates it normally. '
+                        )
+                    if layout_repair_base is not None:
+                        repair += (
+                            ' This is a layout-only correction: preserve the original exercise and images '
+                            'manifest, including prompts, IDs, answers and response spaces. Python applies '
+                            'ONLY the corrected HTML to that retained page, then validates all content, '
+                            'print bounds and visual minimums again. Keep all existing data-content slots '
+                            'and data-asset/data-visual IDs. '
                         )
                     if 'visuals are too small' in asset_error:
                         repair += (

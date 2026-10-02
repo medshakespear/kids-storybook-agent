@@ -23,13 +23,33 @@ LOGGER = logging.getLogger(__name__)
 
 
 def parse_design_json(content: str) -> dict:
-    """Unwrap optional Markdown fences without guessing or rewriting malformed JSON."""
+    """Decode one design, allowing fences or identical echoes but never conflicting data."""
     value = content.strip()
     if value.startswith('```'):
         match = re.fullmatch(r'```(?:json)?\s*\n([\s\S]*?)\n```', value, re.I)
         if match:
             value = match[1]
-    return json.loads(value)
+    try:
+        result = json.loads(value)
+    except json.JSONDecodeError as original_error:
+        if original_error.msg != 'Extra data':
+            raise
+        decoder = json.JSONDecoder()
+        result, end = decoder.raw_decode(value)
+        remainder = value[end:].strip()
+        # Some compatible endpoints append a closing fence or echo the same object.
+        # Never discard prose, new fields or a different second design.
+        while remainder and remainder != '```':
+            try:
+                duplicate, end = decoder.raw_decode(remainder)
+            except json.JSONDecodeError:
+                raise original_error from None
+            if json.dumps(duplicate,sort_keys=True) != json.dumps(result,sort_keys=True):
+                raise ValueError('Response contains conflicting JSON objects; return exactly one complete object')
+            remainder = remainder[end:].strip()
+    if not isinstance(result, dict):
+        raise ValueError('Design response must be one JSON object')
+    return result
 
 
 def merge_answer_repair(original: dict, correction: dict, question_id: str, *, calculation: bool = False) -> dict:
@@ -117,7 +137,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         model=model,
                         messages=messages,
                         response_format={'type': 'json_object'},
-                        temperature=0.3 if len(messages) > 2 else 0.8,
+                        temperature=0.3 if errors else 0.8,
                         max_completion_tokens=tokens,
                     )
                     content = response.choices[0].message.content
@@ -178,7 +198,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             layout_repair_base = validated_draft
                         content = json.dumps(validated_draft)
                     # Keep only the latest draft/correction instead of an expanding conversation.
-                    messages = messages[:2]
+                    messages = [messages[0], {'role':'user','content':prompt}]
                     if content:
                         messages.append({'role': 'assistant', 'content': content[:36000]})
                     repair = f'Correct only this unit and return complete JSON. Validation: {exc}'
@@ -187,6 +207,8 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             ' Repair JSON serialization only: check missing commas, unescaped double quotes '
                             'inside the html string, and literal line breaks. Use single-quoted HTML attributes. '
                             'Preserve the exercise and design rather than inventing a different page.'
+                            ' Return exactly ONE JSON object: no second object, explanations, or text '
+                            'after the closing brace. Include every required field in that one object.'
                         )
                     asset_error = str(exc).lower()
                     if answer_repair_base is not None:
@@ -404,7 +426,16 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                                    'Put corrections in exercise.visual or exercise.questions and use EMPTY '
                                    'data-content slots in html. Do not return legacy visuals/answers/calculations '
                                    'fields or fill slots with text. Preserve planned render_mode and mechanic.')
-                    if manifest_repair_base is not None:
+                    if isinstance(exc,json.JSONDecodeError):
+                        messages = [messages[0],{'role':'user','content':
+                            'Repair JSON serialization only for the response below. Return exactly ONE '
+                            'JSON object, with every original field and value preserved. No prose, fences, '
+                            'duplicate objects or fields after the closing brace. Escape embedded double '
+                            'quotes and line breaks. Do not redesign the activity or invent new exercises. '
+                            'If an explanation follows the object, remove only that explanation; preserve '
+                            'all exercise and illustration data inside the object. Parser error: '+str(exc)+
+                            '\nResponse to serialize:\n'+(content or '')[:36000]}]
+                    elif manifest_repair_base is not None:
                         refs = illustration_references(manifest_repair_base['html'])
                         instructions = (
                             'Recover ONLY missing illustration prompts for this existing classroom activity. '

@@ -8,7 +8,7 @@ from copy import deepcopy
 from html.parser import HTMLParser
 
 from core.print_tags import TAG_ALIASES
-from core.content_binding import bind_formatted_canonical_text
+from core.content_binding import bind_formatted_canonical_text, bind_standard_heading
 from core.task_visuals import normalize_visual_metadata, page_visuals
 
 EXACT_MECHANICS = {'maze', 'sort', 'differences', 'pattern', 'matching', 'balance', 'count'}
@@ -317,6 +317,7 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             if config.get('student_font_pt',13)>=15:
                 raise ValueError('Pre-K tasks must be picture-led, not independent reading passages')
             blocks['passage'] = html.escape(passage).replace('\n','<br/>')
+    page['html'] = bind_standard_heading(page['html'],exercise)
     # Context captions are canonical content too, not a second instruction draft.
     captions = exercise.get('captions', [])
     if not isinstance(captions,list) or len(captions)>6:

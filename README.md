@@ -465,6 +465,10 @@ labels, printed through `data-content="caption_ID"` slots. Captions join the sha
 content specification and text proofreading; arbitrary unbound HTML text remains
 rejected. Local page fitting skips duplicate markup attempts. Overflow repairs
 preserve task content, readable fonts and response space while recomposing panels.
+An isolated `Challenge Tip:` heading is registered locally as a canonical caption;
+the tip itself must still come from the shared exercise fields. JSON decoding accepts
+Markdown fences or identical object echoes, but rejects conflicting objects and
+trailing prose rather than silently discarding content.
 
 Cloudflare artwork is for expressive scenes and open-ended inspiration. Exact-count
 and precise hidden-detail answers must not depend on generated pixels. Gemini image

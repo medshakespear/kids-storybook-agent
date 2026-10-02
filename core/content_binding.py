@@ -115,3 +115,42 @@ def bind_formatted_canonical_text(layout: str, blocks: dict[str,str]) -> str:
     parser.close()
     if parser.stack: raise ValueError('Exercise layout tags must be balanced')
     return ''.join(parser.render(node) for node in parser.root)
+
+
+def bind_standard_heading(layout: str, exercise: dict) -> str:
+    """Register a standalone tip heading without accepting any independent task wording."""
+    parser = CanonicalTextContainers({})
+    parser.feed(layout)
+    parser.close()
+    if parser.stack:
+        raise ValueError('Exercise layout tags must be balanced')
+    candidates = []
+
+    def visit(node, inside_slot=False):
+        """Find whole text-only headings outside existing canonical content slots."""
+        if isinstance(node,str) or 'comment' in node:
+            return
+        slotted = inside_slot or any(k=='data-content' for k,_ in node['attrs'])
+        if not slotted and TAG_ALIASES.get(node['tag'],node['tag']) in CONTAINERS:
+            pieces = [parser.plain_text(c) for c in node['children']]
+            if all(p is not None for p in pieces) and ' '.join(''.join(pieces).split()).casefold()=='challenge tip:':
+                candidates.append(node)
+                return
+        for child in node['children']:
+            visit(child,slotted)
+
+    for node in parser.root:
+        visit(node)
+    # Repeated labels and invalid/full caption manifests need normal validation.
+    captions = exercise.get('captions',[])
+    if len(candidates)!=1 or not isinstance(captions,list) or len(captions)>=6:
+        return layout
+    if any(isinstance(c,dict) and str(c.get('text','')).strip().casefold()=='challenge tip:' for c in captions):
+        return layout
+    used = {c.get('id') for c in captions if isinstance(c,dict)}
+    cid = next((f'tip_label_{i}' for i in range(1,8) if f'tip_label_{i}' not in used),None)
+    captions = list(captions)+[{'id':cid,'text':'Challenge Tip:'}]
+    exercise['captions'] = captions
+    candidates[0]['attrs'].append(('data-content','caption_'+cid))
+    candidates[0]['children'] = []
+    return ''.join(parser.render(node) for node in parser.root)

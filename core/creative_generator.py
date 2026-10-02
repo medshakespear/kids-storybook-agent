@@ -312,7 +312,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     prompt_repair_base, prompt_repair_id = None, None
     plan_mode_base, plan_mode_number = None, None
     plan_repair_field = "render_mode"
-    layout_rescue_attempted = False
+    layout_rescue_candidates = set()
     floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
     minimum_font = int(floor_match[1]) if floor_match else 11
     layout_visual_area = 10500 if minimum_font>=14 else 10000 if minimum_font==13 else 8000 if minimum_font==12 else 6000
@@ -414,26 +414,24 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     visual_match = re.search(r'Visuals are too small: use at least (\d+) square mm',str(exc))
                     if visual_match:
                         layout_visual_area = int(visual_match[1])
-                    rescue_base = layout_repair_base
-                    if (rescue_base is None and response_schema is not None and validated_draft is not None
-                            and str(exc).startswith(('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small'))):
-                        rescue_base = validated_draft
-                    if rescue_base is not None and not layout_rescue_attempted:
-                        from core.layout_recovery import single_illustration_recovery, single_exact_visual_recovery, multiple_illustration_recovery
-                        rescue = single_illustration_recovery(rescue_base,minimum_font,layout_visual_area)
-                        if rescue is None:
-                            rescue = multiple_illustration_recovery(rescue_base,minimum_font,layout_visual_area)
-                        if rescue is None:
-                            rescue = single_exact_visual_recovery(rescue_base,minimum_font,layout_visual_area)
-                        if rescue is not None:
-                            layout_rescue_attempted = True
+                    rescue_base = validated_draft or layout_repair_base
+                    layout_defect = str(exc).startswith(('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small'))
+                    if (rescue_base is not None and len(layout_rescue_candidates)<8
+                            and (layout_repair_base is not None or (response_schema is not None and layout_defect))):
+                        from core.layout_recovery import layout_recovery_candidates
+                        for rescue in layout_recovery_candidates(rescue_base,minimum_font,layout_visual_area):
+                            signature = json.dumps(rescue,sort_keys=True)
+                            if signature in layout_rescue_candidates:
+                                continue
+                            if len(layout_rescue_candidates)>=8:
+                                break
+                            layout_rescue_candidates.add(signature)
                             try:
                                 recovered = validate(rescue)
                             except (ValueError,TypeError,KeyError,IndexError):
-                                pass  # No clipping, hidden wording or smaller response areas.
-                            else:
-                                LOGGER.info('%s: measured single-visual layout recovery succeeded',label)
-                                return recovered
+                                continue  # Keep every question, font floor, art threshold and response area.
+                            LOGGER.info('%s: measured lossless layout recovery succeeded',label)
+                            return recovered
                     locally_repaired = set()
                     while validated_draft is not None:
                         local_math = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|answer key)',str(exc))

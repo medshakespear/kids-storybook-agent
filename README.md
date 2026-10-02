@@ -639,3 +639,13 @@ or bound to nonexistent `directions`/`passage` slots. Factual contextual caption
 remain supported; genuinely additional student actions belong in canonical
 questions and the final answer key. The repaired page still undergoes full
 content and print-fit validation.
+
+Local layout recovery now tries a bounded set of distinct compositions instead
+of disabling recovery after one failed square panel. Reading/response-heavy
+single-illustration pages may use wider art panels meeting the same visual-area
+threshold. The current repaired draft is used instead of an older retained
+layout. Each candidate is rechecked for one-page fit, minimum fonts, all content,
+artwork area and unchanged canonical response heights. At most eight distinct
+recovery candidates are checked per design unit; repeated candidates are skipped.
+Images retain uncropped `contain` fitting. Exact diagrams keep their aspect ratio
+and readable labels, and independent untracked work panels are never discarded.

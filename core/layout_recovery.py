@@ -187,3 +187,26 @@ def multiple_illustration_recovery(page: dict, minimum_font: int, visual_area: f
         return base
     except (ValueError, TypeError, KeyError, IndexError):
         return None
+
+
+def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float):
+    """Try bounded lossless compositions with sufficient art before another model rewrite."""
+    single = single_illustration_recovery(page,minimum_font,visual_area)
+    if single is not None:
+        yield single
+        asset = single['images'][0]['id']
+        # A square main-art panel wastes vertical space on reading/response-heavy
+        # sheets. Wider panels retain the same asset, full-width response areas,
+        # uncropped fitting, and at least the required measured artwork area.
+        for width in (175,150):
+            height = math.ceil(visual_area*1.04/width)
+            candidate = deepcopy(single)
+            pattern = r'(<img\b[^>]*data-asset="'+re.escape(asset)+r'"[^>]*style=")[^"]*("[^>]*>)'
+            candidate['html'] = re.sub(pattern,lambda m:m[1]+f'width:{width}mm;height:{height}mm'+m[2],candidate['html'],count=1)
+            yield candidate
+    multiple = multiple_illustration_recovery(page,minimum_font,visual_area)
+    if multiple is not None:
+        yield multiple
+    exact = single_exact_visual_recovery(page,minimum_font,visual_area)
+    if exact is not None:
+        yield exact

@@ -87,7 +87,7 @@ class SingleLayoutRecoveryTests(unittest.TestCase):
              patch('core.creative_generator.text_client',return_value=(api,'test')), \
              patch('core.creative_generator.time.sleep'):
             result=ask_json(layout_contract(14,13,coherent=True),self.validate,'Activity design 1')
-        self.assertEqual(api.chat.completions.create.call_count,3)
+        self.assertEqual(api.chat.completions.create.call_count,2)
         self.assertEqual(result['exercise']['captions'],captions)
         self.assertEqual(result['exercise']['questions'],original['exercise']['questions'])
         self.assertIn('width:102mm;height:102mm',result['html'])

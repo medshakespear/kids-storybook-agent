@@ -518,7 +518,11 @@ instructions and duplicate question slots are never removed by this recovery.
 On an exact-puzzle page, a uniquely slotted additional open drawing/design/writing
 action may move from the puzzle's reserved number to an unused label. Its task,
 answer and response space are retained. Duplicate or closed puzzle instructions
-and ambiguous references still require a semantic correction. Whole canonical
+still require a semantic correction. Pattern option recovery retains the motif,
+removes duplicate choices and includes its verified next symbol exactly once.
+The SVG and final key are recomputed together. Invalid motifs, unsupported symbols
+and out-of-range option counts remain validation failures. Ambiguous references
+still require a semantic correction. Whole canonical
 text can also bind through nested text-only paragraphs; extra instructions,
 media, empty block panels and dimensioned working areas are not discarded.
 Complete blank Date labels bind locally, including inline formatting. Isolated

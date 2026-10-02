@@ -303,6 +303,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             visual[key] = value
         page['visuals'] = [visual]
         normalize_visual_metadata(page)
+        from core.pattern_recovery import recover_pattern_choices
+        page['visuals'][0] = recover_pattern_choices(page['visuals'][0])
         exercise['visual'] = page['visuals'][0]
         from core.question_labels import renumber_open_exact_question
         page['html'] = renumber_open_exact_question(exercise,page['html'])

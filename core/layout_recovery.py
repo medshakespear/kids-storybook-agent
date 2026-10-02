@@ -127,3 +127,63 @@ def single_illustration_recovery(page: dict, minimum_font: int, visual_area: flo
     result['exercise'] = deepcopy(exercise)
     result['html'] = ''.join(pieces)
     return result
+
+
+def multiple_illustration_recovery(page: dict, minimum_font: int, visual_area: float) -> dict | None:
+    """Recompose all declared artwork and canonical text without deleting an exercise asset."""
+    images = page.get('images') if isinstance(page, dict) else None
+    if not isinstance(images, list) or not 2 <= len(images) <= 4:
+        return None
+    # The single-artwork safety pass checks bindings and independent response panels.
+    probe = deepcopy(page)
+    if not isinstance(probe.get('exercise'), dict) or probe['exercise'].get('render_mode') != 'authored':
+        return None
+    try:
+        compile_exercise(probe, {'student_font_pt':minimum_font, 'minimum_text_pt':minimum_font,
+                                'items_per_page':16}, 'Internal layout check')
+        parser = CanonicalTextContainers({}); parser.feed(page['html']); parser.close()
+        def untracked(node):
+            """Refuse to drop blank working panels that are outside the canonical questions."""
+            if isinstance(node, str) or 'comment' in node:
+                return False
+            attrs = dict(node['attrs'])
+            empty = not any(isinstance(c, dict) or c.strip() for c in node['children'])
+            sized = re.search(r'(?:^|;)\s*(?:height|min-height)\s*:\s*[1-9][0-9.]*', attrs.get('style',''))
+            if node['tag'] not in {'img','br'} and not attrs.get('data-content') and empty and sized:
+                return True
+            return any(untracked(c) for c in node['children'])
+        if any(untracked(n) for n in parser.root):
+            return None
+        for image in images:
+            if not isinstance(image, dict) or not re.fullmatch(r'[a-z][a-z0-9_]{0,30}', str(image.get('id',''))):
+                return None
+        # Generate text layout using the same lossless safety path; strip only the
+        # other known image slots in this temporary probe, never tasks or wording.
+        probe = deepcopy(page)
+        ids = [image['id'] for image in images]
+        probe['html'] = re.sub(r'<img\b[^>]*\bdata-asset=[\'\"]([^\'\"]+)[\'\"][^>]*>',
+                              lambda m: m[0] if m[1] == ids[0] else '', probe['html'], flags=re.I)
+        probe['images'] = [deepcopy(images[0])]
+        base = single_illustration_recovery(probe, minimum_font, visual_area)
+        if base is None:
+            return None
+        # A large primary visual plus a vertical rail preserves all artwork,
+        # provides a meaningful main visual, and fits the 186mm content width.
+        main_height = max(65, math.ceil(visual_area / 130 * 1.02))
+        rail_height = max(24, min(35, main_height // (len(ids)-1)))
+        if main_height > 150:
+            return None
+        rail = ''.join(f'<img data-asset="{aid}" style="display:block;width:38mm;height:{rail_height}mm;margin:0 0 2mm"/>'
+                       for aid in ids[1:])
+        gallery = ('<table style="width:175mm;table-layout:fixed;border-spacing:0;margin:0 0 3mm"><tbody><tr>'
+                   f'<td style="width:130mm;padding:0;vertical-align:middle"><img data-asset="{ids[0]}" '
+                   f'style="width:130mm;height:{main_height}mm"/></td>'
+                   f'<td style="width:45mm;padding:0;vertical-align:middle">{rail}</td></tr></tbody></table>')
+        base['html'] = re.sub(r'<div style="text-align:center;background-color:[^>]*>\s*<img[^>]*>\s*</div>',
+                              lambda m: gallery, base['html'], count=1)
+        base['images'] = deepcopy(images)
+        if set(re.findall(r'data-asset="([^"]+)"',base['html'])) != set(ids):
+            return None
+        return base
+    except (ValueError, TypeError, KeyError, IndexError):
+        return None

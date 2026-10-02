@@ -64,7 +64,7 @@ class ContentRepairChainTests(unittest.TestCase):
         """A short task correction cannot delete or redesign the rest of the page."""
         page=self.rounded_page()
         short=page['exercise']['questions'][0]['prompt']
-        page['exercise']['questions'][0]['prompt']='Consider this detailed classroom studio scenario carefully. '*4+short
+        page['exercise']['questions'][0]['prompt']='Consider this detailed classroom studio scenario carefully. '*12+short
         original=deepcopy(page)
         correction={'exercise':{'questions':[{'id':'1','prompt':short}]},'images':None,'html':'Wrong layout'}
         result,api=self.ask([page,correction])
@@ -98,7 +98,7 @@ class ContentRepairChainTests(unittest.TestCase):
     def test_distinct_field_repairs_receive_bounded_progress_budget(self):
         """Four independent defects can be corrected without discarding prior progress."""
         page=authored_page()
-        long_prompt='Describe your original shelter and show its useful features. '*5
+        long_prompt='Describe your original shelter and show its useful features. '*12
         long_answer='Accept a shelter design that protects the plant and allows sunlight. '*4
         page['exercise']['questions']=[dict(id=str(i),prompt=long_prompt,answer=long_answer,space_mm=15) for i in [1,2]]
         page['html']+='<div data-content="question_2"></div>'
@@ -115,7 +115,7 @@ class ContentRepairChainTests(unittest.TestCase):
 
     def test_same_defect_cannot_replenish_retry_budget(self):
         """Unsuccessful rewrites still stop after the configured attempt limit."""
-        page=authored_page();page['exercise']['questions'][0]['prompt']='Draw your shelter. '*20
+        page=authored_page();page['exercise']['questions'][0]['prompt']='Draw your shelter. '*40
         with self.assertRaises(ActivityGenerationError):
             self.ask([page]*4)
 

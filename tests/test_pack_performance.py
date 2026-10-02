@@ -53,7 +53,7 @@ class PackPerformanceTests(unittest.TestCase):
                     character_description='Original garden objects.', cover_brief='A friendly garden.',
                     pages=[dict(title=f'Mission {i}', learning_goal='Design.', activity_concept=f'Challenge {i}',
                                 layout_brief=f'Layout {i}', render_mode='authored', mechanic=f'challenge {i}') for i in range(1, 9)])
-        def ask(prompt, validate, label, *args):
+        def ask(prompt, validate, label, *args, **kwargs):
             """Use actual page validation, but emulate provider overlap deterministically."""
             if label == 'Creative plan':
                 return validate(plan)

@@ -592,3 +592,34 @@ Harmless HTML5 print wrappers are normalized consistently in content compilation
 and PDF rendering: `header`/`footer`/`figure` become `div`, `main`/`article` become
 `section`, and `figcaption` becomes `p`. Their explicit supported styles are kept;
 attribute, resource-loading and print-boundary checks remain enforced.
+
+### Gemini generation reliability
+
+Gemini plan, cover, student-page and content-review requests now use stage-specific
+JSON response schemas through the OpenAI-compatible endpoint. Required objects,
+non-null image lists, literal rendering modes, exact-puzzle integer fields and
+supported symbol names are specified before generation. Python still validates
+all values, exercise correctness, printed wording, response spaces and actual
+WeasyPrint page bounds; structured JSON alone does not establish correctness.
+
+Question prompts should aim for 140–220 characters. The hard limits are now
+220 / 320 / 480 / 600 characters for Pre-K-K / 1st-2nd / 3rd-4th / 5th-6th,
+respectively, so an otherwise readable older-grade word problem is not rejected
+solely for exceeding 220 characters. Actual font, artwork, workspace and page-fit
+requirements still apply. Oversized prompt repairs receive only the original
+question, retained answer/calculation and explicit numeric facts. The merge keeps
+all other fields and rejects changed numerical values or rounding instructions;
+equivalent numerical formatting such as `12.00` versus `12` is accepted.
+
+For valid content with an oversized or undersized-art layout, Python attempts a
+checked local reflow before requesting another design. It can preserve one exact
+visual or all one-to-four authored illustrations; no questions, artwork assets or
+canonical response areas are deleted. If the retained task cannot fit at readable
+sizes, generation still reports a failure rather than clipping or hiding content.
+Gemini pixel/image review remains disabled. No new environment variables are
+needed. Redeploy both Railway services from the latest GitHub commit.
+
+The offline reliability regression runs the complete 12-page generation pipeline,
+including retained-data repairs, fixture artwork embedding and PDF writing. It
+uses simulated provider responses and does not measure live Gemini availability
+or Cloudflare image quality.

@@ -111,8 +111,8 @@ def repair_printed_arithmetic(page: dict, question_id: str) -> dict | None:
 
 def merge_prompt_repair(original: dict, correction: dict, question_id: str) -> dict:
     """Shorten only one task prompt while retaining its numbers, answer, artwork and space."""
-    from collections import Counter
-    from core.exercise_quality import numeric_display_text, rounding_precision
+    from core.prompt_recovery import numeric_values
+    from core.exercise_quality import rounding_precision
     questions = correction.get('exercise',{}).get('questions') if isinstance(correction,dict) and isinstance(correction.get('exercise'),dict) else None
     matches = [q for q in questions if isinstance(q,dict) and str(q.get('id'))==question_id] if isinstance(questions,list) else []
     targets = [q for q in original['exercise']['questions'] if isinstance(q,dict) and str(q.get('id'))==question_id]
@@ -120,10 +120,7 @@ def merge_prompt_repair(original: dict, correction: dict, question_id: str) -> d
         raise ValueError(f'Prompt-only repair must supply one exercise.questions prompt for id {question_id}')
     new = matches[0]['prompt'].strip()
     old = targets[0].get('prompt')
-    def numbers(text):
-        """Compare explicit numeric data without mistaking grouping commas for separate values."""
-        return Counter(re.findall(r'(?<![\w.])-?(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+)?(?![\w.])',numeric_display_text(text)))
-    if isinstance(old,str) and numbers(old)!=numbers(new):
+    if isinstance(old,str) and numeric_values(old)!=numeric_values(new):
         raise ValueError(f'Prompt-only repair for question {question_id} must preserve every numeric value and quantity')
     if isinstance(old,str) and rounding_precision(old)!=rounding_precision(new):
         raise ValueError(f'Prompt-only repair for question {question_id} must preserve the printed rounding precision')
@@ -251,7 +248,7 @@ def merge_exercise_repair(original: dict, correction: dict) -> dict:
     return result
 
 
-def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
+def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_schema: dict | None = None) -> dict:
     """Retry validation defects separately from transient provider transport failures."""
     errors = []
     answer_repair_base, answer_repair_id = None, None
@@ -292,10 +289,33 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                 try:
                     LOGGER.info('%s: %s / %s attempt %s', label, provider, model,
                                 validation_attempt + 1)
+                    from core.response_schemas import obj, array, enum, text, integer, field_repair_schema, manifest_schema
+                    schema = response_schema
+                    # Match the schema to exactly the fields this repair is allowed to change.
+                    if plan_mode_base is not None:
+                        schema = obj({'pages': array(obj({'page_number': integer(plan_mode_number,plan_mode_number),
+                                                        'render_mode': enum(['authored','exact'])}),1,1)})
+                    elif exercise_repair_base is not None and response_schema is not None:
+                        schema = obj({'exercise': response_schema['properties']['exercise']})
+                    elif manifest_repair_base is not None:
+                        props = {'images': manifest_schema()}
+                        if not illustration_references(manifest_repair_base['html']):
+                            props['html'] = text(18000)
+                        schema = obj(props)
+                    elif prompt_repair_base is not None:
+                        schema = field_repair_schema(prompt_repair_id,'prompt')
+                    elif answer_repair_base is not None:
+                        schema = field_repair_schema(answer_repair_id,'answer',calculation=repair_calculation)
+                    elif layout_repair_base is not None:
+                        schema = obj({'html':text(18000), 'exercise':obj({'captions':array(
+                            obj({'id':text(24),'text':text(120)}),0,6)})},['html'])
+                    response_format = ({'type':'json_schema','json_schema':{
+                        'name':'activity_response','schema':schema}} if schema is not None and provider=='gemini'
+                        else {'type':'json_object'})
                     response = api.chat.completions.create(
                         model=model,
                         messages=messages,
-                        response_format={'type': 'json_object'},
+                        response_format=response_format,
                         temperature=0.3 if errors else 0.8,
                         max_completion_tokens=tokens,
                     )
@@ -333,11 +353,17 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                     visual_match = re.search(r'Visuals are too small: use at least (\d+) square mm',str(exc))
                     if visual_match:
                         layout_visual_area = int(visual_match[1])
-                    if layout_repair_base is not None and not layout_rescue_attempted:
-                        from core.layout_recovery import single_illustration_recovery, single_exact_visual_recovery
-                        rescue = single_illustration_recovery(layout_repair_base,minimum_font,layout_visual_area)
+                    rescue_base = layout_repair_base
+                    if (rescue_base is None and response_schema is not None and validated_draft is not None
+                            and str(exc).startswith(('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small'))):
+                        rescue_base = validated_draft
+                    if rescue_base is not None and not layout_rescue_attempted:
+                        from core.layout_recovery import single_illustration_recovery, single_exact_visual_recovery, multiple_illustration_recovery
+                        rescue = single_illustration_recovery(rescue_base,minimum_font,layout_visual_area)
                         if rescue is None:
-                            rescue = single_exact_visual_recovery(layout_repair_base,minimum_font,layout_visual_area)
+                            rescue = multiple_illustration_recovery(rescue_base,minimum_font,layout_visual_area)
+                        if rescue is None:
+                            rescue = single_exact_visual_recovery(rescue_base,minimum_font,layout_visual_area)
                         if rescue is not None:
                             layout_rescue_attempted = True
                             try:
@@ -706,6 +732,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'open task. Return one JSON object: {"pages":[{"page_number":'+str(plan_mode_number)+
                             ',"render_mode":"authored"}]}. Use the appropriate single mode, not "exact or '
                             'authored". Existing brief:\n'+json.dumps(brief)+'\nValidation: '+str(exc)}]
+                    elif prompt_repair_base is not None:
+                        from core.response_schemas import prompt_repair_messages
+                        messages = prompt_repair_messages(messages[0],prompt_repair_base,prompt_repair_id,str(exc))
                     elif isinstance(exc,json.JSONDecodeError):
                         messages = [messages[0],{'role':'user','content':
                             'Repair JSON serialization only for the response below. Return exactly ONE '
@@ -1227,7 +1256,9 @@ and compositions differ meaningfully. Use render_mode authored for these open cr
 not exact. Canonical names for the exact tools are listed above. No teacher guide.'''
     plan_prompt += '\nFor shadow matching use mechanic="matching" with mechanic_constraints={"mode":"shadow"}; never use mechanic="shadows".'
     plan_prompt += '\nPer-page content budget: '+density_guidance(config)
-    plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True), 'Creative plan', 6000)
+    from core.response_schemas import plan_schema, design_schema
+    plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True),
+                    'Creative plan', 6000, response_schema=plan_schema(count))
     context = json.dumps({k: plan[k] for k in ('title', 'art_direction', 'character_description')})
     def design_unit(number):
         """Author one independent page while preserving caller-owned page numbering."""
@@ -1237,7 +1268,8 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                      'Python places the REAL store logo in a separate 41mm header above your content. '
                      'Do not draw a logo or repeat the store name. Override the full-page height: '
                      'YOUR cover fragment must be at most 215mm high; aim for 205mm including all spacing.',
-                     lambda raw: validate_design(raw, font, cover=True, quality=config), 'Cover design')
+                     lambda raw: validate_design(raw, font, cover=True, quality=config), 'Cover design',
+                     response_schema=design_schema(cover=True))
         brief = plan['pages'][number - 1]
         prompt = (f'Author student activity {number} for {grade_band}. Theme: {theme}. '
                   f'User context: {source_context or theme}. Skills: {config["skill_notes"]}.\n'
@@ -1246,7 +1278,8 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                   + density_guidance(config)+'\n'
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
                   + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + f'\nThe title slot will print: {brief["title"]}.')
-        page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title'], require_coherent=True, brief=brief), f'Activity design {number}')
+        page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title'], require_coherent=True, brief=brief), f'Activity design {number}',
+                        response_schema=design_schema(brief,config))
         page = compact_answers(page, number)
         page.update(title=brief['title'], page_number=number)
         LOGGER.info('Activity design %s/%s complete', number, count)
@@ -1273,20 +1306,24 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
             'Preserve the learning goal, meaningful visuals and response space. Return a complete page.\n'
             + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + '\nPlanned brief: ' + json.dumps(brief) + '\nPrevious shared specification/layout: ' + json.dumps(source),
             lambda raw: validate_design(raw, font, quality=config, expected_title=previous['title'], require_coherent=True, brief=brief),
-            f'Exercise repair {number}', 6500)
+            f'Exercise repair {number}', 6500, response_schema=design_schema(brief,config))
         repaired = compact_answers(repaired, number)
         repaired.update(title=previous['title'], page_number=number)
         if previous.get('answer_key_original'):
             repaired['answer_key_original'] = previous['answer_key_original']
         return repaired
-    proofread_pack(pack, ask_json, repair_content)
+    def ask_audit(prompt, validate, label, tokens=4000):
+        """Constrain proofreading output separately from the design response schema."""
+        from core.response_schemas import audit_schema
+        return ask_json(prompt,validate,label,tokens,response_schema=audit_schema(count))
+    proofread_pack(pack, ask_audit, repair_content)
     try:
         preflight_pack(pack, config)
     except ValueError as exc:
         if not str(exc).startswith('Final answer sheet cannot fit'):
             raise
         compact_shared_answers(pack,config)
-        proofread_pack(pack, ask_json, repair_content)
+        proofread_pack(pack, ask_audit, repair_content)
         preflight_pack(pack,config)
     return pack
 

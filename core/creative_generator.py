@@ -132,6 +132,71 @@ def merge_prompt_repair(original: dict, correction: dict, question_id: str) -> d
     return result
 
 
+def merge_layout_repair(original: dict, correction: dict) -> dict:
+    """Retain task data while binding previously printed contextual headings as captions."""
+    from core.content_binding import CanonicalTextContainers, CONTAINERS
+    if not isinstance(correction,dict) or not isinstance(correction.get('html'),str):
+        raise ValueError('Layout-only repair must return a complete html fragment')
+    result = deepcopy(original)
+    result['html'] = correction['html']
+    supplied = correction.get('exercise',{}).get('captions',[]) if isinstance(correction.get('exercise'),dict) else []
+    if not isinstance(supplied,list):
+        raise ValueError('Layout caption recovery must supply captions as a list')
+    if not supplied:
+        return result
+    parser = CanonicalTextContainers({})
+    parser.feed(original['html']);parser.close()
+    if parser.stack:
+        raise ValueError('Exercise layout tags must be balanced')
+    words = set()
+    declared_slots = {'caption_'+c['id'] for c in original['exercise'].get('captions',[])
+                      if isinstance(c,dict) and isinstance(c.get('id'),str)}
+    def normalized(text):
+        """Compare complete labels independent of whitespace and case."""
+        return ' '.join(text.split()).casefold()
+    def collect(node):
+        """Read complete text-only containers without taking words from artwork or slots."""
+        if isinstance(node,str) or 'comment' in node:
+            return
+        slot = dict(node['attrs']).get('data-content')
+        if node['tag'] in CONTAINERS and (not slot or (slot.startswith('caption_') and slot not in declared_slots)):
+            pieces = [parser.plain_text(c) for c in node['children']]
+            if all(p is not None for p in pieces):
+                words.add(normalized(''.join(pieces)))
+        for child in node['children']:
+            collect(child)
+    for node in parser.root:
+        collect(node)
+    captions = deepcopy(result['exercise'].get('captions',[]))
+    if not isinstance(captions,list):
+        raise ValueError('Exercise captions must be a list')
+    by_id = {c['id']:c for c in captions if isinstance(c,dict) and isinstance(c.get('id'),str)}
+    for caption in supplied:
+        if not isinstance(caption,dict) or not isinstance(caption.get('id'),str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,23}',caption['id']):
+            raise ValueError('Layout caption recovery needs a short lowercase caption id')
+        cid,text = caption['id'],caption.get('text')
+        if cid in by_id:
+            if text!=by_id[cid].get('text'):
+                raise ValueError('Layout-only repair cannot change existing caption wording')
+            continue
+        if not isinstance(text,str) or not text.strip() or len(text.strip())>120:
+            raise ValueError('Layout caption recovery needs nonempty original label text <=120 characters')
+        equivalent = next((c['id'] for c in captions if normalized(str(c.get('text','')))==normalized(text)),None)
+        if equivalent:
+            result['html'] = re.sub(r'''(\bdata-content\s*=\s*)(["'])caption_'''+re.escape(cid)+r'''\2''',
+                                    lambda m:m[1]+m[2]+'caption_'+equivalent+m[2],result['html'])
+            continue
+        if normalized(text) not in words:
+            raise ValueError('Layout-only repair may add captions only for complete wording already printed in the retained page')
+        if len(captions)>=6:
+            raise ValueError('Exercise captions must be a list of at most six short contextual labels')
+        captions.append({'id':cid,'text':text.strip()})
+        by_id[cid] = captions[-1]
+    if captions:
+        result['exercise']['captions'] = captions
+    return result
+
+
 def illustration_references(markup: str) -> list[str]:
     """Read authored image slots without guessing subjects or depending on quoting style."""
     parser = HTMLParser(convert_charrefs=True)
@@ -225,11 +290,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                         draft = merge_answer_repair(answer_repair_base,draft,answer_repair_id,calculation=repair_calculation)
                         scoped_merge = True
                     elif layout_repair_base is not None:
-                        if not isinstance(draft,dict) or not isinstance(draft.get('html'),str):
-                            raise ValueError('Layout-only repair must return a complete html fragment')
-                        retained = deepcopy(layout_repair_base)
-                        retained['html'] = draft['html']
-                        draft = retained
+                        draft = merge_layout_repair(layout_repair_base,draft)
                         scoped_merge = True
                     validated_draft = deepcopy(draft)
                     result = validate(draft)
@@ -296,7 +357,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                               and isinstance(validated_draft.get('exercise'),dict)
                               and isinstance(validated_draft.get('images'),(list,dict))
                               and (layout_repair_base is not None or str(exc).startswith(
-                                  ('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small')))):
+                                  ('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small',
+                                   'Put ALL printed wording', 'Unknown or repeated exercise content slot',
+                                   'Use every required exercise content slot')))):
                             layout_repair_base = validated_draft
                         content = json.dumps(validated_draft)
                     # Keep only the latest draft/correction instead of an expanding conversation.
@@ -336,6 +399,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             ' This is a layout-only correction: preserve the original exercise and images '
                             'manifest, including prompts, IDs, answers and response spaces. Python applies '
                             'ONLY the corrected HTML to that retained page, then validates all content, '
+                            'except new exercise.captions may bind complete contextual labels already '
+                            'printed in the retained HTML. Supply their exact original wording and one '
+                            'matching caption_ID slot. Existing captions and all tasks remain unchanged. '
                             'print bounds and visual minimums again. Keep all existing data-content slots '
                             'and data-asset/data-visual IDs. '
                         )
@@ -349,6 +415,11 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000) -> dict:
                             'and response spaces inside a 235mm height budget. Recompose panels and reduce '
                             'decorative spacing if needed; never shrink student text or essential work space. '
                             'Return the complete html, images and exercise. '
+                            'For a page of tiny picture cards, recompose one large main picture and the '
+                            'remaining supporting pictures instead of returning the same thumbnail grid. '
+                            'Use the real manifest IDs exactly once. Example: a 145mm by 70mm main image '
+                            'alone covers 10150 square mm; keep other pictures and work space in the '
+                            'remaining height. New contextual labels must be canonical captions. '
                         )
                     if label == 'Creative plan' and ('mechanic' in asset_error or 'render_mode' in asset_error):
                         repair += (

@@ -23,6 +23,7 @@ class CanonicalTextContainers(HTMLParser):
         self.stack = []
         self.primary_headings = []
         self.explicit_title = False
+        self.seen_captions = set()
         self.text_blocks = {}
         for key,value in blocks.items():
             parser = HTMLParser(convert_charrefs=True)
@@ -81,6 +82,18 @@ class CanonicalTextContainers(HTMLParser):
         if isinstance(node,str): return html.escape(node,quote=False)
         if 'comment' in node: return '<!--'+node['comment']+'-->'
         tag,attrs = node['tag'],list(node['attrs'])
+        block = dict(attrs).get('data-content')
+        duplicate_caption = False
+        if not inside_slot and isinstance(block,str) and block.startswith('caption_') and block in self.text_blocks:
+            if block in self.seen_captions:
+                pieces = [self.plain_text(child) for child in node['children']]
+                if all(p is not None for p in pieces):
+                    value = ' '.join(''.join(pieces).split()).casefold()
+                    if not value or value==self.text_blocks[block]:
+                        attrs = [(k,v) for k,v in attrs if k!='data-content']
+                        duplicate_caption = True
+            else:
+                self.seen_captions.add(block)
         if not inside_slot and TAG_ALIASES.get(tag,tag) in CONTAINERS and not any(k=='data-content' for k,_ in attrs):
             pieces = [self.plain_text(child) for child in node['children']]
             if all(p is not None for p in pieces):
@@ -102,6 +115,8 @@ class CanonicalTextContainers(HTMLParser):
         attributes = ' '.join(f'{k}="{html.escape(v or "",quote=True)}"' for k,v in attrs)
         start = f'<{tag} {attributes}>'
         if tag in {'img','br'}: return start
+        if duplicate_caption:
+            return start+f'</{tag}>'
         if any(k=='data-content' for k,_ in attrs) and not any(k=='data-content' for k,_ in node['attrs']):
             return start+f'</{tag}>'
         return start+''.join(self.render(child,inside_slot=inside_slot or any(k=='data-content' for k,_ in attrs))

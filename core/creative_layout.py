@@ -35,7 +35,7 @@ def cover_fragment(page: dict, preview: bool = False) -> str:
 TAGS = {'div', 'section', 'p', 'span', 'strong', 'b', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'br', 'img'}
 INLINE_TAGS = {'span', 'strong', 'b', 'em'}
-DROP_PROPERTIES = {'background-image', 'position', 'top', 'right', 'bottom', 'left', 'z-index'}
+DROP_PROPERTIES = {'background-image', 'position', 'top', 'right', 'bottom', 'left', 'z-index', 'box-shadow', 'text-shadow'}
 PROPERTIES = {'color', 'background-color', 'border', 'border-color', 'border-width',
               'border-style', 'border-radius', 'border-top', 'border-bottom',
               'border-left', 'border-right', 'padding', 'padding-top', 'padding-bottom',

@@ -480,6 +480,13 @@ unit; repeated failures of the same defect receive no extra budget. Correct prio
 repairs remain in the retained page. Explicit printed rounding instructions (nearest
 cent, tenth, hundredth, or a stated number of decimal places) use exact half-up
 rounding in both math checks. Without an instruction, exact arithmetic remains required.
+Print cleanup removes decorative box/text shadows locally. Layout and content-binding
+repairs preserve tasks and image prompts while allowing new captions only for complete
+wording already drafted in the retained page. Equivalent caption names are rebound
+by identical text; redundant empty copies of a known caption print once. Unknown
+empty slots and duplicated question slots remain errors with available-slot feedback.
+Tiny artwork requires actual recomposition into a large meaningful main visual;
+visual area and student response-space checks remain enforced.
 
 Cloudflare artwork is for expressive scenes and open-ended inspiration. Exact-count
 and precise hidden-detail answers must not depend on generated pixels. Gemini image

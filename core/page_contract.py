@@ -88,7 +88,10 @@ class BoundLayout(HTMLParser):
             if tag not in {'h1','h2','h3','h4','h5','h6','p','div','span','section','td','th','li','strong','b','em'}:
                 raise ValueError('Use a text container for data-content slots')
             if block not in self.blocks or block in self.used:
-                raise ValueError(f'Unknown or repeated exercise content slot: {block}')
+                detail = ('already printed; remove the duplicate slot' if block in self.used else
+                          f'unknown; available slots are {sorted(self.blocks)}. '
+                          'Declare contextual wording in exercise.captions and match caption_ID exactly')
+                raise ValueError(f'Unknown or repeated exercise content slot: {block}; {detail}')
             self.used.add(block)
             self.slot = block
             self.inferred_slot = False

@@ -67,16 +67,25 @@ class CanonicalTextContainers(HTMLParser):
     def plain_text(self, node) -> str | None:
         """Extract only inline formatting; reject media, slots, dimensions and nontext layout."""
         if isinstance(node,str): return node
-        if 'comment' in node or TAG_ALIASES.get(node['tag'],node['tag']) not in INLINE:
+        tag = TAG_ALIASES.get(node.get('tag',''),node.get('tag',''))
+        text_block = tag in {'p','div','section'}
+        if 'comment' in node or (tag not in INLINE and not text_block):
             return None
         for key,value in node['attrs']:
             if key!='style': return None
             declarations = (value or '').split(';')
             if any(d.strip() and d.split(':',1)[0].strip().lower() not in TEXT_STYLES for d in declarations):
                 return None
-        if node['tag']=='br': return ' '
+        if tag=='br': return ' '
         pieces = [self.plain_text(child) for child in node['children']]
-        return None if any(p is None for p in pieces) else ''.join(pieces)
+        if any(p is None for p in pieces):
+            return None
+        value = ''.join(pieces)
+        if text_block:
+            # Empty block containers can be independent working space. Keep
+            # them out of text-only canonical replacement even without a size.
+            return ' '+value+' ' if value.strip() else None
+        return value
 
     def render(self, node, *, inside_slot: bool = False) -> str:
         """Add a named slot only when the entire text-only container matches one canonical block."""

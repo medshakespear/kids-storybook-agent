@@ -304,6 +304,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         page['visuals'] = [visual]
         normalize_visual_metadata(page)
         exercise['visual'] = page['visuals'][0]
+        from core.question_labels import renumber_open_exact_question
+        page['html'] = renumber_open_exact_question(exercise,page['html'])
         problems = []
         if exercise.get('directions') or exercise.get('passage'):
             problems.append('Exact visual prints its own verified directions; omit parallel directions/passage to avoid task mismatches')

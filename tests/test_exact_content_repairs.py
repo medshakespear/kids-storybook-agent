@@ -53,13 +53,17 @@ class ExactContentRepairTests(unittest.TestCase):
             self.validate(raw)
 
     def test_reserved_question_is_not_automatically_discarded(self):
-        """A conflicting but genuinely different task requires correction of its label."""
+        """A conflicting open creative task moves labels while retaining all of its content."""
         raw=self.exact()
         raw['exercise']['questions']=[dict(id='1',prompt='Invent a new cookie shape.',
                                          answer='Accept an original shape.',space_mm=25)]
         raw['html']+='<div data-content="question_1"></div>'
-        with self.assertRaisesRegex(ValueError,'genuinely additional action'):
-            self.validate(raw)
+        result=self.validate(raw)
+        self.assertEqual(result['exercise']['questions'],[
+            dict(id='2',prompt='Invent a new cookie shape.',answer='Accept an original shape.',space_mm=25)])
+        self.assertIn('2. Invent a new cookie shape.',result['html'])
+        self.assertIn('2. Accept an original shape.',result['answers'])
+        self.assertEqual(result['exercise_binding']['question_ids'],['1','2'])
 
     def test_reported_chain_repairs_in_one_response_using_current_schema(self):
         """Duplicate labels, raw wording and parallel directions get cohesive exact-mode guidance."""

@@ -649,3 +649,12 @@ artwork area and unchanged canonical response heights. At most eight distinct
 recovery candidates are checked per design unit; repeated candidates are skipped.
 Images retain uncropped `contain` fitting. Exact diagrams keep their aspect ratio
 and readable labels, and independent untracked work panels are never discarded.
+
+Missing/`auto` image dimensions are now normalized locally before print checks.
+Responsive percentage heights receive an explicit physical height because a
+printable sheet has no browser viewport-height contract. Positive cm/in/pt/px
+sizes and uppercase units are converted to millimetres. Exact diagrams use their
+validated SVG aspect ratio; illustrations get bounded sizing defaults and remain
+uncropped. Already valid dimensions are retained. Zero/negative sizes, duplicate
+attributes and unsafe CSS remain errors. Every normalized page still passes the
+same content, font, artwork-area and one-page overflow checks.

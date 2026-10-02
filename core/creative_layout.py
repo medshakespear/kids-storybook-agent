@@ -184,9 +184,15 @@ class PrintFragment(HTMLParser):
                 else:
                     source = 'data:image/png;base64,' + base64.b64encode(Path(self.assets[asset]).read_bytes()).decode()
             attributes.append(f'src="{source}"')
-            if not re.search(r'height\s*:\s*[1-9][\d.]*mm', data.get('style', '')):
+            from core.image_dimensions import length_mm
+            declarations = tinycss2.parse_declaration_list(clean_style(data.get('style',''),self.minimum_font),skip_comments=True,skip_whitespace=True)
+            sizes = {d.lower_name:tinycss2.serialize(d.value).strip() for d in declarations if d.lower_name in {'height','width'}}
+            height = length_mm(sizes.get('height',''))
+            width = length_mm(sizes.get('width',''))
+            percent = re.fullmatch(r'(\d+(?:\.\d+)?|\.\d+)%',sizes.get('width',''))
+            if height is None or height<=0:
                 raise ValueError('Every image needs an explicit positive height in mm')
-            if not re.search(r'(?<!-)\bwidth\s*:\s*[1-9][\d.]*(mm|%)', data.get('style', '')):
+            if not ((width is not None and width>0) or (percent and float(percent[1])>0)):
                 raise ValueError('Every image needs an explicit positive width in mm or percent')
         elif 'data-asset' in data or 'data-visual' in data:
             raise ValueError('data-asset belongs only on img elements')
@@ -393,6 +399,10 @@ def grow_main_artwork(markup: str, document, profile: dict) -> str | None:
 def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: bool = True) -> None:
     """Try measured local reflow before requesting another model-authored design."""
     page.pop('print_layout', None)
+    from core.image_dimensions import normalize_image_dimensions
+    profile = page.get('quality_profile', {})
+    page['html'] = normalize_image_dimensions(page['html'],page_visuals(page),
+        profile.get('visual_area_mm2',6500),lambda style:clean_style(style,profile.get('minimum_text_pt',11)))
     original_html = page['html']
     last_overflow = ''
     rendered_markup = set()

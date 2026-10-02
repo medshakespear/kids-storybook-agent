@@ -443,6 +443,11 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     page['answers'] = ' '.join(answers)
     # Each answer and question count is already bounded. Check final sheet geometry
     # during pack preflight rather than imposing a contradictory aggregate character cap.
+    if page['visuals']:
+        from core.image_dimensions import normalize_image_dimensions
+        from core.creative_layout import clean_style
+        page['html'] = normalize_image_dimensions(page['html'],page_visuals(page),config.get('visual_area_mm2',6500),
+            lambda style:clean_style(style,config.get('minimum_text_pt',11)))
     layout = page['html']
     bound_layout = bind_formatted_canonical_text(layout,blocks)
     parser = BoundLayout(blocks)

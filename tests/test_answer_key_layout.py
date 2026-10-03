@@ -43,7 +43,7 @@ class AnswerKeyLayoutTests(unittest.TestCase):
 
     def test_per_answer_limit_still_bounds_content(self):
         """Removing the conflicting aggregate cap does not allow unbounded individual content."""
-        page=authored_page();page['exercise']['questions'][0]['answer']='x'*181
+        page=authored_page();page['exercise']['questions'][0]['answer']='x'*401
         with self.assertRaisesRegex(ValueError,'answer/criterion'):
             validate_design(page,11,quality=self.config,expected_title='Fire Safety',require_coherent=True)
 

@@ -62,11 +62,11 @@ def visual_schema(kind: str) -> dict:
     return obj(fields)
 
 
-def question_schema(prompt_limit: int = 220) -> dict:
+def question_schema(prompt_limit: int = 220, answer_limit: int = 180) -> dict:
     """Keep each printed question, workspace and verified result in one object."""
     return obj({'id': text(3, 'Distinct printed label, e.g. 1 or 2A.'),
                 'prompt': text(prompt_limit, 'Aim for 140-220 characters. All numeric facts, units and rounding must fit; no decorative introduction.'),
-                'answer': text(180, 'Correct concise solution or concrete success criterion.'),
+                'answer': text(answer_limit, 'Aim for <=180 characters; retain every required solution or criterion.'),
                 'space_mm': {'type': 'number', 'minimum': 0, 'maximum': 80},
                 'calculation': obj({'expression': text(120, 'Numeric literals, parentheses and + - * / only.'),
                                     'answer': text(80, 'Exact number/fraction, or rounded result only if the question requests rounding.')})},
@@ -76,11 +76,12 @@ def question_schema(prompt_limit: int = 220) -> dict:
 def exercise_schema(brief: dict, config: dict) -> dict:
     """Lock the planned mechanism while permitting original task content."""
     from core.prompt_recovery import prompt_character_limit
+    from core.answer_limits import answer_character_limit
     exact = brief['render_mode'] == 'exact'
     properties = {'render_mode': enum([brief['render_mode']]), 'mechanic': enum([brief['mechanic']]),
                   'goal': text(240),
                   'captions': array(obj({'id': text(24, 'Unique short lowercase identifier.'), 'text': text(120, 'Factual context label only; never task directions. Do not use IDs directions/instructions/passage on exact pages.')}), 0, 6),
-                  'questions': array(question_schema(prompt_character_limit(config)), 0 if exact else 1, config.get('items_per_page', 4))}
+                  'questions': array(question_schema(prompt_character_limit(config), answer_character_limit(config)), 0 if exact else 1, config.get('items_per_page', 4))}
     if exact:
         properties['visual'] = visual_schema(brief['mechanic'])
     else:
@@ -131,9 +132,9 @@ def plan_schema(count: int) -> dict:
                 'pages': array({'anyOf':branches},count,count)})
 
 
-def field_repair_schema(question_id: str, field: str, *, calculation: bool = False) -> dict:
+def field_repair_schema(question_id: str, field: str, *, calculation: bool = False, answer_limit: int = 180) -> dict:
     """Make a one-question repair incapable of omitting its ID or changing other fields."""
-    properties = {'id': enum([question_id]), field: text(220 if field == 'prompt' else 180)}
+    properties = {'id': enum([question_id]), field: text(220 if field == 'prompt' else answer_limit)}
     if calculation:
         properties['calculation'] = question_schema()['properties']['calculation']
     return obj({'exercise': obj({'questions': array(obj(properties), 1, 1)})})

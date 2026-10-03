@@ -411,7 +411,9 @@ def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: boo
     with RENDER_LOCK:
         tightened_html = _tighten_explicit_spacing(original_html, preserve_heights=bool(page.get('quality_profile')))
         panel_html = reflow_outer_panels(tightened_html) if page.get('exercise_binding') else tightened_html
-        for candidate_html in (original_html,tightened_html,panel_html):
+        candidates = list(dict.fromkeys((original_html,tightened_html,panel_html)))
+        overflow_recovered = False
+        for candidate_html in candidates:
             page['html'] = candidate_html
             for mode in ('', 'reflow', 'compact'):
                 if mode:
@@ -427,6 +429,12 @@ def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: boo
                     check_document(doc, 1)
                 except ValueError as exc:
                     last_overflow = str(exc)
+                    if not cover and not overflow_recovered:
+                        from core.small_overflow import recover_small_overflow
+                        resized = recover_small_overflow(page['html'], doc, profile)
+                        if resized:
+                            candidates.append(resized)
+                            overflow_recovered = True
                     continue
                 try:
                     check_visual_quality(doc, page.get('quality_profile', {}), cover=cover)

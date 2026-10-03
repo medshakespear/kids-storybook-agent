@@ -43,8 +43,9 @@ class LandscapeRecoveryTests(unittest.TestCase):
         page=self.page();original=deepcopy(page)
         candidates=list(layout_recovery_candidates(page,12,8000))
         self.assertEqual(len(candidates),3)
-        with self.assertRaisesRegex(ValueError,'Design overflow'):
-            self.validate(candidates[0])
+        recovered = self.validate(candidates[0])
+        self.assertEqual(recovered['exercise'], original['exercise'])
+        self.assertEqual(recovered['html'].count('height:45mm'), 2)
         for candidate in candidates[1:]:
             result=self.validate(candidate)
             self.assertEqual(result['exercise'],original['exercise'])
@@ -67,7 +68,8 @@ class LandscapeRecoveryTests(unittest.TestCase):
         self.assertEqual(api.chat.completions.create.call_count,1)
         self.assertEqual(result['exercise'],page['exercise'])
         self.assertEqual(result['images'],page['images'])
-        self.assertIn('width:175mm;height:48mm',result['source_layout'])
+        self.assertEqual(result['html'].count('height:45mm'), 2)
+        self.assertEqual(result['quality_profile']['visual_area_mm2'], 8000)
 
     def test_untracked_space_and_unbound_tasks_are_not_discarded_for_fit(self):
         """Candidate generation must not erase independently authored actions or work panels."""

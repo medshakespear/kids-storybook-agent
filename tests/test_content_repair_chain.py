@@ -99,7 +99,7 @@ class ContentRepairChainTests(unittest.TestCase):
         """Four independent defects can be corrected without discarding prior progress."""
         page=authored_page()
         long_prompt='Describe your original shelter and show its useful features. '*12
-        long_answer='Accept a shelter design that protects the plant and allows sunlight. '*4
+        long_answer='Accept a shelter design that protects the plant and allows sunlight. '*8
         page['exercise']['questions']=[dict(id=str(i),prompt=long_prompt,answer=long_answer,space_mm=15) for i in [1,2]]
         page['html']+='<div data-content="question_2"></div>'
         replies=[page]

@@ -377,7 +377,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         reserved.add(qid)
         from core.prompt_recovery import prompt_character_limit
         prompt = bounded_text(question.get('prompt'), f'question {qid} prompt', prompt_character_limit(config))
-        answer = bounded_text(question.get('answer'), f'question {qid} answer/criterion', 180)
+        from core.answer_limits import answer_character_limit
+        answer = bounded_text(question.get('answer'), f'question {qid} answer/criterion', answer_character_limit(config))
         space = question.get('space_mm',0)
         if type(space) not in {int,float} or not 0<=space<=80:
             raise ValueError('Exercise response space_mm must be 0-80; keep drawing/writing space usable')
@@ -496,7 +497,7 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
 EXERCISE_CONTRACT = '''Each student page returns ONLY html, images and exercise. Content and answers have
 ONE shared source. goal <=240 chars, directions <=180 chars for younger grades or <=350 for older;
 passage <=1500 chars (none for Pre-K). question prompt should aim for <=220 chars; hard limits are 220/320/480/600 by grade band,
-subject to real page fit. answer/criterion <=180 chars;
+subject to real page fit. answer/criterion <=180 chars for early grades, <=400 for grades 3-6;
 Keep answers concise without dropping solutions or success criteria; there is no combined character cap.
 Python checks actual final answer-sheet fit, not an arbitrary per-page aggregate length.
 The top-level JSON response MUST have html (string), images (list), and exercise (OBJECT).

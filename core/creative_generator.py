@@ -302,6 +302,12 @@ def merge_exercise_repair(original: dict, correction: dict) -> dict:
 
 def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_schema: dict | None = None) -> dict:
     """Retry validation defects separately from transient provider transport failures."""
+    answer_limit = 180
+    if response_schema:
+        answer_spec = response_schema.get('properties', {}).get('exercise', {}).get('properties', {}).get('questions', {}).get('items', {}).get('properties', {}).get('answer', {})
+        limit_match = re.search(r'at most (\d+) characters', answer_spec.get('description', ''))
+        if limit_match:
+            answer_limit = int(limit_match[1])
     errors = []
     answer_repair_base, answer_repair_id = None, None
     repair_calculation = False
@@ -362,7 +368,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     elif prompt_repair_base is not None:
                         schema = field_repair_schema(prompt_repair_id,'prompt')
                     elif answer_repair_base is not None:
-                        schema = field_repair_schema(answer_repair_id,'answer',calculation=repair_calculation)
+                        schema = field_repair_schema(answer_repair_id,'answer',calculation=repair_calculation,answer_limit=answer_limit)
                     elif layout_repair_base is not None:
                         schema = obj({'html':text(18000), 'exercise':obj({'captions':array(
                             obj({'id':text(24),'text':text(120)}),0,6)})},['html'])
@@ -562,7 +568,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     if answer_repair_base is not None:
                         repair += (
                             f' Correct ONLY the {"calculation and answer fields" if repair_calculation else "answer field"} for exercise.questions id {answer_repair_id}. '
-                            'Return a nonempty concise solution or success criterion of at most 180 characters; '
+                            f'Return a nonempty concise solution or success criterion of at most {answer_limit} characters; '
                             'preserve every required value and essential condition. Do not truncate mid-sentence. '
                             'Keep the original question IDs, prompts, other calculations, response spaces, goal, '
                             'captions, HTML and illustration manifest unchanged. Python applies only this '

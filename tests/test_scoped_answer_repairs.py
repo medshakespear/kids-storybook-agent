@@ -33,7 +33,7 @@ class ScopedAnswerRepairTests(unittest.TestCase):
 
     def test_answer_repair_preserves_original_art_and_task_despite_drifting_response(self):
         """A repair deleting artwork or replacing instructions contributes only its new answer."""
-        original=authored_page();original['exercise']['questions'][0]['answer']='Accept a design. '*15
+        original=authored_page();original['exercise']['questions'][0]['answer']='Accept a design. '*30
         unchanged=deepcopy(original)
         correction=authored_page();correction['images']=[];correction['html']='<p>Unrelated task</p>'
         correction['exercise']['goal']='A changed goal'
@@ -55,7 +55,7 @@ class ScopedAnswerRepairTests(unittest.TestCase):
         """Only the specifically rejected answer changes, including a later question ID."""
         page=authored_page()
         page['exercise']['questions'] += [dict(id='2',prompt='Name your invention.',answer='Any original name.',space_mm=0),
-                                         dict(id='3',prompt='Describe the benefit.',answer='Long criterion. '*20,space_mm=0)]
+                                         dict(id='3',prompt='Describe the benefit.',answer='Long criterion. '*30,space_mm=0)]
         page['html']+='<p data-content="question_2"></p><p data-content="question_3"></p>'
         response=deepcopy(page)
         response['exercise']['questions'][0]['answer']='Changed other answer.'
@@ -76,7 +76,7 @@ class ScopedAnswerRepairTests(unittest.TestCase):
 
     def test_json_error_does_not_clear_scoped_original(self):
         """Serialization retry keeps the same answer scope and original art manifest."""
-        page=authored_page();page['exercise']['questions'][0]['answer']='Long criterion. '*20
+        page=authored_page();page['exercise']['questions'][0]['answer']='Long criterion. '*30
         correction={'exercise':{'questions':[{'id':'1','answer':'Accept a shelter allowing sunlight and watering access.'}]}}
         result,api=self.ask([page,'{',correction])
         self.assertEqual(result['images'],page['images'])
@@ -86,7 +86,7 @@ class ScopedAnswerRepairTests(unittest.TestCase):
     def test_short_answer_still_gets_arithmetic_verification(self):
         """Scoped extraction cannot make a wrong numeric key pass local validation."""
         page=authored_page();page['exercise']['questions'][0].update(prompt='What is 3 + 4?',
-            answer='Long criterion. '*20,calculation={'expression':'3+4','answer':7},space_mm=20)
+            answer='Long criterion. '*30,calculation={'expression':'3+4','answer':7},space_mm=20)
         changed=merge_answer_repair(page,{'exercise':{'questions':[{'id':'1','answer':'8'}]}},'1')
         with self.assertRaisesRegex(ValueError,'verified calculation answer'):
             self.validate(changed)

@@ -681,3 +681,10 @@ they do not consume an image API request or enable an AI image checker. Planning
 text proofreading ask for substantive theme connections and accurate cultural context,
 rather than relabeling generic symbols as cultural artifacts. These are generation
 controls, not a guarantee that AI-produced educational content is ready for sale.
+
+Teacher-facing answer criteria are grade-aware: up to 180 characters for early grades,
+and up to 400 for grades 3-6. Student prompt limits and font sizes remain separate.
+The single final answer sheet still receives measured fitting and, when needed,
+scoped answer-key condensation. A one-page vertical spill of at most 8mm can trigger
+one measured illustration-height adjustment, provided meaningful visual-area floors
+remain satisfied. Exact puzzle labels, student wording and response heights are retained.

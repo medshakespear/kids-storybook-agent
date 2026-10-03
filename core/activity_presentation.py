@@ -171,7 +171,8 @@ def prepare_authored_flow(page: dict, config: dict) -> dict:
     response = sum(q.get('space_mm', 0) for q in exercise.get('questions', [])
                    if isinstance(q.get('space_mm', 0), (int, float)))
     text_height = math.ceil(chars / max(45, 1000 / font)) * font * 0.46
-    artwork_height = max(60, min(100, 230 - 45 - text_height - response))
+    minimum_art_height = max(35, math.ceil(config.get('visual_area_mm2', 10000) / 175))
+    artwork_height = max(minimum_art_height, min(100, 225 - 45 - text_height - response))
     for asset in images:
         parts.append(f'<div style="text-align:center;margin:0 0 3mm">'
                      f'<img data-asset="{asset["id"]}" style="width:175mm;'

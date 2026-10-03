@@ -41,6 +41,10 @@ def prepare_activity_presentation(page: dict, brief: dict, config: dict) -> tupl
     """Compose exact pages from valid puzzle data; retain authored content and all extra tasks."""
     page, brief = deepcopy(page), deepcopy(brief)
     validate_source_markup(page.get('html', ''))
+    if page.get('_canonical_presentation'):
+        if page.get('title'):
+            brief['title'] = page['title']
+        return page, brief
     exercise = page.get('exercise')
     if not isinstance(exercise, dict):
         return page, brief
@@ -51,7 +55,10 @@ def prepare_activity_presentation(page: dict, brief: dict, config: dict) -> tupl
             if isinstance(question, dict) and isinstance(question.get('prompt'), str):
                 question['prompt'] = re.sub(r'\b(?:(?:big|large|empty)\s+)?box\s+(?:above|below)\b',
                                            'answer box', question['prompt'], flags=re.I)
-        return prepare_authored_flow(page, config), brief
+        page = prepare_authored_flow(page, config)
+        if isinstance(page.get('images'), list) and page['images']:
+            page['_canonical_presentation'] = True
+        return page, brief
     visual = exercise.get('visual')
     if not isinstance(visual, dict):
         return page, brief
@@ -126,6 +133,7 @@ def prepare_activity_presentation(page: dict, brief: dict, config: dict) -> tupl
                      f'style="font-size:{font}pt;margin:0 0 3mm"></div>')
     page['html'] = ''.join(parts)
     page.setdefault('images', [])
+    page['_canonical_presentation'] = True
     return page, brief
 
 

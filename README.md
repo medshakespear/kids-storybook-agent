@@ -688,3 +688,8 @@ The single final answer sheet still receives measured fitting and, when needed,
 scoped answer-key condensation. A one-page vertical spill of at most 8mm can trigger
 one measured illustration-height adjustment, provided meaningful visual-area floors
 remain satisfied. Exact puzzle labels, student wording and response heights are retained.
+
+Canonical presentation is prepared once per page. If print checks fail, local recovery
+uses that prepared, uncompiled source and retains its revised layout during revalidation.
+This prevents presentation from restoring the same oversized composition on every retry.
+The recovery still checks all questions, response spaces, font floors and visual-area floors.

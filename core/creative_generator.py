@@ -420,6 +420,8 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     visual_match = re.search(r'Visuals are too small: use at least (\d+) square mm',str(exc))
                     if visual_match:
                         layout_visual_area = int(visual_match[1])
+                    if getattr(exc, 'layout_source', None) is not None:
+                        validated_draft = deepcopy(exc.layout_source)
                     rescue_base = validated_draft or layout_repair_base
                     layout_defect = str(exc).startswith(('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small'))
                     if (rescue_base is not None and len(layout_rescue_candidates)<8
@@ -1066,6 +1068,7 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
     if not isinstance(raw, dict):
         raise ValueError('Design must be an object')
     design = deepcopy(raw)
+    prepared_layout = None
     design['html'] = _text(design.get('html'), 'html', 18000)
     if quality is not None:
         design['html'] = reveal_print_content(design['html'])
@@ -1075,6 +1078,7 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
             design['planned_title'] = expected_title
             design, brief = prepare_activity_presentation(design, brief, quality)
             expected_title = design.get('title', expected_title)
+            prepared_layout = deepcopy(design)
         compile_exercise(design, quality or {}, expected_title or '', brief)
     if cover:
         # Cover art has no exercise numbers. Ignore unused exercise metadata,
@@ -1132,7 +1136,12 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
         raise ValueError(f'Image asset mismatch after deterministic repair: declared IDs [{declared}]; HTML data-asset IDs [{referenced}]')
     if quality is not None and not cover:
         validate_exercises(design, quality, expected_title)
-    check_page(design, font, cover=cover)
+    try:
+        check_page(design, font, cover=cover)
+    except ValueError as exc:
+        if prepared_layout is not None:
+            exc.layout_source = prepared_layout
+        raise
     return design
 
 

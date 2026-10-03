@@ -701,3 +701,10 @@ Distinct explanation actions and explicit arithmetic follow-ups receive unused q
 labels locally, with matching content slots and answer-key references. Ambiguous repeated
 puzzle actions still require semantic correction. Factual captions mentioning student
 skills are distinguished from imperative task directions.
+
+Exact pages also bind complete declarative context paragraphs into canonical caption
+slots while preserving their wording. Standalone separators such as a colon no longer
+trigger a content retry. A literal duplicate of the computed puzzle instruction can be
+removed locally only when it has no separate calculation or response space; ambiguous
+paraphrases and genuine additional tasks still use semantic repair. Context binding
+checks structure, not factual accuracy, and does not promote questions or commands.

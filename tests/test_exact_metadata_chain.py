@@ -28,7 +28,7 @@ class ExactMetadataChainTests(unittest.TestCase):
     def test_three_reported_defects_follow_preserving_content_repair(self):
         """A sequence of corrections keeps the exact puzzle and valid extension intact."""
         raw = deepcopy(self.page)
-        raw['exercise']['questions'].insert(0, {'id':'1','prompt':'Sort the pictures by shape.',
+        raw['exercise']['questions'].insert(0, {'id':'1','prompt':'Group the pictures into shape categories.',
                                               'answer':'Use the pictured shape groups.','space_mm':0})
         raw['html'] += '<p data-content="question_1"></p>'
         long = {'id':'caption_ledger_desc','text':'Each ledger entry records the category of the pictured item. '*4}

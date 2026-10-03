@@ -132,6 +132,10 @@ class BoundLayout(HTMLParser):
         """Replace slot drafts and bind exact canonical copies without accepting unrelated tasks."""
         if not data.strip():
             return
+        if data.strip() in {':', ';', ',', '|'}:
+            if not self.slot:
+                self.parts.append(html.escape(data))
+            return
         if self.slot:
             if self.inferred_slot:
                 raise ValueError('Use a complete data-content slot; additional independent layout text cannot be discarded')
@@ -273,6 +277,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     if any(page.get(k) for k in ('answers','visuals','calculations')):
         raise ValueError('Use only the shared exercise specification, not independent answers/visuals/calculations drafts')
     normalize_illustration_ids(page)
+    from core.context_recovery import bind_contextual_wording
+    bind_contextual_wording(page, title)
     exercise = deepcopy(page.get('exercise'))
     if not isinstance(exercise, dict):
         raise ValueError('Return exercise as the shared source of task content, visuals and answers')
@@ -306,7 +312,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         from core.pattern_recovery import recover_pattern_choices
         page['visuals'][0] = recover_pattern_choices(page['visuals'][0])
         exercise['visual'] = page['visuals'][0]
-        from core.question_labels import renumber_open_exact_question
+        from core.question_labels import renumber_open_exact_question, remove_literal_exact_duplicate
+        page['html'] = remove_literal_exact_duplicate(exercise, page['html'])
         page['html'] = renumber_open_exact_question(exercise,page['html'])
         problems = []
         if exercise.get('directions') or exercise.get('passage'):

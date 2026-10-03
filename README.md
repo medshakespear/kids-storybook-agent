@@ -693,3 +693,11 @@ Canonical presentation is prepared once per page. If print checks fail, local re
 uses that prepared, uncompiled source and retains its revised layout during revalidation.
 This prevents presentation from restoring the same oversized composition on every retry.
 The recovery still checks all questions, response spaces, font floors and visual-area floors.
+
+Exact-puzzle metadata defects use content/binding repair rather than a layout-only
+retry. Reserved duplicate labels and oversized or instructional captions can be corrected
+while pinning the computed visual, assets, and already valid additional questions.
+Distinct explanation actions and explicit arithmetic follow-ups receive unused question
+labels locally, with matching content slots and answer-key references. Ambiguous repeated
+puzzle actions still require semantic correction. Factual captions mentioning student
+skills are distinguished from imperative task directions.

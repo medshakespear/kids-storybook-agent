@@ -134,7 +134,8 @@ def exact_wording_requires_content_repair(page: dict, error: str) -> bool:
     exercise = page.get('exercise') if isinstance(page,dict) else None
     if not isinstance(exercise,dict) or exercise.get('render_mode')!='exact':
         return False
-    return error.startswith(('Put ALL printed wording', 'Exact captions must not contain task directions')) or (
+    return error.startswith(('Put ALL printed wording', 'Exact captions must not contain task directions',
+                             'Exercise caption ', 'Exercise question IDs must not duplicate visual question numbers')) or (
         error.startswith('Unknown or repeated exercise content slot:') and
         any(f'content slot: {slot};' in error for slot in ('directions','passage')))
 

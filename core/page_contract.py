@@ -354,7 +354,7 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         caption['text'] = bounded_text(caption.get('text'),f'caption {cid}',120)
         if exercise['render_mode']=='exact' and (
                 cid in {'directions','instructions','passage'} or
-                re.search(r'\b(?:help\b.{0,70}\b(?:sort|count|match|find)|(?:sort|count|match|circle|connect|draw|write)\s+(?:the|these|each|all|a|your)\b)',caption['text'],re.I)):
+                re.search(r'(?:^|[.!?]\s+)(?:please\s+)?(?:help\b.{0,70}\b(?:sort|count|match|find)|(?:sort|count|match|circle|connect|draw|write)\s+(?:the|these|each|all|a|your)\b)',caption['text'],re.I)):
             raise ValueError('Exact captions must not contain task directions; the computed graphic owns its instructions. '
                              'Keep genuinely additional actions in exercise.questions, not captions')
         blocks['caption_'+cid] = html.escape(caption['text'])

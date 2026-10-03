@@ -18,11 +18,15 @@ def renumber_open_exact_question(exercise: dict, layout: str) -> str:
     question = matches[0]
     prompt = question.get('prompt')
     space = question.get('space_mm')
-    if not isinstance(prompt,str) or type(space) not in {int,float} or space<5:
+    if not isinstance(prompt,str) or type(space) not in {int,float}:
         return layout
-    if not re.match(r'^(?:draw|design|create|invent|color|colour|decorate|write|make)\b',prompt,re.I):
-        return layout
-    if re.search(r'\b(?:count|match|connect|choose|correct|circle|find|trace|total|answer|sum|difference|which|complete|solve|calculate)\b|how many|number of',prompt,re.I):
+    reasoning = (space>=5 and re.match(r'^(?:explain|describe|justify|predict|suggest|discuss)\b',prompt,re.I))
+    explicit_math = (isinstance(question.get('calculation'),dict) and
+                     re.match(r'^(?:what is|calculate|solve|evaluate)\b',prompt,re.I) and
+                     re.search(r'\d\s*[+−×÷*/-]\s*\d',prompt))
+    creative = (space>=5 and re.match(r'^(?:draw|design|create|invent|color|colour|decorate|write|make)\b',prompt,re.I) and
+                not re.search(r'\b(?:count|match|connect|choose|correct|circle|find|trace|total|answer|sum|difference|which|complete|solve|calculate)\b|how many|number of',prompt,re.I))
+    if not (reasoning or explicit_math or creative):
         return layout  # Closed/duplicate puzzle actions need a semantic repair.
     if not re.fullmatch(r'[1-9]\d?',reserved):
         return layout

@@ -256,7 +256,9 @@ class CreativeTests(unittest.TestCase):
                                                   response({'pages':[{'page_number':1,'issues':[]},{'page_number':2,'issues':[]}]})]
         with patch.dict(os.environ, {'DESIGN_WORKERS': '1'}), patch('core.creative_generator.text_provider_names', return_value=['gemini']), patch('core.creative_generator.text_client', return_value=(api, 'test')), patch('core.creative_generator.time.sleep'), patch('core.creative_generator.text_worker_limit', return_value=1):
             pack = generate_creative_pack('Garden', 'Pre-K-K', config, source_context='Invent a garden tool.')
-        self.assertEqual(pack['pages'][0]['source_layout'], first['html'])
-        self.assertEqual(pack['pages'][1]['source_layout'], second['html'])
+        self.assertEqual(pack['pages'][0]['exercise']['questions'], first['exercise']['questions'])
+        self.assertEqual(pack['pages'][1]['exercise']['questions'], second['exercise']['questions'])
+        self.assertEqual(pack['pages'][0]['images'], first['images'])
+        self.assertEqual(pack['pages'][1]['images'], second['images'])
         self.assertEqual(api.chat.completions.create.call_count, 6)
         self.assertEqual(pack['design_engine'], 'creative_bound_v2')

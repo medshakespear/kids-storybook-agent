@@ -288,6 +288,8 @@ def check_document(document, expected: int) -> None:
     """Reject pagination and out-of-bounds content rather than shrinking or clipping."""
     if len(document.pages) != expected:
         raise ValueError(f'Design overflow: expected {expected} pages, got {len(document.pages)}; reduce content or spacing')
+    from core.print_collisions import check_print_collisions
+    check_print_collisions(document)
     right, bottom = 198 * 96 / 25.4, 283 * 96 / 25.4
     violations = []
     for page_number, page in enumerate(document.pages, 1):

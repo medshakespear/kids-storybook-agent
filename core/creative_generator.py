@@ -1435,6 +1435,8 @@ def generate_creative_images(pack: dict, config: dict, folder) -> None:
     unique, indexes = [], {}
     for page in [pack['cover'], *pack['pages']]:
         for asset in page['images']:
+            if asset.get('local_template'):
+                continue
             if asset['prompt'] not in indexes:
                 indexes[asset['prompt']] = len(unique)
                 unique.append({'page_number': len(unique) + 1, 'image_prompt': asset['prompt']})
@@ -1444,11 +1446,19 @@ def generate_creative_images(pack: dict, config: dict, folder) -> None:
     if len(paths) != len(unique):
         raise ValueError('Incomplete creative illustration set')
     LOGGER.info('Image generation complete: %s unique illustrations in %.1fs', len(paths), time.monotonic() - started)
-    pack['image_validation'] = validate_image_files(paths, len(unique))
+    from core.blank_templates import draw_blank_template
+    local_paths = []
+    for index, asset in enumerate(assets):
+        if asset.get('local_template'):
+            path = draw_blank_template(asset['local_template'], folder, f'{index+1}_{asset["id"]}')
+            asset['path'] = str(path)
+            local_paths.append(path)
+    pack['image_validation'] = validate_image_files([*paths, *local_paths], len(unique) + len(local_paths))
     pack['image_review'] = {'status': 'disabled', 'checked': 0, 'regenerated': 0}
     LOGGER.info('Illustration files valid: %s; AI image review disabled', len(paths))
     for asset in assets:
-        asset['path'] = str(paths[indexes[asset['prompt']]])
+        if not asset.get('local_template'):
+            asset['path'] = str(paths[indexes[asset['prompt']]])
 
 
 def strip_creative_art(pack: dict) -> None:

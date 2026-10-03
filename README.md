@@ -671,3 +671,13 @@ vector symbol. Additional questions and their response spaces are retained. Auth
 drawing prompts use neutral answer-box references to avoid incorrect above/below wording.
 These checks do not enable Gemini image review or guarantee artistic quality; inspect
 new PDFs before listing them for sale.
+
+Reading and writing pages now use canonical vertical flow, with full-width text instead
+of narrow fixed-height sidebars. Rendered text/image collision checks run alongside
+pagination and outer-bound checks. Sentence-completion prompts print a declared starter
+or become an open sentence-writing task when no starter exists. Explicitly blank blanket,
+pattern-grid and pumpkin-face work surfaces are drawn locally as clean PNG templates;
+they do not consume an image API request or enable an AI image checker. Planning and
+text proofreading ask for substantive theme connections and accurate cultural context,
+rather than relabeling generic symbols as cultural artifacts. These are generation
+controls, not a guarantee that AI-produced educational content is ready for sale.

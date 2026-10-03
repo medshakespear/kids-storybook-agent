@@ -25,12 +25,22 @@ Do not reference above/below/left/right unless the final layout guarantees that 
 Each page must have a different useful learning experience. Include creative making, drawing,
 tracing or designing where appropriate, with generous usable workspace and bold clean art.
 Use a coordinated accent palette and strong visual hierarchy across the whole pack.
+Keep a strong substantive connection to the context: do not attach a heritage-month label to
+a generic sequence of shapes, Halloween symbols or harvest mascots. For cultural themes,
+include specific, accurate contemporary communities and experiences; avoid generalized
+costumes, pan-Indigenous motifs or attributing one practice to every Native nation.
+Prefer at least three quarters authored context-specific activities unless the user explicitly
+requests numerical puzzles. Use plain, age-appropriate language and brief factual context.
+Sentence-completion tasks MUST print their actual sentence starters.
+Blank templates must explicitly say blank in directions; Python supplies their uncolored
+work surface. Do not request already patterned, colored or completed worksheet artwork.
 '''
 
 
 def prepare_activity_presentation(page: dict, brief: dict, config: dict) -> tuple[dict, dict]:
     """Compose exact pages from valid puzzle data; retain authored content and all extra tasks."""
     page, brief = deepcopy(page), deepcopy(brief)
+    validate_source_markup(page.get('html', ''))
     exercise = page.get('exercise')
     if not isinstance(exercise, dict):
         return page, brief
@@ -41,9 +51,9 @@ def prepare_activity_presentation(page: dict, brief: dict, config: dict) -> tupl
             if isinstance(question, dict) and isinstance(question.get('prompt'), str):
                 question['prompt'] = re.sub(r'\b(?:(?:big|large|empty)\s+)?box\s+(?:above|below)\b',
                                            'answer box', question['prompt'], flags=re.I)
-        return page, brief
+        return prepare_authored_flow(page, config), brief
     visual = exercise.get('visual')
-    if not isinstance(visual, dict) or page.get('images') not in ([], None):
+    if not isinstance(visual, dict):
         return page, brief
     visual = deepcopy(visual)
     for key, value in brief.get('mechanic_constraints', {}).items():
@@ -104,6 +114,10 @@ def prepare_activity_presentation(page: dict, brief: dict, config: dict) -> tupl
     for caption in exercise['captions']:
         parts.append(f'<p data-content="caption_{caption["id"]}" '
                      f'style="font-size:{font}pt;margin:0 0 2mm"></p>')
+    for asset in page.get('images', []):
+        art_height = 30 if printed_height > 150 else 45
+        parts.append(f'<div style="text-align:center;margin:0 0 2mm"><img data-asset="{asset["id"]}" '
+                     f'style="width:175mm;height:{art_height}mm"/></div>')
     parts.append(f'<div style="text-align:center;border:0.5mm solid {accent};'
                  f'padding:2mm;border-radius:4mm;margin:0 0 3mm">'
                  f'<img data-visual="{visual["id"]}" style="width:{width}mm;height:{printed_height}mm"/></div>')
@@ -111,5 +125,82 @@ def prepare_activity_presentation(page: dict, brief: dict, config: dict) -> tupl
         parts.append(f'<div data-content="question_{question["id"]}" '
                      f'style="font-size:{font}pt;margin:0 0 3mm"></div>')
     page['html'] = ''.join(parts)
-    page['images'] = []
+    page.setdefault('images', [])
     return page, brief
+
+
+def prepare_authored_flow(page: dict, config: dict) -> dict:
+    """Lay out canonical reading, art and tasks in flow without fixed-height text columns."""
+    exercise = page['exercise']
+    images = page.get('images')
+    if not isinstance(images, list) or not images:
+        return page  # Let the normal manifest validator explain missing artwork.
+    from core.blank_templates import template_kind
+    kind = template_kind(exercise)
+    if kind and len(images) == 1:
+        images[0]['local_template'] = kind
+        images[0]['prompt'] = f'Blank uncolored {kind.replace("_", " ")} student work surface; no completed designs.'
+    for question in exercise.get('questions', []):
+        prompt, answer = question.get('prompt', ''), question.get('answer', '')
+        if not isinstance(prompt, str) or not isinstance(answer, str):
+            continue
+        if re.search(r'complete\s+(?:the\s+)?(?:first|second|third)?\s*sentence', prompt, re.I):
+            starter = re.search(r'(?:starting with|beginning with|starts with)\s*[\'"]([^\'"]+)', answer, re.I)
+            if starter:
+                if starter[1].rstrip('. ') not in prompt:
+                    question['prompt'] = prompt.rstrip(' :') + ' Start with: ' + starter[1]
+            else:
+                question['prompt'] = re.sub(r'complete\s+(?:the\s+)?(?:first|second|third)?\s*sentence',
+                                             'Write a sentence', prompt, flags=re.I)
+    font = config.get('student_font_pt', 14)
+    accent, wash = config.get('accent', '#007F82'), config.get('wash', '#E3F5EF')
+    parts = [f'<h1 data-content="title" style="font-size:{font+5}pt;color:{accent};'
+             f'background-color:{wash};padding:3mm;margin:0 0 3mm"></h1>',
+             f'<p data-content="name" style="font-size:{font}pt;margin:0 0 2mm"></p>',
+             f'<p data-content="directions" style="font-size:{font}pt;margin:0 0 3mm"></p>']
+    for caption in exercise.get('captions', []):
+        parts.append(f'<p data-content="caption_{caption["id"]}" '
+                     f'style="font-size:{font}pt;color:{accent};margin:0 0 2mm"></p>')
+    if exercise.get('passage'):
+        parts.append(f'<div data-content="passage" style="font-size:{font}pt;'
+                     f'background-color:{wash};padding:3mm;margin:0 0 3mm"></div>')
+    # Budget artwork against retained text and response space, not tiny sidebar columns.
+    chars = len(str(exercise.get('directions', ''))) + len(str(exercise.get('passage', '')))
+    chars += sum(len(str(c.get('text', ''))) for c in exercise.get('captions', []))
+    chars += sum(len(str(q.get('prompt', ''))) for q in exercise.get('questions', []))
+    response = sum(q.get('space_mm', 0) for q in exercise.get('questions', [])
+                   if isinstance(q.get('space_mm', 0), (int, float)))
+    text_height = math.ceil(chars / max(45, 1000 / font)) * font * 0.46
+    artwork_height = max(60, min(100, 230 - 45 - text_height - response))
+    for asset in images:
+        parts.append(f'<div style="text-align:center;margin:0 0 3mm">'
+                     f'<img data-asset="{asset["id"]}" style="width:175mm;'
+                     f'height:{artwork_height / len(images):g}mm"/></div>')
+    for question in exercise.get('questions', []):
+        parts.append(f'<div data-content="question_{question["id"]}" '
+                     f'style="font-size:{font}pt;margin:0 0 3mm"></div>')
+    page['html'] = ''.join(parts)
+    return page
+
+
+def validate_source_markup(markup: str) -> None:
+    """Never let canonical recomposition turn active or external model markup into success."""
+    from html.parser import HTMLParser
+    from core.creative_layout import TAGS, clean_style
+    class Guard(HTMLParser):
+        """Check allowed elements and attributes before replacing the source composition."""
+        def handle_starttag(self, tag, attrs):
+            """Reject scripts, remote resources and active attributes in the raw response."""
+            if tag not in TAGS:
+                raise ValueError(f'Unsupported HTML tag: {tag}')
+            for key, value in attrs:
+                if key.startswith('on') or key in {'src', 'href', 'srcset', 'class', 'id'}:
+                    raise ValueError('Only supported inline print attributes are allowed')
+                if key == 'style':
+                    clean_style(value or '', 11)
+        def handle_startendtag(self, tag, attrs):
+            """Apply the same guard to self-closing image tags."""
+            self.handle_starttag(tag, attrs)
+    guard = Guard()
+    guard.feed(markup)
+    guard.close()

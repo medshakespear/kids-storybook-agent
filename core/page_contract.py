@@ -398,6 +398,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             content += f'<span style="display:block;height:{space:g}mm;border:0.4mm solid #809AA6;margin-top:3mm;border-radius:3mm"></span>'
         blocks['question_'+qid] = content
         answers.append(f'{qid}. {answer}')
+        from core.calculation_attachment import detach_conceptual_calculation
+        detach_conceptual_calculation(question)
         calculation = question.get('calculation')
         from core.exercise_quality import numeric_display_text
         numeric_prompt = numeric_display_text(prompt)

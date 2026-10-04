@@ -773,3 +773,16 @@ page metadata are removed. All grade-specific geometry and task checks still run
 Unknown/invalid attributes now report the exact attribute name and HTML tag without
 logging its value. Duplicate bindings, scripts, external resources and hidden content
 remain rejected; the model prompts list the allowed HTML attributes explicitly.
+
+Computed sorting supports 2-8 distinct groups from the supplied shape/color/size rule.
+Python lays additional bins out in a measured grid and derives their exact memberships;
+it preserves every supplied picture and the chosen rule. A one-group collection still
+needs semantic correction because it provides no classification choice. Readability,
+artwork floors and printable bounds remain enforced.
+
+A calculation attached to a clearly nonnumeric conceptual question is detached locally
+only when both the printed prompt and prose answer have no numeric facts or quantitative
+signals. The original wording, answer, label and writing space remain intact. Quantitative
+and ambiguous questions keep their calculation and exact-answer validation. This handles
+stray arithmetic metadata without forcing a numeric answer into a science explanation;
+it does not certify the factual correctness of arbitrary AI-authored prose.

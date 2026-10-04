@@ -6,6 +6,7 @@ activity, composition and surrounding illustrations. No model-generated code run
 from __future__ import annotations
 
 import html
+import math
 import random
 import re
 from functools import lru_cache
@@ -202,21 +203,26 @@ def build_visual(spec: dict) -> tuple[str, str]:
             raise ValueError('Sort needs 4-8 symbols and attribute shape, color or size')
         symbols = [symbol(item, f'Visual {spec["id"]}, item {i}') for i,item in enumerate(items, 1)]
         values = list(dict.fromkeys(item[attribute] for item in symbols))
-        if not 2 <= len(values) <= 3:
-            raise ValueError('Sorting needs exactly 2-3 disjoint groups')
+        if not 2 <= len(values) <= 8:
+            raise ValueError('Sorting needs 2-8 distinct groups for its selected attribute; '
+                             'retain the sorting rule and supply pictures from at least two groups')
         parts.extend([text(360,30,f'{q}. Sort the pictures by {attribute}.',24),
                       text(360,65,'Write each picture number in the matching box.',20)])
         for i,item in enumerate(symbols):
             x,y = 100 + (i%4)*173, 145 + (i//4)*125
             parts.extend([icon(item,x,y,1.2), text(x,y+53,str(i+1),20)])
         bottom = 365 if len(items)>4 else 240
-        width = 670 / len(values)
+        columns = len(values) if len(values)<=3 else 3
+        rows = math.ceil(len(values)/columns)
+        bin_height = 125 if rows==1 else 100
+        width = 670 / columns
         for i,value in enumerate(values):
-            x = 25 + i*width
-            parts.append(f'<rect x="{x}" y="{bottom}" width="{width-12}" height="125" rx="14" fill="#F1F8FA"/>')
-            parts.append(text(x+(width-12)/2,bottom+35,value.title(),22))
-            parts.append(f'<path d="M{x+18},{bottom+92} h{width-48}" stroke="#657989" stroke-width="1"/>')
-        height = bottom + 140
+            x = 25 + (i%columns)*width
+            y = bottom + (i//columns)*(bin_height+10)
+            parts.append(f'<rect x="{x}" y="{y}" width="{width-12}" height="{bin_height}" rx="14" fill="#F1F8FA"/>')
+            parts.append(text(x+(width-12)/2,y+30,value.title(),22))
+            parts.append(f'<path d="M{x+18},{y+bin_height-25} h{width-48}" stroke="#657989" stroke-width="1"/>')
+        height = bottom + rows*(bin_height+10)+5
         answer = f'{q}. ' + '; '.join(v.title()+': '+', '.join(str(i+1) for i,item in enumerate(symbols) if item[attribute]==v) for v in values) + '.'
     elif kind == 'pattern':
         motif, choices = spec.get('motif'), spec.get('choices')
@@ -379,7 +385,7 @@ exact puzzle objects. Never put illustration prompts in visuals or omit id/quest
   solvable maze, START/FINISH and precisely that many stars on its route. Use height:145mm.
 - differences: items list of 4-8 {shape,color,size}; changes list of {index:1-based,field,value}.
   Each index occurs once; change exactly one visible field. Python draws BOTH numbered rows.
-- sort: attribute shape/color/size; items list of 4-8 {shape,color,size} with 2-3 distinct values
+- sort: attribute shape/color/size; items list of 4-8 {shape,color,size} with 2-8 distinct values
   for that attribute. Python derives exhaustive, disjoint bins and exact membership. Height:140mm.
 Shapes: circle,square,triangle,star,leaf,pumpkin,ghost,bat,candy_corn.
 Colors: orange,teal,purple,yellow,red,blue,green,white,black,pink,brown,gray.
@@ -398,7 +404,7 @@ BOUND_VISUAL_CONTRACT = VISUAL_CONTRACT[:VISUAL_CONTRACT.index('Declare each in 
 In exact mode declare ONE component in exercise.visual (not a top-level visuals list).
 Every component has id (short lowercase identifier), question (integer 1-30), kind and fields:
 - maze: rows,cols integers 4-8, seed integer 0-2147483647, tokens integer 0-5. Height 145mm.
-- sort: attribute shape/color/size; items 4-8 symbols with 2-3 distinct group values. Height 140mm.
+- sort: attribute shape/color/size; items 4-8 symbols with 2-8 distinct group values. Use height 165mm for 4-8 groups; 140mm for 2-3 groups.
 - differences: items 4-8 symbols; changes 1-N objects {index:1-based,field:shape/color/size,value}.
   Each index once, changed trait must actually differ. Height 115mm.
 - pattern: motif 2-3 symbols; choices 2-4 distinct symbols including motif's LAST symbol exactly once.

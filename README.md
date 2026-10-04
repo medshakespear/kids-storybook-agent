@@ -727,3 +727,11 @@ Inert metadata (`class`, `id`, role, tooltip/alt and descriptive ARIA attributes
 removed from the inline-only input. Printed text, styles, canonical slots, image IDs
 and workspace dimensions remain intact. Scripts, external resources, active or unknown
 attributes, duplicate functional attributes and unsafe CSS remain validation errors.
+
+Exact instruction captions receive a specific caption-ID diagnostic. A caption that
+literally repeats the computed graphic's instructions can be removed locally with its
+text-only slot; sized workspaces, artwork and distinct student actions are retained.
+Ambiguous wording still uses content repair. During that repair Python restores
+existing additional questions, criteria and response dimensions instead of relying
+on Gemini to reproduce them exactly, and restores any missing question slot. All
+merged tasks and the resulting layout still receive normal validation.

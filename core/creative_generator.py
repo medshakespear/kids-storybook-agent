@@ -176,8 +176,20 @@ def merge_exact_wording_repair(original: dict, correction: dict) -> dict:
     for question in old_questions:
         if isinstance(question,dict) and str(question.get('id'))!=reserved:
             matches = [q for q in new_questions if isinstance(q,dict) and str(q.get('id'))==str(question.get('id'))]
-            if len(matches)!=1 or matches[0]!=question:
-                raise ValueError('Exact wording repair must preserve existing additional questions, answers and response space')
+            if len(matches)>1:
+                raise ValueError('Exact wording repair must not duplicate an additional question')
+            if matches:
+                matches[0].clear(); matches[0].update(deepcopy(question))
+            else:
+                new_questions.append(deepcopy(question))
+            slot = 'question_'+str(question.get('id'))
+            parser = HTMLParser(convert_charrefs=True)
+            slots = []
+            parser.handle_starttag = lambda tag,attrs: slots.append(dict(attrs).get('data-content'))
+            parser.feed(result.get('html',''))
+            if slot not in slots:
+                result['html'] = result.get('html','')+f'<div data-content="{slot}"></div>'
+    exercise['questions'] = new_questions
     result['images'] = deepcopy(original.get('images',[]))
     return result
 
@@ -620,7 +632,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             'that duplicate the computed task; preserve genuinely additional student actions '
                             'as canonical questions with unused IDs, correct criteria and response space. '
                             'Do not rename generic shapes as cultural artifacts or claim unsupported art features. '
-                            'Preserve the planned mechanic, visual data and already valid questions. Bind factual '
+                            'Preserve the planned mechanic, visual data and already valid questions. Python retains '
+                            'their prompts, answers and response spaces even if the correction drifts. '
+                            'For a caption instruction that repeats the puzzle, remove that caption and its '
+                            'caption_ID slot. For a distinct student action, move it to exercise.questions '
+                            'with an unused ID, criterion and response space and rename its content slot. '
+                            'Do not turn an instruction into factual context just to pass validation. Bind factual '
                             'context labels as captions, and match every remaining slot to an actual canonical '
                             'field. Exact pages have NO directions/passage slots. Return complete html, images '
                             'and exercise; Python validates this repaired shared content and the printable page. '

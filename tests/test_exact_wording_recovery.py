@@ -86,8 +86,11 @@ class ExactWordingRecoveryTests(unittest.TestCase):
         repaired=merge_exact_wording_repair(original,changed)
         self.assertEqual(repaired['exercise']['visual'],original['exercise']['visual'])
         changed['exercise']['questions']=[]
-        with self.assertRaisesRegex(ValueError,'preserve existing additional'):
-            merge_exact_wording_repair(original,changed)
+        changed['html']=changed['html'].replace('<div data-content="question_2"></div>','')
+        repaired=merge_exact_wording_repair(original,changed)
+        self.assertEqual(repaired['exercise']['questions'],[question])
+        self.assertIn('data-content="question_2"',repaired['html'])
+        self.validate(repaired)
 
     def test_valid_context_and_extra_action_remain_printed_and_answered(self):
         """Context labels and independent creativity must not be deleted with parallel puzzle directions."""

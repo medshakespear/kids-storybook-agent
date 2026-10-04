@@ -315,6 +315,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         from core.question_labels import renumber_open_exact_question, remove_literal_exact_duplicate
         page['html'] = remove_literal_exact_duplicate(exercise, page['html'])
         page['html'] = renumber_open_exact_question(exercise,page['html'])
+        from core.exact_caption_recovery import remove_duplicate_instruction_captions
+        page['html'] = remove_duplicate_instruction_captions(exercise,page['html'])
         problems = []
         if exercise.get('directions') or exercise.get('passage'):
             problems.append('Exact visual prints its own verified directions; omit parallel directions/passage to avoid task mismatches')
@@ -363,7 +365,7 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
                 cid in {'directions','instructions','passage'} or
                 re.search(r'(?:^|[.!?]\s+)(?:please\s+)?(?:help\b.{0,70}\b(?:sort|count|match|find)|(?:sort|count|match|circle|connect|draw|write)\s+(?:the|these|each|all|a|your)\b)',caption['text'],re.I)):
             raise ValueError('Exact captions must not contain task directions; the computed graphic owns its instructions. '
-                             'Keep genuinely additional actions in exercise.questions, not captions')
+                             f'Keep genuinely additional actions in exercise.questions, not captions. Caption ID: {cid}')
         blocks['caption_'+cid] = html.escape(caption['text'])
     questions = exercise.get('questions', [])
     if not isinstance(questions,list) or len(questions)>config.get('items_per_page',4):

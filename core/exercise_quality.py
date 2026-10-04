@@ -221,7 +221,9 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
         if provided != actual:
             raise ValueError(f'Question {item["question"]}: {item["expression"]} equals {actual}, not {item["answer"]}')
         if raw_result < 0 or raw_result > config.get('max_result', 10000):
-            raise ValueError('Arithmetic result is outside this grade band; simplify the calculation')
+            raise ValueError(f'Question {item["question"]}: Arithmetic result is outside this grade band; '
+                             f'allowed result 0 to {config.get("max_result",10000)}, got {raw_result}. '
+                             'Simplify this question and its calculation together; preserve other tasks')
         if config.get('max_result', 10000) <= 100 and raw_result.denominator != 1:
             raise ValueError('Use whole-number results for younger grades')
     if visuals and not page.get('exercise_binding') and len(answer_text(page)) > 650:

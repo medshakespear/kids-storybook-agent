@@ -735,3 +735,9 @@ Ambiguous wording still uses content repair. During that repair Python restores
 existing additional questions, criteria and response dimensions instead of relying
 on Gemini to reproduce them exactly, and restores any missing question slot. All
 merged tasks and the resulting layout still receive normal validation.
+
+Out-of-range arithmetic reports the question ID, measured result and configured range.
+A scoped repair simplifies that question's prompt, expression and answer together;
+Python preserves its original response space, artwork, layout and other tasks. The
+usual exact-answer, grade-range and print checks run again. Planning and page prompts
+now include the configured operand and result limits. Grade limits are not relaxed.

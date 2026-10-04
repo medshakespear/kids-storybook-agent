@@ -129,6 +129,22 @@ def merge_prompt_repair(original: dict, correction: dict, question_id: str) -> d
     return result
 
 
+def merge_range_repair(original: dict, correction: dict, question_id: str) -> dict:
+    """Simplify one numerical task while preserving all other content and workspace."""
+    exercise = correction.get('exercise') if isinstance(correction,dict) else None
+    questions = exercise.get('questions') if isinstance(exercise,dict) else None
+    matches = [q for q in questions if isinstance(q,dict) and str(q.get('id'))==question_id] if isinstance(questions,list) else []
+    if len(matches)!=1 or any(key not in matches[0] for key in ('prompt','answer','calculation')):
+        raise ValueError('Range repair must return the identified prompt, answer and calculation together')
+    result = deepcopy(original)
+    targets = [q for q in result['exercise']['questions'] if str(q.get('id'))==question_id]
+    if len(targets)!=1:
+        raise ValueError('Range repair needs one original question')
+    for key in ('prompt','answer','calculation'):
+        targets[0][key] = deepcopy(matches[0][key])
+    return result
+
+
 def merge_caption_repair(original: dict, correction: dict, caption_id: str) -> dict:
     """Apply one caption correction without accepting changes to tasks or layout."""
     captions = correction.get('exercise', {}).get('captions') if isinstance(correction, dict) and isinstance(correction.get('exercise'), dict) else None
@@ -340,6 +356,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     errors = []
     answer_repair_base, answer_repair_id = None, None
     repair_calculation = False
+    range_repair_base, range_repair_id = None, None
     layout_repair_base = None
     manifest_repair_base = None
     exercise_repair_base = None
@@ -395,6 +412,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         if not illustration_references(manifest_repair_base['html']):
                             props['html'] = text(18000)
                         schema = obj(props)
+                    elif range_repair_base is not None:
+                        from core.response_schemas import question_schema
+                        question = question_schema(answer_limit=answer_limit)
+                        question['properties']['id'] = enum([range_repair_id])
+                        question['required'].append('calculation')
+                        schema = obj({'exercise':obj({'questions':array(question,1,1)})})
                     elif caption_repair_base is not None:
                         schema = obj({'exercise':obj({'captions':array(obj({
                             'id':enum([caption_repair_id]),'text':text(120)}),1,1)})})
@@ -433,6 +456,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         scoped_merge = True
                     elif manifest_repair_base is not None:
                         draft = merge_manifest_repair(manifest_repair_base,draft)
+                        scoped_merge = True
+                    elif range_repair_base is not None:
+                        draft = merge_range_repair(range_repair_base,draft,range_repair_id)
                         scoped_merge = True
                     elif caption_repair_base is not None:
                         draft = merge_caption_repair(caption_repair_base,draft,caption_repair_id)
@@ -516,6 +542,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         break
 
                     # Answer-length repairs cannot remove illustrations or replace the original task.
+                    range_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): Arithmetic result is outside this grade band',str(exc))
                     caption_match = re.fullmatch(r'Exercise caption ([a-z][a-z0-9_]{0,23}) must be nonempty text <= 120 characters',str(exc))
                     answer_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) answer/criterion',str(exc))
                     prompt_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) prompt must',str(exc))
@@ -550,9 +577,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             repair_calculation = math_match is not None and 'answer key must contain' not in str(exc)
                         else:
                             answer_repair_base, answer_repair_id = None, None
+                        range_repair_base, range_repair_id = (validated_draft,range_match[1]) if range_match else (None,None)
                         caption_repair_base, caption_repair_id = (validated_draft,caption_match[1]) if caption_match else (None,None)
                         exact_repair_base = validated_draft if not caption_match and exact_wording_requires_content_repair(validated_draft,str(exc)) else None
-                        if answer_match or math_match or prompt_match or caption_match or exact_repair_base is not None:
+                        if answer_match or math_match or prompt_match or caption_match or range_match or exact_repair_base is not None:
                             layout_repair_base = None
                         elif (isinstance(validated_draft,dict) and isinstance(validated_draft.get('html'),str)
                               and isinstance(validated_draft.get('exercise'),dict)
@@ -613,6 +641,17 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             'Keep the original question IDs, prompts, other calculations, response spaces, goal, '
                             'captions, HTML and illustration manifest unchanged. Python applies only this '
                             'identified field correction to the retained original page, then validates it normally. '
+                        )
+                    if range_repair_base is not None:
+                        repair += (
+                            f' Simplify ONLY exercise.questions id {range_repair_id} to the allowed result '
+                            'range in the diagnostic. Return exercise.questions with that id, revised prompt, '
+                            'answer, calculation and its ORIGINAL space_mm. Keep the same learning skill and '
+                            'context; adjust quantities and operation coherently in both the printed question '
+                            'and calculation, verify the answer, and do not simply change the answer number. '
+                            'Python applies only its prompt, answer and calculation; retains its ID, response '
+                            'space, all other questions, captions, passage, images and HTML; then validates '
+                            'arithmetic, bindings and print geometry normally. '
                         )
                     if caption_repair_base is not None:
                         repair += (
@@ -1382,6 +1421,7 @@ def generate_creative_pack(theme: str, grade_band: str, grade_config: dict, *, s
     count, font = config['activity_pages'], config['student_font_pt']
     plan_prompt = f'''Design an ORIGINAL illustrated classroom activity pack for {grade_band}.
 Theme/context: {theme}. User description/inspiration: {source_context or 'Invent a fresh engaging learning experience.'}
+Arithmetic results must be between 0 and {config.get("max_result",10000)}. Operands should be <= {config.get("max_operand",1000)}.
 Grade guidance: {config['skill_notes']}. Art style: {config['illustration_style']}.
 Creative variation seed: {uuid4().hex[:8]} (do not print this).
 You choose the exercise mechanics and page compositions; there is NO fixed menu of task types.
@@ -1442,6 +1482,7 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
         brief = plan['pages'][number - 1]
         prompt = (f'Author student activity {number} for {grade_band}. Theme: {theme}. '
                   f'User context: {source_context or theme}. Skills: {config["skill_notes"]}.\n'
+                  f'Arithmetic result range: 0 to {config.get("max_result",10000)}; operands <= {config.get("max_operand",1000)}.\n'
                   f'Art direction: {context}\nThis page brief: {json.dumps(brief)}\n'
                   f'Maximum question/action count on this page: {config.get("items_per_page",4)}.\n'
                   + density_guidance(config)+'\n'+activity_quality_guidance(grade_band)+'\n'

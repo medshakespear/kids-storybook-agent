@@ -40,7 +40,9 @@ work surface. Do not request already patterned, colored or completed worksheet a
 def prepare_activity_presentation(page: dict, brief: dict, config: dict) -> tuple[dict, dict]:
     """Compose exact pages from valid puzzle data; retain authored content and all extra tasks."""
     page, brief = deepcopy(page), deepcopy(brief)
-    validate_source_markup(page.get('html', ''))
+    from core.print_tags import normalize_print_markup
+    page['html'] = normalize_print_markup(page.get('html', ''))
+    validate_source_markup(page['html'])
     if page.get('_canonical_presentation'):
         if page.get('title'):
             brief['title'] = page['title']
@@ -196,14 +198,21 @@ def validate_source_markup(markup: str) -> None:
     """Never let canonical recomposition turn active or external model markup into success."""
     from html.parser import HTMLParser
     from core.creative_layout import TAGS, clean_style
+    from core.print_tags import TAG_ALIASES, PASSIVE_ATTRIBUTES
     class Guard(HTMLParser):
         """Check allowed elements and attributes before replacing the source composition."""
         def handle_starttag(self, tag, attrs):
             """Reject scripts, remote resources and active attributes in the raw response."""
+            tag = TAG_ALIASES.get(tag,tag)
             if tag not in TAGS:
                 raise ValueError(f'Unsupported HTML tag: {tag}')
+            functional = [(key,value) for key,value in attrs if key not in PASSIVE_ATTRIBUTES]
+            if len({key for key,_ in functional}) != len(functional):
+                raise ValueError('Duplicate layout attributes')
             for key, value in attrs:
-                if key.startswith('on') or key in {'src', 'href', 'srcset', 'class', 'id'}:
+                if key in PASSIVE_ATTRIBUTES:
+                    continue
+                if key not in {'style','data-asset','data-visual','data-content','colspan','rowspan'}:
                     raise ValueError('Only supported inline print attributes are allowed')
                 if key == 'style':
                     clean_style(value or '', 11)

@@ -720,3 +720,10 @@ composition, every panel must reach at least 75% of an equal share of that floor
 tiny icon collections do not qualify. This avoids forcing comparison or sequencing
 pages into a single oversized picture. Font, response-space, collision and one-page
 bounds checks still apply, including during small-overflow recovery.
+
+Safe semantic HTML wrappers are normalized before source checks and exercise binding.
+For example, `header` becomes `div`, using the same alias table as the print renderer.
+Inert metadata (`class`, `id`, role, tooltip/alt and descriptive ARIA attributes) is
+removed from the inline-only input. Printed text, styles, canonical slots, image IDs
+and workspace dimensions remain intact. Scripts, external resources, active or unknown
+attributes, duplicate functional attributes and unsafe CSS remain validation errors.

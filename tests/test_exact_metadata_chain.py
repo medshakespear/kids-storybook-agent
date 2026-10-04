@@ -4,7 +4,7 @@ import json
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
-from core.creative_generator import ask_json, layout_contract, validate_design, exact_wording_requires_content_repair
+from core.creative_generator import ask_json, layout_contract, validate_design, exact_wording_requires_content_repair, merge_caption_repair
 from core.pipeline import load_grade_config
 from core.response_schemas import design_schema
 from tests.coherent_fixtures import exact_page, visual_examples
@@ -54,8 +54,55 @@ class ExactMetadataChainTests(unittest.TestCase):
         self.assertEqual(result['exercise']['visual'], self.page['exercise']['visual'])
         self.assertEqual(result['exercise']['questions'], [self.extra])
         self.assertIn('2. Draw a new picture', result['html'])
-        for call in api.chat.completions.create.call_args_list[1:]:
-            self.assertIn('EXACT-PUZZLE CONTENT/BINDING repair', call.kwargs['messages'][-1]['content'])
+        for index in (1,3):
+            self.assertIn('EXACT-PUZZLE CONTENT/BINDING repair', api.chat.completions.create.call_args_list[index].kwargs['messages'][-1]['content'])
+        self.assertIn('Correct ONLY exercise.captions', api.chat.completions.create.call_args_list[2].kwargs['messages'][-1]['content'])
+
+    def test_caption_only_repair_ignores_unrelated_changes(self):
+        """An overlong caption cannot cause Gemini to rewrite an additional exercise."""
+        page = deepcopy(self.page)
+        page['exercise']['captions'] = [{'id':'c2','text':'Each picture belongs to a shape group. '*5}]
+        page['html'] += '<p data-content="caption_c2"></p>'
+        snapshot = deepcopy(page)
+        correction = {'html':'', 'images':[], 'exercise':{'questions':[],
+            'captions':[{'id':'c2','text':'Pictures belong to shape groups.'}]}}
+        merged = merge_caption_repair(page,correction,'c2')
+        expected = deepcopy(page)
+        expected['exercise']['captions'][0]['text'] = 'Pictures belong to shape groups.'
+        self.assertEqual(merged,expected)
+        self.assertEqual(page,snapshot)
+        result = self.validate(merged)
+        self.assertEqual(result['exercise']['questions'],[self.extra])
+        self.assertIn('Draw a new picture',result['html'])
+
+    def test_caption_only_provider_response_retains_all_student_work(self):
+        """A minimal caption response passes real print checks using the original page."""
+        raw = deepcopy(self.page)
+        raw['exercise']['captions'] = [{'id':'c2','text':'Each pictured shape belongs to a group. '*5}]
+        raw['html'] += '<p data-content="caption_c2"></p>'
+        replies = [raw, {'exercise':{'captions':[{'id':'c2','text':'Each pictured shape belongs to a group.'}]}}]
+        api = Mock()
+        api.chat.completions.create.side_effect = [SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content=json.dumps(p)),finish_reason='stop')]) for p in replies]
+        with patch('core.creative_generator.text_provider_names',return_value=['gemini']), \
+             patch('core.creative_generator.text_client',return_value=(api,'test')), \
+             patch('core.creative_generator.time.sleep'):
+            result = ask_json(layout_contract(14,13,coherent=True),self.validate,'Activity design 3',
+                response_schema=design_schema({'render_mode':'exact','mechanic':'sort'},self.config))
+        self.assertEqual(api.chat.completions.create.call_count,2)
+        self.assertEqual(result['exercise']['questions'],[self.extra])
+        self.assertEqual(result['exercise']['visual'],raw['exercise']['visual'])
+        schema = api.chat.completions.create.call_args_list[1].kwargs['response_format']['json_schema']['schema']
+        self.assertEqual(set(schema['properties']),{'exercise'})
+        self.assertEqual(set(schema['properties']['exercise']['properties']),{'captions'})
+
+    def test_invalid_caption_correction_remains_an_error(self):
+        """Empty, long and wrong-ID repairs never bypass caption validation."""
+        page = deepcopy(self.page)
+        page['exercise']['captions'] = [{'id':'c2','text':'Context'}]
+        for caption in ({'id':'c2','text':''},{'id':'c2','text':'x'*121},{'id':'other','text':'Context'}):
+            with self.assertRaises(ValueError):
+                merge_caption_repair(page,{'exercise':{'captions':[caption]}},'c2')
 
     def test_explanation_gets_unused_label_without_changing_the_task(self):
         """A distinct reasoning action is not a duplicate of the sorting puzzle."""

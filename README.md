@@ -708,3 +708,8 @@ trigger a content retry. A literal duplicate of the computed puzzle instruction 
 removed locally only when it has no separate calculation or response space; ambiguous
 paraphrases and genuine additional tasks still use semantic repair. Context binding
 checks structure, not factual accuracy, and does not promote questions or commands.
+
+A missing or overlong caption uses a caption-only response schema. Python accepts only
+that caption's corrected text and retains the original layout, puzzle, illustrations,
+additional questions, answers and response spaces. Captions still pass their length,
+content and print checks; failed wording validation remains a bounded retry.

@@ -129,6 +129,22 @@ def merge_prompt_repair(original: dict, correction: dict, question_id: str) -> d
     return result
 
 
+def merge_caption_repair(original: dict, correction: dict, caption_id: str) -> dict:
+    """Apply one caption correction without accepting changes to tasks or layout."""
+    captions = correction.get('exercise', {}).get('captions') if isinstance(correction, dict) and isinstance(correction.get('exercise'), dict) else None
+    if not isinstance(captions, list):
+        raise ValueError('Caption-only repair must supply exercise.captions as a list')
+    matches = [c for c in captions if isinstance(c, dict) and c.get('id') == caption_id]
+    if len(matches) != 1 or not isinstance(matches[0].get('text'), str) or not 1 <= len(matches[0]['text'].strip()) <= 120:
+        raise ValueError(f'Exercise caption {caption_id} must be nonempty text <= 120 characters')
+    result = deepcopy(original)
+    targets = [c for c in result['exercise'].get('captions', []) if isinstance(c, dict) and c.get('id') == caption_id]
+    if len(targets) != 1:
+        raise ValueError('Caption-only repair needs exactly one existing caption')
+    targets[0]['text'] = matches[0]['text'].strip()
+    return result
+
+
 def exact_wording_requires_content_repair(page: dict, error: str) -> bool:
     """Treat exact-puzzle instruction conflicts as content defects, not decorative captions."""
     exercise = page.get('exercise') if isinstance(page,dict) else None
@@ -316,6 +332,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     manifest_repair_base = None
     exercise_repair_base = None
     exact_repair_base = None
+    caption_repair_base, caption_repair_id = None, None
     prompt_repair_base, prompt_repair_id = None, None
     plan_mode_base, plan_mode_number = None, None
     plan_repair_field = "render_mode"
@@ -366,6 +383,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         if not illustration_references(manifest_repair_base['html']):
                             props['html'] = text(18000)
                         schema = obj(props)
+                    elif caption_repair_base is not None:
+                        schema = obj({'exercise':obj({'captions':array(obj({
+                            'id':enum([caption_repair_id]),'text':text(120)}),1,1)})})
                     elif prompt_repair_base is not None:
                         schema = field_repair_schema(prompt_repair_id,'prompt')
                     elif answer_repair_base is not None:
@@ -401,6 +421,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         scoped_merge = True
                     elif manifest_repair_base is not None:
                         draft = merge_manifest_repair(manifest_repair_base,draft)
+                        scoped_merge = True
+                    elif caption_repair_base is not None:
+                        draft = merge_caption_repair(caption_repair_base,draft,caption_repair_id)
                         scoped_merge = True
                     elif exact_repair_base is not None:
                         draft = merge_exact_wording_repair(exact_repair_base,draft)
@@ -481,6 +504,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         break
 
                     # Answer-length repairs cannot remove illustrations or replace the original task.
+                    caption_match = re.fullmatch(r'Exercise caption ([a-z][a-z0-9_]{0,23}) must be nonempty text <= 120 characters',str(exc))
                     answer_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) answer/criterion',str(exc))
                     prompt_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) prompt must',str(exc))
                     math_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|calculation expression|answer key|calculation does not solve|printed arithmetic)',str(exc))
@@ -514,8 +538,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             repair_calculation = math_match is not None and 'answer key must contain' not in str(exc)
                         else:
                             answer_repair_base, answer_repair_id = None, None
-                        exact_repair_base = validated_draft if exact_wording_requires_content_repair(validated_draft,str(exc)) else None
-                        if answer_match or math_match or prompt_match or exact_repair_base is not None:
+                        caption_repair_base, caption_repair_id = (validated_draft,caption_match[1]) if caption_match else (None,None)
+                        exact_repair_base = validated_draft if not caption_match and exact_wording_requires_content_repair(validated_draft,str(exc)) else None
+                        if answer_match or math_match or prompt_match or caption_match or exact_repair_base is not None:
                             layout_repair_base = None
                         elif (isinstance(validated_draft,dict) and isinstance(validated_draft.get('html'),str)
                               and isinstance(validated_draft.get('exercise'),dict)
@@ -577,7 +602,17 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             'captions, HTML and illustration manifest unchanged. Python applies only this '
                             'identified field correction to the retained original page, then validates it normally. '
                         )
-                    if exact_wording_requires_content_repair(validated_draft,str(exc)):
+                    if caption_repair_base is not None:
+                        repair += (
+                            f' Correct ONLY exercise.captions id {caption_repair_id} text. '
+                            'Return {"exercise":{"captions":[{"id":"'+caption_repair_id+'","text":"..."}]}}. '
+                            'Write a complete factual contextual label of 1-120 characters preserving its '
+                            'essential meaning; do not truncate mid-sentence, add instructions or reveal answers. '
+                            'If empty, use only context established by the retained page. Python applies only '
+                            'this caption text to the retained original page; questions, answers, response '
+                            'spaces, visual data, assets and HTML stay unchanged and are validated normally. '
+                        )
+                    if caption_repair_base is None and exact_wording_requires_content_repair(validated_draft,str(exc)):
                         repair += (
                             ' This is an EXACT-PUZZLE CONTENT/BINDING repair, not a layout-only repair. '
                             'The graphic owns its verified instructions. Do not convert task directions into '

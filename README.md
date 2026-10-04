@@ -748,3 +748,9 @@ with measured widths, explicit heights and panel gutters. Local recovery tries t
 compact composition before the dominant-image/sidebar composition, keeping every asset,
 question, answer and response area. The full grade-specific visual-area floor and print
 bounds remain required; an intrinsically overfull exercise still needs content repair.
+
+The restricted arithmetic evaluator allows numeric literals up to 1,000,000 in absolute
+value, matching its intermediate-result safety bound. Grade-specific final-result limits
+remain separate. Thus `12000*15/100` and `12000*0.15` both evaluate exactly to 1800;
+large percentage bases no longer trigger a misleading syntax error. Oversized literals
+receive a magnitude error. Variables, functions, powers and executable syntax stay blocked.

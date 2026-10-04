@@ -76,8 +76,9 @@ def calculate(expression: str) -> Fraction:
             literal = ast.get_source_segment(expression, node) or ''
             if re.fullmatch(r'(?:\d+(?:\.\d*)?|\.\d+)', literal):
                 value = Fraction(literal)
-                if abs(value) <= 10000:
-                    return value
+                if abs(value) > 1000000:
+                    raise ValueError('Arithmetic literal is too large; maximum absolute value is 1000000')
+                return value
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
             value = visit(node.operand)
             return -value if isinstance(node.op, ast.USub) else value

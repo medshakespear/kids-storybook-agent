@@ -14,6 +14,7 @@ from flask import Flask, jsonify, request, send_from_directory, url_for, render_
 
 from core.book_library import list_books, register_book, receive_pdf
 from core.paths import OUTPUT_DIR, ensure_runtime_directories
+from core.grade_policy import ACTIVE_GRADE_BANDS
 from core.pipeline import generate_book, load_grade_config
 from core.state_manager import load_state
 from core.theme_picker import build_webhook_inspiration, pick_webhook_grade_band
@@ -76,11 +77,11 @@ def generate() -> tuple[object, int] | object:
         grade_band = payload.get("grade_band")
         if grade_band is None:
             grade_band = pick_webhook_grade_band(load_state())
-        if not isinstance(grade_band, str) or grade_band not in grade_config:
+        if not isinstance(grade_band, str) or grade_band not in ACTIVE_GRADE_BANDS or grade_band not in grade_config:
             return jsonify(
                 {
-                    "error": "Unknown grade_band.",
-                    "allowed_grade_bands": list(grade_config),
+                    "error": "Only 3rd-4th and 5th-6th grade bands are enabled.",
+                    "allowed_grade_bands": list(ACTIVE_GRADE_BANDS),
                 }
             ), 400
         inspiration = build_webhook_inspiration(link) if link else ''

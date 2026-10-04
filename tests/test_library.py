@@ -33,12 +33,12 @@ class LibraryTests(unittest.TestCase):
                 client = web.app.test_client()
                 self.assertEqual(client.post('/internal/books').status_code, 401)
                 self.assertIn(b'No completed books', client.get('/books').data)
-                metadata = json.dumps(dict(title='<script>Fox</script>', theme='Earth Day', grade_band='Pre-K-K',
+                metadata = json.dumps(dict(title='<script>Fox</script>', theme='Earth Day', grade_band='3rd-4th',
                     resource_type='activity_pack', selection_mode='active_event', event_name='Earth Day',
                     event_date='2026-04-22', event_end='2026-04-22', generated_on='2026-04-22'))
                 for _ in range(2):
                     response = client.post('/internal/books', headers={'X-Delivery-Token': 'test-secret'}, data={
-                        'metadata': metadata, 'pdf': (io.BytesIO(b'%PDF-1.7\nfixture'), '2026_Pre-K-K_fox.pdf')})
+                        'metadata': metadata, 'pdf': (io.BytesIO(b'%PDF-1.7\nfixture'), '2026_3rd-4th_fox.pdf')})
                     self.assertEqual(response.status_code, 201)
                 fresh_client = web.app.test_client()
                 self.assertEqual(len(fresh_client.get('/api/books').json['books']), 1)
@@ -49,7 +49,7 @@ class LibraryTests(unittest.TestCase):
                 self.assertEqual(record['event_name'], 'Earth Day')
                 self.assertEqual(record['generated_on'], '2026-04-22')
                 self.assertIn(b'&lt;script&gt;', fresh_client.get('/').data)
-                with fresh_client.get('/output/2026_Pre-K-K_fox.pdf') as downloaded:
+                with fresh_client.get('/output/2026_3rd-4th_fox.pdf') as downloaded:
                     self.assertEqual(downloaded.data, b'%PDF-1.7\nfixture')
                 invalid = client.post('/internal/books', headers={'X-Delivery-Token': 'test-secret'}, data={
                     'metadata': metadata, 'pdf': (io.BytesIO(b'not a PDF'), 'bad.pdf')})

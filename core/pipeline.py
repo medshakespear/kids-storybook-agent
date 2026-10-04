@@ -11,6 +11,7 @@ from uuid import uuid4
 from pathlib import Path
 from typing import Any
 
+from core.grade_policy import require_active_grade
 from core.providers import text_provider_names, image_provider_name
 from core.creative_generator import generate_creative_images as generate_activity_images
 from core.creative_generator import strip_creative_art as strip_local_art
@@ -44,6 +45,7 @@ def generate_book(
 ) -> tuple[dict[str, Any], Path]:
     """Generate illustrated exercises with one consolidated final answer page."""
 
+    require_active_grade(grade_band)
     text_provider_names()
     image_provider_name()
     ensure_runtime_directories()

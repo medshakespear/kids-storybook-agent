@@ -134,17 +134,17 @@ class CreativeTests(unittest.TestCase):
 
     def test_pipeline_routes_creative_pack_and_cleans_paths(self):
         """Active cron/web pipeline embeds the new model-authored design format."""
-        pack = creative_fixture()
+        pack = creative_fixture('3rd-4th')
         with tempfile.TemporaryDirectory() as folder, patch('core.pipeline.text_provider_names'), patch('core.pipeline.image_provider_name'), patch('core.pipeline.generate_activity_pack', return_value=pack), patch('core.pipeline.generate_activity_images', side_effect=attach_creative_test_art):
-            result, path = generate_book(theme='Garden', grade_band='Pre-K-K', output_dir=folder)
+            result, path = generate_book(theme='Garden', grade_band='3rd-4th', output_dir=folder)
             self.assertTrue(path.is_file())
             self.assertNotIn('path', result['pages'][0]['images'][0])
 
     def test_description_only_webhook(self):
         """Teachers can provide a creative brief without inventing a reference URL."""
         import webhook_server
-        with patch.object(webhook_server, '_authorized', return_value=True), patch.object(webhook_server, 'generate_book', return_value=(creative_fixture(), Path('test.pdf'))) as generate, patch.object(webhook_server, 'register_book'):
-            response = webhook_server.app.test_client().post('/generate', json={'description':'Create a colorful garden invention challenge.', 'grade_band':'Pre-K-K'})
+        with patch.object(webhook_server, '_authorized', return_value=True), patch.object(webhook_server, 'generate_book', return_value=(creative_fixture('3rd-4th'), Path('test.pdf'))) as generate, patch.object(webhook_server, 'register_book'):
+            response = webhook_server.app.test_client().post('/generate', json={'description':'Create a colorful garden invention challenge.', 'grade_band':'3rd-4th'})
         self.assertEqual(response.status_code, 200)
         self.assertIn('garden invention', generate.call_args.kwargs['source_context'])
 

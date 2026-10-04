@@ -1,14 +1,17 @@
 # Classroom Activity Pack Agent
 
-Generates original **printable classroom exercise packs**, not storybooks.
+Generates original **printable classroom exercise packs for grades 3–6 only**, not storybooks.
+Active grade bands are `3rd-4th` and `5th-6th` in both cron and webhook modes.
+Requests for Pre-K–2 are rejected before AI calls. Legacy younger-grade profiles
+remain in the configuration for historical/offline validation, but cannot be generated.
 Gemini plans the activities AND authors their page layouts. Cloudflare supplies original illustrations. Python/WeasyPrint
 validates and assembles the model-authored designs as A4 PDFs. There is no database.
 
 ## What each pack includes
 
 - An illustrated cover, student activities, and exactly one final answer page.
-- 8 student worksheets for Pre-K-K / 1st-2nd, or 10 for 3rd-4th / 5th-6th.
-- No teacher guide, teaching tips, or separate teacher worksheets. Total: **10 or 12 PDF pages**.
+- 10 student worksheets for either 3rd-4th or 5th-6th.
+- No teacher guide, teaching tips, or separate teacher worksheets. Total: **12 PDF pages**.
 - The original **The Classroom Activity Collection** store logo appears on the cover.
 - Original activity concepts and compositions chosen by the AI from the grade,
   theme, and teacher description. There is no hardcoded exercise-type menu or
@@ -259,7 +262,7 @@ users; manual website configuration above is the recommended path.
   Does not scrape or copy the reference product; omitted grade uses history rotation.
 
 ```json
-{"link": "https://example.com/classroom-sorting-activities", "grade_band": "1st-2nd"}
+{"link": "https://example.com/classroom-sorting-activities", "grade_band": "3rd-4th"}
 ```
 
 For a detailed creative brief, no link is required:
@@ -267,7 +270,7 @@ For a detailed creative brief, no link is required:
 ```json
 {
   "description": "Create a colorful garden detective pack. Children investigate plant needs, invent a watering tool, and draw a comic ending. Use varied illustrated page compositions with generous drawing space.",
-  "grade_band": "1st-2nd"
+  "grade_band": "3rd-4th"
 }
 ```
 

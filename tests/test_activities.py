@@ -67,7 +67,7 @@ class ActivityTests(unittest.TestCase):
     def test_pipeline_generates_art_and_removes_temporary_paths(self):
         """The shared pipeline requires illustrations and returns portable metadata."""
         from tests.test_creative_design import creative_fixture, attach_creative_test_art
-        band = "Pre-K-K"
+        band = "3rd-4th"
         with tempfile.TemporaryDirectory() as folder, patch("core.pipeline.text_provider_names"), patch('core.pipeline.image_provider_name'), patch('core.pipeline.generate_activity_images', side_effect=attach_creative_test_art) as images, patch("core.pipeline.generate_activity_pack", return_value=creative_fixture(band)):
             pack, pdf = generate_book(theme="test", grade_band=band, output_dir=folder)
             self.assertEqual(pack["resource_type"], "activity_pack")
@@ -132,8 +132,8 @@ class ActiveCalendarTests(unittest.TestCase):
         self.assertEqual(event_period({"schedule": {"kind": "month", "month": 2}}, 2028)[1], date(2028, 2, 29))
 
     def test_empty_day_is_evergreen_and_shuffled(self):
-        """No next-event fallback; random grades still cover all bands in a batch."""
+        """No next-event fallback; random grades still cover both active bands in a batch."""
         specs = pick_daily_book_specs({"events": []}, {"generated": []}, count=8, today=date(2026, 8, 20), rng=random.Random(5))
         self.assertTrue(all(s["selection_mode"] == "evergreen" for s in specs))
-        self.assertEqual(len({s["grade_band"] for s in specs[:4]}), 4)
+        self.assertEqual(len({s["grade_band"] for s in specs[:4]}), 2)
         self.assertEqual(len({(s["theme"], s["grade_band"]) for s in specs}), 8)

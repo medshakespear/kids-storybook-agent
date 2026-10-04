@@ -50,8 +50,10 @@ class ImageFileTests(unittest.TestCase):
                 validate_image_files(paths, count)
 
     def test_all_grades_finish_real_pdfs_without_reviewer(self):
-        """Exercise the actual image-binding, integrity and PDF pipeline for every band."""
+        """Exercise image-binding, integrity and PDF generation for both active bands."""
         for band, config in load_grade_config().items():
+            if band not in {"3rd-4th", "5th-6th"}:
+                continue
             with self.subTest(band=band), patch('core.pipeline.text_provider_names'), patch(
                     'core.pipeline.image_provider_name'), patch(
                     'core.pipeline.generate_activity_pack', return_value=creative_fixture(band)), patch(
@@ -67,9 +69,9 @@ class ImageFileTests(unittest.TestCase):
     def test_bad_file_prevents_pdf_publication(self):
         """A broken download cannot become an apparently successful PDF."""
         with patch('core.pipeline.text_provider_names'), patch('core.pipeline.image_provider_name'), patch(
-                'core.pipeline.generate_activity_pack', return_value=creative_fixture()), patch(
+                'core.pipeline.generate_activity_pack', return_value=creative_fixture('3rd-4th')), patch(
                 'core.creative_generator.generate_images', return_value=[self.path.with_name('missing.png')]), patch(
                 'core.pipeline.build_activity_pdf') as render:
             with self.assertRaises(ImageFileError):
-                generate_book(theme='Garden', grade_band='Pre-K-K', output_dir=self.temp.name)
+                generate_book(theme='Garden', grade_band='3rd-4th', output_dir=self.temp.name)
         render.assert_not_called()

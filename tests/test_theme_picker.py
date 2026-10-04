@@ -43,11 +43,10 @@ class ThemePickerTests(unittest.TestCase):
         self.assertEqual(events[0]["occurs_on"], "2026-02-15")
 
     def test_grade_rotation_spreads_coverage(self) -> None:
-        """The first four picks cover every configured band once."""
+        """Each pair covers both active bands."""
 
         bands = pick_grade_bands(self.state, 6)
-        self.assertEqual(bands[:4], ["Pre-K-K", "1st-2nd", "3rd-4th", "5th-6th"])
-        self.assertEqual(bands[4:], ["Pre-K-K", "1st-2nd"])
+        self.assertEqual(bands, ["3rd-4th", "5th-6th"] * 3)
 
     def test_daily_specs_include_grade_and_event(self) -> None:
         """Batch specs contain all pipeline inputs."""
@@ -63,7 +62,7 @@ class ThemePickerTests(unittest.TestCase):
         )
         self.assertEqual(len(specs), 4)
         self.assertTrue(all(item["event_name"] == "Test Day" for item in specs))
-        self.assertEqual(len({item["grade_band"] for item in specs}), 4)
+        self.assertEqual(len({item["grade_band"] for item in specs}), 2)
 
     def test_url_seed_forbids_copying(self) -> None:
         """Webhook guidance uses URL words while explicitly requiring originality."""

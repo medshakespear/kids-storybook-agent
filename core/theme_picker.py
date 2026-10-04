@@ -10,7 +10,9 @@ from urllib.parse import unquote, urlparse
 from core.calendar_rules import find_active_events, find_events_in_window, today_in_timezone
 
 
-GRADE_BANDS = ["Pre-K-K", "1st-2nd", "3rd-4th", "5th-6th"]
+from core.grade_policy import ACTIVE_GRADE_BANDS
+
+GRADE_BANDS = list(ACTIVE_GRADE_BANDS)
 
 
 def _recent_pairs(state: dict[str, Any], today: date, days: int = 120) -> set[tuple[str, str]]:
@@ -33,9 +35,10 @@ def pick_grade_bands(
 ) -> list[str]:
     """Choose grade bands in a rotating, evenly spread sequence."""
 
-    bands = grade_bands or GRADE_BANDS
+    bands = [band for band in (GRADE_BANDS if grade_bands is None else grade_bands)
+             if band in ACTIVE_GRADE_BANDS]
     if not bands:
-        raise ValueError("At least one grade band is required.")
+        raise ValueError("At least one active grade band (3rd-4th or 5th-6th) is required.")
     start = (int(state.get("last_grade_band_index", -1)) + 1) % len(bands)
     return [bands[(start + offset) % len(bands)] for offset in range(count)]
 

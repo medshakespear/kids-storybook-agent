@@ -30,7 +30,8 @@ def recover_small_overflow(markup: str, document, profile: dict) -> str | None:
         return None
     areas = [w*(new_height if m.start()==match.start() else h) for m,w,h in images]
     floor = profile['visual_area_mm2']
-    if sum(areas) < floor or max(areas) < floor*.55:
+    from core.visual_area import sufficient_visual_area
+    if not sufficient_visual_area(areas, floor):
         return None
     tag = re.sub(r'(?<!-)\bheight\s*:\s*[0-9.]+mm', f'height:{new_height:.2f}mm',match[0],flags=re.I)
     return markup[:match.start()]+tag+markup[match.end():]

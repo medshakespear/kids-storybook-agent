@@ -378,6 +378,8 @@ def grow_main_artwork(markup: str, document, profile: dict) -> str | None:
              if box.element_tag=='img' and hasattr(box,'replacement')]
     if not areas: return None
     minimum = profile['visual_area_mm2']
+    from core.visual_area import sufficient_visual_area
+    if sufficient_visual_area(areas,minimum): return None
     candidates = []
     for match in re.finditer(r'<img\b[^>]*>',markup,re.I):
         tag = match[0]
@@ -528,10 +530,13 @@ def check_visual_quality(document, profile: dict, *, cover: bool = False) -> Non
     """Measure actual image boxes and readable text in the laid-out student page."""
     if not profile:
         return
+    from core.visual_area import sufficient_visual_area
     area, largest = 0.0, 0.0
+    areas = []
     for box in document.pages[0]._page_box.descendants():
         if box.element_tag == 'img' and hasattr(box, 'replacement'):
             value = box.width * box.height * (25.4 / 96) ** 2
+            areas.append(value)
             area += value
             largest = max(largest, value)
         if not cover and getattr(box, 'text', '').strip():
@@ -539,8 +544,9 @@ def check_visual_quality(document, profile: dict, *, cover: bool = False) -> Non
                 raise ValueError(f"Student text is too small: use at least {profile['minimum_text_pt']}pt")
     # The cover includes the separately placed logo; student pages do not.
     minimum = profile['visual_area_mm2']
-    if not cover and (area < minimum or largest < minimum * .55):
+    if not cover and not sufficient_visual_area(areas, minimum):
         raise ValueError(f'Visuals are too small: use at least {minimum:g} square mm of meaningful artwork/diagrams, '
-                         f'including one large main visual of at least {minimum*.55:g} square mm; '
+                         f'including one large main visual of at least {minimum*.55:g} square mm '
+                         'or 2-4 substantial panels (each at least 75% of an equal share of the total target); '
                          f'measured total {area:.0f} square mm and largest visual {largest:.0f} square mm. '
                          'Preserve response space')

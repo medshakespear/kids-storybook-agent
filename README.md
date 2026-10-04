@@ -713,3 +713,10 @@ A missing or overlong caption uses a caption-only response schema. Python accept
 that caption's corrected text and retains the original layout, puzzle, illustrations,
 additional questions, answers and response spaces. Captions still pass their length,
 content and print checks; failed wording validation remains a bounded retry.
+
+Artwork quality accepts either one dominant illustration or 2-4 substantial panels.
+The total grade-specific visual-area floor stays unchanged. For a distributed panel
+composition, every panel must reach at least 75% of an equal share of that floor;
+tiny icon collections do not qualify. This avoids forcing comparison or sequencing
+pages into a single oversized picture. Font, response-space, collision and one-page
+bounds checks still apply, including during small-overflow recovery.

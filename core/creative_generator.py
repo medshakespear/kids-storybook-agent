@@ -650,7 +650,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             'and response spaces inside a 235mm height budget. Recompose panels and reduce '
                             'decorative spacing if needed; never shrink student text or essential work space. '
                             'Return the complete html, images and exercise. '
-                            'For a page of tiny picture cards, recompose one large main picture and the '
+                            'For tiny picture cards, use one large main picture or 2-4 substantial panels and the '
                             'remaining supporting pictures instead of returning the same thumbnail grid. '
                             'Use the real manifest IDs exactly once. Example: a 145mm by 70mm main image '
                             'alone covers 10150 square mm; keep other pictures and work space in the '
@@ -886,7 +886,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             'Python applies ONLY the corrected HTML, plus captions binding exact original labels. '
                             f'A4 content width 186mm, height 265mm; minimum text {minimum_font}pt. '
                             f'Useful visual area must total at least {layout_visual_area} square mm, '
-                            f'with one main visual at least {layout_visual_area*.55:g} square mm. '
+                            f'with one main visual at least {layout_visual_area*.55:g} square mm, or 2-4 substantial panels, each at least 75% of an equal share of that total target. '
                             'Recompose large artwork and work panels; no fixed full-page-height wrapper. '
                             'Reduce decorative spacing; never shrink student text or response space. '
                             'Example main-image style: width:150mm;height:90mm; keep artwork uncropped. '
@@ -1279,7 +1279,7 @@ Only inline styles. No external resources, src attributes, classes, scripts, raw
 grid, transforms, negative dimensions or hidden overflow. Use positive mm dimensions and pt fonts.
 Images use data-asset and images:[{{id,prompt}}]; every prompt <=650 chars. 1-4 purposeful images,
 or images=[] when exact visuals dominate. Every image/visual needs explicit width AND height in mm.
-Keep a main visual at least 120x80mm; total visual area >=10000mm2 lower grades, 8000 middle, 6000 upper.
+Use one large visual or 2-4 substantial comparison/sequencing panels; total visual area >=10000mm2 lower grades, 8000 middle, 6000 upper. Each panel must occupy at least 75% of an equal share of the grade total target.
 For younger grades, fill the workspace with big usable visual material, not tiny mascot headers.
 Choose original composition, rich palette, panels and hierarchy suited to this activity. Ample
 response space belongs in questions[].space_mm; do not add separate unbound response tasks.
@@ -1317,7 +1317,7 @@ boxes and symbols using HTML/text; never depend on image-model accuracy for a nu
 Do not put solutions in student HTML. Include clear directions, numbered tasks, and sufficient
 writing/cutting/drawing space appropriate to the activity. Never refer to missing materials.
 Use normal document flow; aim for 235mm total content height, leaving 30mm safety for wrapping.
-Plan a height budget: heading/name/directions <=40mm, main visual 90-140mm, response area
+Plan a height budget: heading/name/directions <=40mm, combined visual region 90-140mm, response area
 40-60mm, remaining borders/margins <=15mm. Choose values whose sum stays within 235mm.
 For Pre-K-K: 1-2 short adult-read directions, at most 3 task items, no repeated instruction
 paragraphs below picture cards. Keep large objects and usable hands-on response space.
@@ -1329,7 +1329,7 @@ but it will not shrink text, remove questions, or reduce explicit response-area 
 Use ONE main activity on each page. Do not append the same reflection question to every activity.
 For younger grades use picture cards, a large illustrated scene, hands-on visual challenges and generous
 response space, not small mascot thumbnails above text boxes. At most FOUR card columns; keep labels
-unbroken and readable. At least one main visual should be around 120x80mm or larger.
+unbroken and readable. Use a main visual around 120x80mm or larger, or 2-4 substantial panels sharing the visual area; avoid tiny icons.
 For grades Pre-K-K and 1st-2nd, use at least 10000 square mm total meaningful visual area; 3rd-4th
 at least 8000; 5th-6th at least 6000. Font sizes at least 14pt for Pre-K-K, 13pt for 1st-2nd,
 12pt for 3rd-4th, 11pt for 5th-6th, including small captions. Do not fill the sheet with tiny text.

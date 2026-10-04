@@ -754,3 +754,11 @@ value, matching its intermediate-result safety bound. Grade-specific final-resul
 remain separate. Thus `12000*15/100` and `12000*0.15` both evaluate exactly to 1800;
 large percentage bases no longer trigger a misleading syntax error. Oversized literals
 receive a magnitude error. Variables, functions, powers and executable syntax stay blocked.
+
+Exact-puzzle recovery uses the same path for all four grade bands and all seven puzzle
+mechanics. During recovery preparation only, SVG label readability is deferred so Python
+can size a semantically validated diagram before checking its printed labels. Final
+validation still enforces each grade's font, artwork, response-space and A4 bounds.
+Small-label errors enter local layout recovery rather than requiring another model rewrite.
+Distinct open reasoning extensions (including “How could…” and “Why…”) receive unused
+question labels with matching slots; their wording, criteria and writing space stay intact.

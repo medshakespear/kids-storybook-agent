@@ -16,7 +16,7 @@ def single_exact_visual_recovery(page: dict, minimum_font: int, visual_area: flo
     checked=deepcopy(page)
     try:
         compile_exercise(checked,{'student_font_pt':minimum_font,'minimum_text_pt':minimum_font,
-                                 'items_per_page':16},'Internal layout check')
+                                 'items_per_page':16},'Internal layout check',defer_visual_sizing=True)
         from core.task_visuals import page_visuals
         visuals=page_visuals(checked)
         if len(visuals)!=1:

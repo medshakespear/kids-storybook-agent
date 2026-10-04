@@ -485,7 +485,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     if getattr(exc, 'layout_source', None) is not None:
                         validated_draft = deepcopy(exc.layout_source)
                     rescue_base = validated_draft or layout_repair_base
-                    layout_defect = str(exc).startswith(('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small'))
+                    layout_defect = str(exc).startswith(('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small', 'Exact visual labels would be too small'))
                     if (rescue_base is not None and len(layout_rescue_candidates)<8
                             and (layout_repair_base is not None or (response_schema is not None and layout_defect))):
                         from core.layout_recovery import layout_recovery_candidates
@@ -586,7 +586,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                               and isinstance(validated_draft.get('exercise'),dict)
                               and isinstance(validated_draft.get('images'),(list,dict))
                               and (layout_repair_base is not None or str(exc).startswith(
-                                  ('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small',
+                                  ('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small', 'Exact visual labels would be too small',
                                    'Put ALL printed wording', 'Unknown or repeated exercise content slot',
                                    'Use every required exercise content slot')))):
                             layout_repair_base = validated_draft

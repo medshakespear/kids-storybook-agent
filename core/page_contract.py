@@ -273,8 +273,8 @@ def normalize_illustration_ids(page: dict) -> None:
                           replace,page['html'],flags=re.I)
 
 
-def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = None) -> None:
-    """Build printed tasks, calculation checks and answer key from the same data."""
+def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = None, *, defer_visual_sizing: bool = False) -> None:
+    """Build shared tasks and answers; defer label sizing only before local recomposition."""
     if any(page.get(k) for k in ('answers','visuals','calculations')):
         raise ValueError('Use only the shared exercise specification, not independent answers/visuals/calculations drafts')
     normalize_illustration_ids(page)
@@ -483,7 +483,7 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         intrinsic_height = float(re.search(r'<svg[^>]*height="([0-9.]+)"',svg)[1])
         smallest = min(float(v) for v in re.findall(r'font-size="([0-9.]+)"',svg))
         printed_font = smallest * min(dimensions['width']/720,dimensions['height']/intrinsic_height) * 72/25.4
-        if printed_font+0.05 < config.get('minimum_text_pt',11):
+        if not defer_visual_sizing and printed_font+0.05 < config.get('minimum_text_pt',11):
             raise ValueError('Exact visual labels would be too small: enlarge its width/height while preserving page fit')
     expected_assets = {a['id'] for a in page.get('images',[]) if isinstance(a,dict) and 'id' in a}
     if set(parser.assets)!=expected_assets or len(parser.assets)!=len(expected_assets):

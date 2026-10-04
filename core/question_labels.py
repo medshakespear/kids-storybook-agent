@@ -20,7 +20,7 @@ def renumber_open_exact_question(exercise: dict, layout: str) -> str:
     space = question.get('space_mm')
     if not isinstance(prompt,str) or type(space) not in {int,float}:
         return layout
-    reasoning = (space>=5 and re.match(r'^(?:explain|describe|justify|predict|suggest|discuss)\b',prompt,re.I))
+    reasoning = (space>=5 and re.match(r'^(?:explain|describe|justify|predict|suggest|discuss|why|how (?:would|could|can)|what (?:would|could|might))\b',prompt,re.I))
     explicit_math = (isinstance(question.get('calculation'),dict) and
                      re.match(r'^(?:what is|calculate|solve|evaluate)\b',prompt,re.I) and
                      re.search(r'\d\s*[+−×÷*/-]\s*\d',prompt))

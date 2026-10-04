@@ -183,10 +183,15 @@ def prepare_authored_flow(page: dict, config: dict) -> dict:
     text_height = math.ceil(chars / max(45, 1000 / font)) * font * 0.46
     minimum_art_height = max(35, math.ceil(config.get('visual_area_mm2', 10000) / 175))
     artwork_height = max(minimum_art_height, min(100, 225 - 45 - text_height - response))
-    for asset in images:
-        parts.append(f'<div style="text-align:center;margin:0 0 3mm">'
-                     f'<img data-asset="{asset["id"]}" style="width:175mm;'
-                     f'height:{artwork_height / len(images):g}mm"/></div>')
+    if 2 <= len(images) <= 4:
+        from core.illustration_gallery import illustration_gallery, gallery_minimum_height
+        height = max(artwork_height, gallery_minimum_height(len(images),config.get('visual_area_mm2',10000)))
+        parts.append(illustration_gallery([asset['id'] for asset in images],height))
+    else:
+        for asset in images:
+            parts.append(f'<div style="text-align:center;margin:0 0 3mm">'
+                         f'<img data-asset="{asset["id"]}" style="width:175mm;'
+                         f'height:{artwork_height / len(images):g}mm"/></div>')
     for question in exercise.get('questions', []):
         parts.append(f'<div data-content="question_{question["id"]}" '
                      f'style="font-size:{font}pt;margin:0 0 3mm"></div>')

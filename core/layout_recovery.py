@@ -206,6 +206,13 @@ def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float
             yield candidate
     multiple = multiple_illustration_recovery(page,minimum_font,visual_area)
     if multiple is not None:
+        from core.illustration_gallery import illustration_gallery, gallery_minimum_height
+        balanced = deepcopy(multiple)
+        ids = [image['id'] for image in multiple['images']]
+        gallery = illustration_gallery(ids,gallery_minimum_height(len(ids),visual_area))
+        balanced['html'] = re.sub(r'<table style="width:175mm;table-layout:fixed;border-spacing:0;margin:0 0 3mm">.*?</table>',
+                                 lambda match:gallery,balanced['html'],count=1,flags=re.S)
+        yield balanced
         yield multiple
     exact = single_exact_visual_recovery(page,minimum_font,visual_area)
     if exact is not None:

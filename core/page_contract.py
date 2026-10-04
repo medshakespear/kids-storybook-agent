@@ -84,6 +84,7 @@ class BoundLayout(HTMLParser):
         if len(data) != len(attrs):
             raise ValueError('Duplicate layout attributes')
         block = data.pop('data-content', None)
+        block = {'name_label':'name','date_label':'date'}.get(block,block)
         if block is not None:
             if tag not in {'h1','h2','h3','h4','h5','h6','p','div','span','section','td','th','li','strong','b','em'}:
                 raise ValueError('Use a text container for data-content slots')

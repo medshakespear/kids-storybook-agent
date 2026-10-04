@@ -741,3 +741,10 @@ A scoped repair simplifies that question's prompt, expression and answer togethe
 Python preserves its original response space, artwork, layout and other tasks. The
 usual exact-answer, grade-range and print checks run again. Planning and page prompts
 now include the configured operand and result limits. Grade limits are not relaxed.
+
+`name_label` and `date_label` slots map to canonical name/date fields; duplicate metadata
+is still rejected. Authored pages with 2-4 illustrations use a shared equal-panel row
+with measured widths, explicit heights and panel gutters. Local recovery tries that
+compact composition before the dominant-image/sidebar composition, keeping every asset,
+question, answer and response area. The full grade-specific visual-area floor and print
+bounds remain required; an intrinsically overfull exercise still needs content repair.

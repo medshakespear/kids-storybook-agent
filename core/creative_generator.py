@@ -1321,6 +1321,8 @@ Canvas: A4 portrait, width 186mm. Python reserves 41mm above this fragment for t
 Keep YOUR composition at most 215mm high, ideally 205mm including all margins and padding.
 Minimum student font: {minimum_text_pt}pt. Use {font}pt or larger for the subtitle and larger title.
 Choose an original palette, composition, borders and hierarchy matching the pack art direction.
+HTML attributes: style, data-content, data-asset, data-visual, colspan, rowspan only.
+Put width, height, alignment and colors INSIDE style, never in separate HTML attributes.
 Allowed tags: {sorted(TAGS)}. Allowed CSS properties: {sorted(PROPERTIES)}.
 Only inline styles; no html/head/body/style tags, external files, classes, SVG, scripts or URLs.
 Use positive mm dimensions, valid colors, numeric line-height >=1.15 and font-size in pt.
@@ -1332,6 +1334,8 @@ Do not invent certifications, reading-level labels or series numbers. Do not rep
 Layout geometry: A4 portrait, 186mm content width; aim for <=235mm total height including all
 borders, margins, response space and wrapping. No clipping or text shrinking to force a fit.
 Minimum student font: {minimum_text_pt}pt; use {font}pt or larger for ordinary student wording.
+HTML attributes: style, data-content, data-asset, data-visual, colspan, rowspan only.
+Put width, height, alignment and colors INSIDE style, never in separate HTML attributes.
 Allowed tags: {sorted(TAGS)}. Allowed inline CSS: {sorted(PROPERTIES)}.
 Only inline styles. No external resources, src attributes, classes, scripts, raw SVG, positioning,
 grid, transforms, negative dimensions or hidden overflow. Use positive mm dimensions and pt fonts.
@@ -1350,6 +1354,8 @@ number EVERY answer to match the student tasks; include a sample/criterion for o
 Minimum student font: {minimum_text_pt}pt (mandatory for every caption and label).
 Canvas: A4, 186mm wide, content at most 265mm high. No html/head/body/style tags.
 Choose YOUR OWN layout, palette, typographic hierarchy, borders, panels and response spaces.
+HTML attributes: style, data-content, data-asset, data-visual, colspan, rowspan only.
+Put width, height, alignment and colors INSIDE style, never in separate HTML attributes.
 Allowed tags: {sorted(TAGS)}. Only inline style attributes; no classes or external files.
 Allowed CSS properties: {sorted(PROPERTIES)}. Use valid simple CSS, positive mm dimensions,
 percent widths, colors, numeric line-height >=1.15. Font-size in pt, {minimum_text_pt}-40pt; px

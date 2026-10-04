@@ -156,8 +156,12 @@ class PrintFragment(HTMLParser):
         if tag not in TAGS:
             raise ValueError(f'Unsupported HTML tag: {tag}')
         data = dict(attrs)
-        if len(data) != len(attrs) or set(data) - {'style', 'data-asset', 'data-visual', 'colspan', 'rowspan'}:
-            raise ValueError('Only style, data-asset, data-visual, colspan and rowspan attributes are allowed')
+        if len(data) != len(attrs):
+            raise ValueError(f'Duplicate print attributes on <{tag}>')
+        unknown = set(data) - {'style', 'data-asset', 'data-visual', 'colspan', 'rowspan'}
+        if unknown:
+            raise ValueError(f'Unsupported print attributes {sorted(unknown)} on <{tag}>; '
+                             'use only style, data-asset, data-visual, colspan and rowspan')
         attributes = []
         if 'style' in data:
             attributes.append('style="' + html.escape(clean_style(data['style'], self.minimum_font), quote=True) + '"')

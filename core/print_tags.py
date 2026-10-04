@@ -13,7 +13,40 @@ TAG_ALIASES = {
 
 # These attributes do not print and cannot select styles in our inline-only input.
 PASSIVE_ATTRIBUTES = {'class', 'id', 'role', 'title', 'alt', 'aria-label',
-                      'aria-labelledby', 'aria-describedby'}
+                      'aria-labelledby', 'aria-describedby', 'loading', 'decoding',
+                      'data-page', 'data-page-number', 'data-section', 'data-role', 'data-testid'}
+
+
+def normalize_print_attributes(attrs: list) -> list:
+    """Convert bounded legacy presentation hints to CSS without masking duplicates."""
+    import re
+    retained = [(key,value) for key,value in attrs if key not in PASSIVE_ATTRIBUTES]
+    if len({key for key,_ in retained}) != len(retained):
+        return retained  # Preserve duplicate functional attributes for the strict guard.
+    converted, result = [], []
+    for key,value in retained:
+        text = (value or '').strip()
+        css = None
+        if key in {'width','height'}:
+            match = re.fullmatch(r'(\d+(?:\.\d+)?|\.\d+)(mm|cm|in|pt|px|%)?',text,re.I)
+            if match and float(match[1]) > 0:
+                css = f'{key}:{match[1]}{(match[2] or "px").lower()}'
+        elif key == 'align' and text.lower() in {'left','center','right','justify'}:
+            css = 'text-align:'+text.lower()
+        elif key == 'valign' and text.lower() in {'top','middle','bottom','baseline'}:
+            css = 'vertical-align:'+text.lower()
+        elif key == 'bgcolor' and re.fullmatch(r'#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?|[a-zA-Z]+',text):
+            css = 'background-color:'+text
+        if css is None:
+            result.append((key,value))  # Unknown or invalid values keep their diagnostic.
+        else:
+            converted.append(css)
+    if converted:
+        # Legacy HTML hints have lower precedence than explicit inline declarations.
+        existing = next((value or '' for key,value in result if key=='style'),'')
+        result = [(key,value) for key,value in result if key!='style']
+        result.append(('style',';'.join(converted)+';'+existing))
+    return result
 
 
 def normalize_print_markup(markup: str) -> str:
@@ -31,7 +64,7 @@ def normalize_print_markup(markup: str) -> str:
         def start(self, tag, attrs, self_closing=False):
             """Serialize all functional attributes exactly; strip only passive metadata."""
             tag = TAG_ALIASES.get(tag, tag)
-            retained = [(key,value) for key,value in attrs if key not in PASSIVE_ATTRIBUTES]
+            retained = normalize_print_attributes(attrs)
             rendered = ' '.join(key if value is None else f'{key}="{html.escape(value,quote=True)}"'
                                 for key,value in retained)
             self.parts.append('<'+tag+(' '+rendered if rendered else '')+('/>' if self_closing else '>'))

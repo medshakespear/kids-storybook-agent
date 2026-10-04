@@ -203,7 +203,7 @@ def validate_source_markup(markup: str) -> None:
     """Never let canonical recomposition turn active or external model markup into success."""
     from html.parser import HTMLParser
     from core.creative_layout import TAGS, clean_style
-    from core.print_tags import TAG_ALIASES, PASSIVE_ATTRIBUTES
+    from core.print_tags import TAG_ALIASES, PASSIVE_ATTRIBUTES, normalize_print_markup
     class Guard(HTMLParser):
         """Check allowed elements and attributes before replacing the source composition."""
         def handle_starttag(self, tag, attrs):
@@ -218,12 +218,14 @@ def validate_source_markup(markup: str) -> None:
                 if key in PASSIVE_ATTRIBUTES:
                     continue
                 if key not in {'style','data-asset','data-visual','data-content','colspan','rowspan'}:
-                    raise ValueError('Only supported inline print attributes are allowed')
+                    raise ValueError(f'Unsupported print attribute {key!r} on <{tag}>; use only '
+                                     'style, data-content, data-asset, data-visual, colspan and rowspan. '
+                                     'Put presentation values in inline style and remove nonprint attributes')
                 if key == 'style':
                     clean_style(value or '', 11)
         def handle_startendtag(self, tag, attrs):
             """Apply the same guard to self-closing image tags."""
             self.handle_starttag(tag, attrs)
     guard = Guard()
-    guard.feed(markup)
+    guard.feed(normalize_print_markup(markup))
     guard.close()

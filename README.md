@@ -762,3 +762,11 @@ validation still enforces each grade's font, artwork, response-space and A4 boun
 Small-label errors enter local layout recovery rather than requiring another model rewrite.
 Distinct open reasoning extensions (including “How could…” and “Why…”) receive unused
 question labels with matching slots; their wording, criteria and writing space stay intact.
+
+Print markup converts valid legacy `width`, `height`, `align`, `valign` and `bgcolor`
+hints into inline CSS before source validation. Unitless HTML dimensions retain their
+pixel meaning; explicit inline CSS takes precedence. Passive image-loading and named
+page metadata are removed. All grade-specific geometry and task checks still run.
+Unknown/invalid attributes now report the exact attribute name and HTML tag without
+logging its value. Duplicate bindings, scripts, external resources and hidden content
+remain rejected; the model prompts list the allowed HTML attributes explicitly.

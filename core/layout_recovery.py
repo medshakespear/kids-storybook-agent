@@ -63,6 +63,39 @@ def single_exact_visual_recovery(page: dict, minimum_font: int, visual_area: flo
     return result
 
 
+def exact_caption_grid_recovery(page: dict, minimum_font: int, visual_area: float) -> dict | None:
+    """Arrange contextual labels in two columns without resizing the exact puzzle or work areas."""
+    base = single_exact_visual_recovery(page, minimum_font, visual_area)
+    if base is None:
+        return None
+    captions = base['exercise'].get('captions', [])
+    if len(captions) < 2:
+        return None
+    style = f'font-size:{minimum_font}pt;line-height:1.2;margin:0'
+    rows = []
+    for offset in range(0, len(captions), 2):
+        cells = ''.join(f'<td style="width:87.5mm;padding:1mm;vertical-align:top">'
+                        f'<p data-content="caption_{caption["id"]}" style="{style}"></p></td>'
+                        for caption in captions[offset:offset+2])
+        if offset + 1 == len(captions):
+            cells += '<td style="width:87.5mm;padding:1mm"></td>'
+        rows.append('<tr>' + cells + '</tr>')
+    grid = '<table style="width:175mm;table-layout:fixed;border-spacing:0;margin:0 0 2mm"><tbody>' + ''.join(rows) + '</tbody></table>'
+    pattern = r'<p data-content="caption_[a-z][a-z0-9_]*" style="[^"]*"></p>'
+    matches = list(re.finditer(pattern, base['html']))
+    if len(matches) != len(captions):
+        return None
+    first = matches[0].start()
+    # Only replace the contiguous caption sequence emitted by our own safe
+    # layout; never collect text from arbitrary author HTML or puzzle artwork.
+    end = matches[-1].end()
+    if re.sub(pattern, '', base['html'][first:end]).strip():
+        return None
+    result = deepcopy(base)
+    result['html'] = base['html'][:first] + grid + base['html'][end:]
+    return result
+
+
 def single_illustration_recovery(page: dict, minimum_font: int, visual_area: float) -> dict | None:
     """Recompose one artwork and canonical tasks; never omit unbound text or shrink work space."""
     if not isinstance(page,dict) or not isinstance(page.get('exercise'),dict):
@@ -265,4 +298,7 @@ def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float
     exact = single_exact_visual_recovery(page,minimum_font,visual_area)
     if exact is not None:
         yield exact
+        compact_exact = exact_caption_grid_recovery(page,minimum_font,visual_area)
+        if compact_exact is not None:
+            yield compact_exact
 

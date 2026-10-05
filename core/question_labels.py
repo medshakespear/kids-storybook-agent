@@ -21,6 +21,10 @@ def renumber_open_exact_question(exercise: dict, layout: str) -> str:
     if not isinstance(prompt,str) or type(space) not in {int,float}:
         return layout
     reasoning = (space>=5 and re.match(r'^(?:explain|describe|justify|predict|suggest|discuss|why|how (?:would|could|can)|what (?:would|could|might))\b',prompt,re.I))
+    # A choice followed by an explicit explanation is an additional reasoning
+    # action. A bare choice/count/match remains a potentially duplicated puzzle.
+    reasoning = reasoning or (space >= 5 and re.match(r'^which\b', prompt, re.I)
+        and re.search(r'[.?]\s+(?:explain\s+(?:why|how|your reasoning)|justify\s+your (?:choice|answer))\b', prompt, re.I))
     explicit_math = (isinstance(question.get('calculation'),dict) and
                      re.match(r'^(?:what is|calculate|solve|evaluate)\b',prompt,re.I) and
                      re.search(r'\d\s*[+−×÷*/-]\s*\d',prompt))

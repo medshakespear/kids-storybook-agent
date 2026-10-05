@@ -68,7 +68,7 @@ def question_schema(prompt_limit: int = 220, answer_limit: int = 180) -> dict:
                 'prompt': text(prompt_limit, 'Aim for 140-220 characters. All numeric facts, units and rounding must fit; no decorative introduction.'),
                 'answer': text(answer_limit, 'Aim for <=180 characters; retain every required solution or criterion.'),
                 'space_mm': {'type': 'number', 'minimum': 0, 'maximum': 80},
-                'calculation': obj({'expression': text(120, 'Numeric literals, parentheses and + - * / only.'),
+                'calculation': obj({'expression': text(120, 'Numeric literals, parentheses and + - * / only. Include calculation only when the printed question asks for a numeric result; omit it for qualitative choices or explanations. Never copy the operation from another question.'),
                                     'answer': text(80, 'Exact number/fraction, or rounded result only if the question requests rounding.')})},
                ['id', 'prompt', 'answer', 'space_mm'])
 
@@ -84,6 +84,16 @@ def exercise_schema(brief: dict, config: dict) -> dict:
                   'questions': array(question_schema(prompt_character_limit(config), answer_character_limit(config)), 0 if exact else 1, config.get('items_per_page', 4))}
     if exact:
         properties['visual'] = visual_schema(brief['mechanic'])
+        # One computed puzzle owns label 1. Additional actions use separate
+        # labels, preventing collisions in the first response rather than
+        # relying on a full-content repair to resolve them afterwards.
+        properties['visual']['properties']['question'] = integer(1, 1)
+        additional = properties['questions']
+        additional['items']['properties']['id'] = enum(str(i) for i in range(2, 31))
+        additional['maxItems'] = max(0, config.get('items_per_page', 4) - 1)
+        additional['description'] = ('Additional original actions only, labelled 2 or higher. '
+            'The computed visual is question 1 and counts toward the page action limit. '
+            'Do not repeat its question or answer. Keep response space for every extra action.')
     else:
         properties['directions'] = text(180 if config.get('student_font_pt', 13) >= 14 else 350,
                                       'One concise task instruction, not a repeated question.')

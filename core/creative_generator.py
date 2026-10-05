@@ -1524,6 +1524,8 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                   f'Arithmetic result range: 0 to {config.get("max_result",10000)}; operands <= {config.get("max_operand",1000)}.\n'
                   f'Art direction: {context}\nThis page brief: {json.dumps(brief)}\n'
                   f'Maximum question/action count on this page: {config.get("items_per_page",4)}.\n'
+                  'For exact pages the computed visual owns label 1 and counts as one action; '
+                  'additional questions use distinct labels 2 or higher. Do not repeat the puzzle task.\n'
                   + density_guidance(config)+'\n'+activity_quality_guidance(grade_band)+'\n'
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
                   + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + f'\nThe title slot will print: {brief["title"]}.')

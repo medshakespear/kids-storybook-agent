@@ -8,7 +8,7 @@ from copy import deepcopy
 from html.parser import HTMLParser
 
 from core.print_tags import TAG_ALIASES
-from core.content_binding import bind_formatted_canonical_text, bind_standard_heading
+from core.content_binding import bind_formatted_canonical_text, bind_standard_heading, canonical_content_slot
 from core.task_visuals import normalize_visual_metadata, page_visuals
 
 EXACT_MECHANICS = {'maze', 'sort', 'differences', 'pattern', 'matching', 'balance', 'count'}
@@ -85,6 +85,7 @@ class BoundLayout(HTMLParser):
             raise ValueError('Duplicate layout attributes')
         block = data.pop('data-content', None)
         block = {'name_label':'name','date_label':'date'}.get(block,block)
+        block = canonical_content_slot(block, self.blocks)
         if block is not None:
             if tag not in {'h1','h2','h3','h4','h5','h6','p','div','span','section','td','th','li','strong','b','em'}:
                 raise ValueError('Use a text container for data-content slots')

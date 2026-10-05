@@ -75,6 +75,7 @@ class DuplicateMetadataSlotTests(unittest.TestCase):
         page=authored_page()
         correction=deepcopy(page)
         correction['exercise']['captions']=[{'id':'new_task','text':'Count corn cobs and match number dots.'}]
+        correction['html'] += '<p data-content="caption_new_task"></p>'
         with self.assertRaisesRegex(ValueError,'complete wording already printed'):
             merge_layout_repair(page,correction)
 

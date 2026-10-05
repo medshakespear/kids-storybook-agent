@@ -13,6 +13,13 @@ TEXT_STYLES = {'color','background-color','font-size','font-weight','font-style'
                'text-decoration','text-align','line-height','white-space'}
 
 
+def canonical_content_slot(slot: str | None, blocks: dict) -> str | None:
+    """Resolve a bare declared caption ID without guessing unknown or task slots."""
+    if isinstance(slot, str) and slot not in blocks and 'caption_' + slot in blocks:
+        return 'caption_' + slot
+    return slot
+
+
 def diagram_label(value: str) -> bool:
     """Recognize a complete short diagram identifier, never directions or answers."""
     return bool(re.fullmatch(r'(?:node|point|station|zone|vertex|belt)\s+'
@@ -118,7 +125,8 @@ class CanonicalTextContainers(HTMLParser):
         if isinstance(node,str): return html.escape(node,quote=False)
         if 'comment' in node: return '<!--'+node['comment']+'-->'
         tag,attrs = node['tag'],list(node['attrs'])
-        block = dict(attrs).get('data-content')
+        block = canonical_content_slot(dict(attrs).get('data-content'), self.text_blocks)
+        attrs = [(key, block if key == 'data-content' else value) for key, value in attrs]
         duplicate_caption = False
         if not inside_slot and isinstance(block,str) and block.startswith('caption_') and block in self.text_blocks:
             if block in self.seen_captions:

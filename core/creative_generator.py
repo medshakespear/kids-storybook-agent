@@ -266,19 +266,28 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
     if not isinstance(captions,list):
         raise ValueError('Exercise captions must be a list')
     by_id = {c['id']:c for c in captions if isinstance(c,dict) and isinstance(c.get('id'),str)}
+    referenced_slots = []
+    references = HTMLParser(convert_charrefs=True)
+    references.handle_starttag = lambda tag, attrs: referenced_slots.append(dict(attrs).get('data-content'))
+    references.feed(result['html']); references.close()
     for caption in supplied:
         if not isinstance(caption,dict) or not isinstance(caption.get('id'),str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,23}',caption['id']):
             raise ValueError('Layout caption recovery needs a short lowercase caption id')
         cid,text = caption['id'],caption.get('text')
+        if cid not in by_id and cid not in referenced_slots and 'caption_' + cid not in referenced_slots:
+            # Only HTML is adopted from a layout repair. Unreferenced model
+            # suggestions are not new student content and cannot change the
+            # pinned exercise or force a needless semantic repair.
+            continue
         if cid in by_id:
-            if text!=by_id[cid].get('text'):
+            if not isinstance(text,str) or normalized(text)!=normalized(str(by_id[cid].get('text',''))):
                 raise ValueError('Layout-only repair cannot change existing caption wording')
             continue
         if not isinstance(text,str) or not text.strip() or len(text.strip())>120:
             raise ValueError('Layout caption recovery needs nonempty original label text <=120 characters')
         equivalent = next((c['id'] for c in captions if normalized(str(c.get('text','')))==normalized(text)),None)
         if equivalent:
-            result['html'] = re.sub(r'''(\bdata-content\s*=\s*)(["'])caption_'''+re.escape(cid)+r'''\2''',
+            result['html'] = re.sub(r'''(\bdata-content\s*=\s*)(["'])(?:caption_)?'''+re.escape(cid)+r'''\2''',
                                     lambda m:m[1]+m[2]+'caption_'+equivalent+m[2],result['html'])
             continue
         if normalized(text) not in words:

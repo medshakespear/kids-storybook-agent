@@ -351,8 +351,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     page['html'] = bind_standard_heading(page['html'],exercise)
     # Context captions are canonical content too, not a second instruction draft.
     captions = exercise.get('captions', [])
-    if not isinstance(captions,list) or len(captions)>6:
-        raise ValueError('Exercise captions must be a list of at most six short contextual labels')
+    from core.content_binding import validate_caption_budget
+    validate_caption_budget(captions)
     caption_ids = set()
     for caption in captions:
         if not isinstance(caption,dict):
@@ -561,7 +561,7 @@ Table headers and contextual labels (e.g. Zone ID) must also be exercise.caption
 Diagram identifiers such as Node A, Node B or Point 1 are captions too, not independent HTML text.
 Authored directions slot: <p data-content="directions"></p>.
 Passage, if provided: <div data-content="passage"></div>. Context headings or picture labels use
-exercise.captions: [{id:"context",text:"Plants growing together"}] (optional, at most 6; each text
+exercise.captions: [{id:"context",text:"Plants growing together"}] (optional, at most 6 contextual labels plus 8 short diagram identifiers such as Belt A; each text
 <=120 chars). Print each once with <p data-content="caption_context"></p>. Keep captions factual,
 grade-appropriate and short. Instructions and questions still belong in their own fields, never in
 captions; captions do not supply answers. Each question needs exactly one slot:

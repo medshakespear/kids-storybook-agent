@@ -211,11 +211,29 @@ def merge_exact_wording_repair(original: dict, correction: dict) -> dict:
 
 def merge_layout_repair(original: dict, correction: dict) -> dict:
     """Retain task data while binding previously printed contextual headings as captions."""
-    from core.content_binding import CanonicalTextContainers, CONTAINERS
+    from core.content_binding import CanonicalTextContainers, CONTAINERS, caption_budget_available, diagram_label
     if not isinstance(correction,dict) or not isinstance(correction.get('html'),str):
         raise ValueError('Layout-only repair must return a complete html fragment')
     result = deepcopy(original)
     result['html'] = correction['html']
+    # A layout model may rename an existing diagram slot to its printed label.
+    # Resolve only exact, unique short-label aliases from the retained manifest.
+    retained = original['exercise'].get('captions', [])
+    aliases = {}
+    if isinstance(retained, list):
+        for caption in retained:
+            if isinstance(caption, dict) and isinstance(caption.get('text'), str) and diagram_label(caption['text']):
+                alias = re.sub(r'[^a-z0-9]+', '_', caption['text'].lower()).strip('_')
+                aliases.setdefault(alias, []).append(caption.get('id'))
+    declared = {c.get('id') for c in retained if isinstance(c, dict)} if isinstance(retained, list) else set()
+    def restore_label_slot(match):
+        """Restore a uniquely identified retained marker without inventing printed wording."""
+        alias = match[3]
+        ids = aliases.get(alias, [])
+        target = ids[0] if alias not in declared and len(ids) == 1 and isinstance(ids[0], str) else alias
+        return match[1] + match[2] + 'caption_' + target + match[2]
+    result['html'] = re.sub(r"""(\bdata-content\s*=\s*)(["'])caption_([a-z][a-z0-9_]*)\2""",
+                            restore_label_slot, result['html'])
     supplied = correction.get('exercise',{}).get('captions',[]) if isinstance(correction.get('exercise'),dict) else []
     if not isinstance(supplied,list):
         raise ValueError('Layout caption recovery must supply captions as a list')
@@ -265,8 +283,8 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
             continue
         if normalized(text) not in words:
             raise ValueError('Layout-only repair may add captions only for complete wording already printed in the retained page')
-        if len(captions)>=6:
-            raise ValueError('Exercise captions must be a list of at most six short contextual labels')
+        if not caption_budget_available(captions,text):
+            raise ValueError('Exercise captions need at most six contextual labels and eight diagram identifiers')
         captions.append({'id':cid,'text':text.strip()})
         by_id[cid] = captions[-1]
     if captions:
@@ -426,7 +444,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         schema = field_repair_schema(answer_repair_id,'answer',calculation=repair_calculation,answer_limit=answer_limit)
                     elif layout_repair_base is not None:
                         schema = obj({'html':text(18000), 'exercise':obj({'captions':array(
-                            obj({'id':text(24),'text':text(120)}),0,6)})},['html'])
+                            obj({'id':text(24),'text':text(120)}),0,14)})},['html'])
                     response_format = ({'type':'json_schema','json_schema':{
                         'name':'activity_response','schema':schema}} if schema is not None and provider=='gemini'
                         else {'type':'json_object'})
@@ -483,12 +501,18 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         layout_visual_area = int(visual_match[1])
                     if getattr(exc, 'layout_source', None) is not None:
                         validated_draft = deepcopy(exc.layout_source)
-                    rescue_base = validated_draft or layout_repair_base
-                    layout_defect = str(exc).startswith(('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small', 'Exact visual labels would be too small'))
-                    if (rescue_base is not None and len(layout_rescue_candidates)<8
-                            and (layout_repair_base is not None or (response_schema is not None and layout_defect))):
+                    def recover_print_layout(source, failure):
+                        """Measure bounded lossless layouts after any preceding local content repair."""
+                        nonlocal layout_visual_area
+                        area = re.search(r'Visuals are too small: use at least (\d+) square mm', str(failure))
+                        if area:
+                            layout_visual_area = int(area[1])
+                        layout_defect = str(failure).startswith(('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small', 'Exact visual labels would be too small'))
+                        if (source is None or len(layout_rescue_candidates) >= 8
+                                or not (layout_repair_base is not None or (response_schema is not None and layout_defect))):
+                            return None
                         from core.layout_recovery import layout_recovery_candidates
-                        for rescue in layout_recovery_candidates(rescue_base,minimum_font,layout_visual_area):
+                        for rescue in layout_recovery_candidates(source,minimum_font,layout_visual_area):
                             signature = json.dumps(rescue,sort_keys=True)
                             if signature in layout_rescue_candidates:
                                 continue
@@ -498,9 +522,13 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             try:
                                 recovered = validate(rescue)
                             except (ValueError,TypeError,KeyError,IndexError):
-                                continue  # Keep every question, font floor, art threshold and response area.
+                                continue  # Preserve every question, font floor, art threshold and response area.
                             LOGGER.info('%s: measured lossless layout recovery succeeded',label)
                             return recovered
+                        return None
+                    recovered = recover_print_layout(validated_draft or layout_repair_base, exc)
+                    if recovered is not None:
+                        return recovered
                     locally_repaired = set()
                     while validated_draft is not None:
                         local_math = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|answer key|calculation does not solve)',str(exc))
@@ -519,6 +547,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             return validate(deepcopy(corrected))
                         except (ValueError,TypeError,KeyError,IndexError) as remaining:
                             exc = remaining
+                            if getattr(remaining, 'layout_source', None) is not None:
+                                validated_draft = deepcopy(remaining.layout_source)
+                    if locally_repaired:
+                        recovered = recover_print_layout(validated_draft, exc)
+                        if recovered is not None:
+                            return recovered
                     validation_attempt += 1
                     # A verified scoped correction exposing a different defect is
                     # progress, not another failure of the same repair. At most two

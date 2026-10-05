@@ -52,14 +52,13 @@ class DiagramLabelBindingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'unbound wording'):
             self.validate(page)
 
-    def test_caption_limit_is_preserved(self):
-        """Marker recovery cannot add unbounded printed text to a packed page."""
+    def test_full_context_budget_still_allows_bounded_diagram_markers(self):
+        """Diagram markers do not consume the six contextual caption entries."""
         page=authored_page()
         page['exercise']['captions']=[{'id':f'label_{i}','text':f'Context {i}'} for i in range(6)]
         page['html']+=''.join(f'<p data-content="caption_label_{i}"></p>' for i in range(6))
         page['html']+='<p>Node A</p>'
-        with self.assertRaisesRegex(ValueError,'unbound wording'):
-            self.validate(page)
+        self.assertIn('Node A',self.validate(page)['html'])
 
 
 if __name__=='__main__':

@@ -15,9 +15,28 @@ TEXT_STYLES = {'color','background-color','font-size','font-weight','font-style'
 
 def diagram_label(value: str) -> bool:
     """Recognize a complete short diagram identifier, never directions or answers."""
-    return bool(re.fullmatch(r'(?:node|point|station|zone|vertex)\s+'
+    return bool(re.fullmatch(r'(?:node|point|station|zone|vertex|belt)\s+'
                              r'(?:[a-z](?:[1-9]|[12][0-9]|30)?|[1-9]|[12][0-9]|30):?',
                              value.strip(),re.I))
+
+
+def caption_budget_available(captions: list, text: str) -> bool:
+    """Keep six contextual captions and up to eight short diagram identifiers."""
+    if not isinstance(captions, list):
+        return False
+    labels = sum(isinstance(c, dict) and isinstance(c.get('text'), str)
+                 and diagram_label(c['text']) for c in captions)
+    return labels < 8 if diagram_label(text) else len(captions) - labels < 6
+
+
+def validate_caption_budget(captions: list) -> None:
+    """Reject excessive content while keeping diagram markers separate from prose."""
+    if not isinstance(captions, list) or len(captions) > 14:
+        raise ValueError('Exercise captions need at most six contextual labels and eight diagram identifiers')
+    labels = sum(isinstance(c, dict) and isinstance(c.get('text'), str)
+                 and diagram_label(c['text']) for c in captions)
+    if labels > 8 or len(captions) - labels > 6:
+        raise ValueError('Exercise captions need at most six contextual labels and eight diagram identifiers')
 
 
 class CanonicalTextContainers(HTMLParser):
@@ -190,7 +209,7 @@ def bind_standard_heading(layout: str, exercise: dict) -> str:
         visit(node)
     # Repeated labels and invalid/full caption manifests need normal validation.
     captions = exercise.get('captions',[])
-    if not candidates or not isinstance(captions,list) or len(captions)>=6:
+    if not candidates or not isinstance(captions,list):
         return layout
     changed = False
     for node,text in candidates:
@@ -198,12 +217,12 @@ def bind_standard_heading(layout: str, exercise: dict) -> str:
             continue
         if any(isinstance(c,dict) and str(c.get('text','')).strip().casefold()==text.casefold() for c in captions):
             continue
-        if len(captions)>=6:
-            break
+        if not caption_budget_available(captions,text):
+            continue
         used = {c.get('id') for c in captions if isinstance(c,dict)}
         prefix = ('tip_label' if text.casefold()=='challenge tip:' else
                   'diagram_label' if diagram_label(text) else 'zone_label')
-        cid = next(f'{prefix}_{i}' for i in range(1,8) if f'{prefix}_{i}' not in used)
+        cid = next(f'{prefix}_{i}' for i in range(1,15) if f'{prefix}_{i}' not in used)
         captions = list(captions)+[{'id':cid,'text':text}]
         exercise['captions'] = captions
         node['attrs'].append(('data-content','caption_'+cid))

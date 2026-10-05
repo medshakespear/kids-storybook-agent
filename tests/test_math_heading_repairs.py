@@ -28,7 +28,11 @@ class MathHeadingRepairTests(unittest.TestCase):
 
     def test_math_retry_preserves_layout_art_and_printed_question(self):
         """Only the identified calculation and answer fields survive from a drifting response."""
-        bad=self.math_page();good=deepcopy(bad)
+        bad=self.math_page()
+        # Ambiguous criteria still require scoped semantic repair, rather than
+        # the new unambiguous leading-result recovery.
+        bad['exercise']['questions'][0]['answer']='There are 21 pencils after adding 8 to 12.'
+        good=deepcopy(bad)
         good['exercise']['questions'][0].update(answer='20',calculation={'expression':'12+8','answer':20},
                                              prompt='An unrelated task',space_mm=0)
         good['html']='<p>Legacies in Innovation and Art</p>';good['images']=None

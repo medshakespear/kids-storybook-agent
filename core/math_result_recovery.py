@@ -50,17 +50,26 @@ def repair_declared_result(page: dict, question_id: str) -> dict | None:
             value = Fraction(raw)
         except (ValueError,ZeroDivisionError):
             continue
-        # A single leading result can retain its unit and explanation. Numbers in
-        # the middle of success criteria are not assumed to be computed answers.
+        # A leading result can retain its unit and explanation. When other
+        # numbers follow, it must match the declared or verified result;
+        # numbers inside success criteria are not assumed to be answers.
         prefix = answer[:token.start()].strip()
-        leading = len(tokens)==1 and re.fullmatch(r'(?:(?:answer|result)(?:\s+is)?\s*[:=]?\s*|(?:about|approximately)\s+)?[$£€]?\s*',prefix,re.I)
+        leading = token is tokens[0] and re.fullmatch(r'(?:(?:answer|result)(?:\s+is)?\s*[:=]?\s*|(?:about|approximately)\s+)?[$£€]?\s*',prefix,re.I)
         percent = bool(re.match(r'\s*%',answer[token.end():]))
         close = value==actual
         if '.' in raw and '/' not in raw:
             places = len(raw.split('.',1)[1])
             if places<=4:
                 close = close or value==expected_calculation(expression,f'Round to {places} decimal places.')
-        if leading or (percent and close):
+        equation_result = False
+        if prefix.endswith('='):
+            try:
+                # Only a complete copy of the retained operation identifies a
+                # result token. Never infer an operation from a prose explanation.
+                equation_result = normalize_calculation(prefix[:-1].strip()) == expression
+            except (ValueError, TypeError):
+                pass
+        if (leading and (len(tokens)==1 or value in {supplied,actual})) or equation_result or (percent and close):
             candidates.append((token,value))
     if len(candidates)!=1:
         return None  # Multi-step or ambiguous prose still needs semantic repair.

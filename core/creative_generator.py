@@ -72,7 +72,7 @@ def merge_answer_repair(original: dict, correction: dict, question_id: str, *, c
 
 def repair_printed_arithmetic(page: dict, question_id: str) -> dict | None:
     """Compute a standalone printed expression; leave word problems for semantic repair."""
-    from core.exercise_quality import calculate, normalize_calculation, numeric_display_text
+    from core.exercise_quality import calculate, normalize_calculation
     from fractions import Fraction
     exercise = page.get('exercise') if isinstance(page,dict) else None
     questions = exercise.get('questions') if isinstance(exercise,dict) else None
@@ -80,26 +80,25 @@ def repair_printed_arithmetic(page: dict, question_id: str) -> dict | None:
     if len(matches)!=1:
         return None
     question = matches[0]
-    prompt = numeric_display_text(str(question.get('prompt','')))
-    match = re.fullmatch(r'\s*(?:(?:what is|calculate|solve|evaluate|find the value of)\s+)?'
-                         r'([\d.()+−×÷*/\s-]+)\s*[?=]?\s*',prompt,re.I)
+    from core.printed_arithmetic import standalone_arithmetic
     answer = str(question.get('answer','')).strip()
-    if not match or not re.fullmatch(r'-?(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+)?',answer):
+    if not re.fullmatch(r'-?(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+)?',answer):
         return None
     calculation = question.get('calculation')
     if not isinstance(calculation,dict):
         return None
     try:
-        printed = normalize_calculation(match[1])
-        expression = normalize_calculation(calculation.get('expression'))
-        actual = calculate(printed)
-        if calculate(expression)!=actual:
+        printed = standalone_arithmetic(question.get('prompt'))
+        if printed is None:
             return None
+        normalize_calculation(calculation.get('expression'))
+        expression = printed
+        actual = calculate(printed)
         supplied = Fraction(str(calculation.get('answer')))
         keyed = Fraction(answer)
     except (ValueError,TypeError,ZeroDivisionError):
         return None
-    if supplied==actual and keyed==actual:
+    if supplied==actual and keyed==actual and calculation.get('expression')==printed:
         return None
     result = deepcopy(page)
     target = next(q for q in result['exercise']['questions'] if str(q.get('id'))==question_id)
@@ -504,7 +503,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             return recovered
                     locally_repaired = set()
                     while validated_draft is not None:
-                        local_math = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|answer key)',str(exc))
+                        local_math = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|answer key|calculation does not solve)',str(exc))
                         if not local_math or local_math[1] in locally_repaired:
                             break
                         corrected = repair_printed_arithmetic(validated_draft,local_math[1])

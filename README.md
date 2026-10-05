@@ -786,3 +786,12 @@ signals. The original wording, answer, label and writing space remain intact. Qu
 and ambiguous questions keep their calculation and exact-answer validation. This handles
 stray arithmetic metadata without forcing a numeric answer into a science explanation;
 it does not certify the factual correctness of arbitrary AI-authored prose.
+
+Printed arithmetic comparison uses complete standalone expressions, including parentheses,
+instead of comparing a fraction or intermediate operation embedded in a word problem with
+the final result. Shared-question proofreading metadata follows the same rule. A conflicting
+valid calculation on a standalone numeric task can be rebuilt locally from the printed
+expression, updating its result and numeric answer together while preserving the prompt,
+artwork and response space. Word-problem operations and prose answers still use semantic
+review/repair; Python does not guess an operation from their quantities. Final grade limits,
+answer verification and printable geometry remain enforced.

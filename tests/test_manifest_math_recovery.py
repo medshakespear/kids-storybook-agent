@@ -62,7 +62,6 @@ class ManifestMathRecoveryTests(unittest.TestCase):
         """Do not guess word-problem operations or overwrite prose success criteria."""
         for changes in [dict(prompt='There are 12 pencils and 8 students. How many pencils remain?'),
                         dict(answer='Accept 21 drawings with labels.'),
-                        dict(calculation={'expression':'12-8','answer':5}),
                         dict(calculation={'expression':'12/0','answer':21})]:
             page=self.page();page['exercise']['questions'][0].update(changes)
             with self.subTest(changes=changes):

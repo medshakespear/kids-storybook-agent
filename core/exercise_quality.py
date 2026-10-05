@@ -184,12 +184,20 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
     checks = page.get('calculations', [])
     if not isinstance(checks, list) or len(checks) > 16:
         raise ValueError('calculations must be a list of at most 16 arithmetic checks')
-    # Independently derive printed arithmetic facts even if the author omits a check.
+    # Shared questions carry complete expressions. A fraction or intermediate
+    # operation embedded in prose is not independently the final task answer.
     facts = []
-    for match in re.finditer(r'(?<![\w.])(\d+(?:\.\d+)?|\.\d+)\s*([+−×÷*/-])\s*(\d+(?:\.\d+)?|\.\d+)(?!\w|\.\d)', numeric_display_text(prose)):
-        expression = ''.join(match.groups())
-        value = calculate(expression)
-        facts.append({'expression': expression, 'result': str(value)})
+    if page.get('exercise_binding'):
+        from core.printed_arithmetic import standalone_arithmetic
+        for question in page.get('exercise',{}).get('questions',[]):
+            expression = standalone_arithmetic(question.get('prompt',''))
+            if expression is not None:
+                facts.append({'expression':expression,'result':str(calculate(expression))})
+    else:
+        # Legacy unbound pages keep their existing literal-fact audit metadata.
+        for match in re.finditer(r'(?<![\w.])(\d+(?:\.\d+)?|\.\d+)\s*([+−×÷*/-])\s*(\d+(?:\.\d+)?|\.\d+)(?!\w|\.\d)', numeric_display_text(prose)):
+            expression = ''.join(match.groups())
+            facts.append({'expression':expression,'result':str(calculate(expression))})
     page['computed_math'] = facts
     numbers = set()
     for index, item in enumerate(checks, 1):

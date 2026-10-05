@@ -424,8 +424,13 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             from fractions import Fraction
             try: supplied = Fraction(str(calculation.get('answer')))
             except (ValueError,ZeroDivisionError): raise ValueError('Question calculation answer must be numeric') from None
-            if len(numeric_facts)==1 and not re.search(r'[()]',prompt) and calculate(numeric_facts[0])!=exact:
-                raise ValueError(f'Question {qid}: calculation does not solve the printed arithmetic')
+            from core.printed_arithmetic import standalone_arithmetic
+            printed = standalone_arithmetic(prompt)
+            if printed is not None and calculate(printed)!=exact:
+                raise ValueError(f'Question {qid}: calculation does not solve the printed arithmetic; '
+                                 f'printed expression {printed!r} evaluates to {calculate(printed)}, '
+                                 f'declared expression {calculation["expression"]!r} evaluates to {exact}. '
+                                 'Retain the printed prompt; correct its calculation and shared answer key')
             if actual != supplied:
                 raise ValueError(f'Question {qid}: declared math answer is incorrect; '
                                  f'calculation {calculation["expression"]!r} evaluates to {actual}, '

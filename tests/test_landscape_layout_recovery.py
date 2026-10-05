@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from core.creative_generator import ask_json, layout_contract, validate_design
-from core.layout_recovery import layout_recovery_candidates
+from core.layout_recovery import layout_recovery_candidates, reading_panel_recovery
 from core.pipeline import load_grade_config
 from core.response_schemas import design_schema
 from tests.coherent_fixtures import authored_page
@@ -42,7 +42,7 @@ class LandscapeRecoveryTests(unittest.TestCase):
         """Keep the same reading, questions, artwork and both 45mm response areas."""
         page=self.page();original=deepcopy(page)
         candidates=list(layout_recovery_candidates(page,12,8000))
-        self.assertEqual(len(candidates),3)
+        self.assertEqual(len(candidates),4)
         recovered = self.validate(candidates[0])
         self.assertEqual(recovered['exercise'], original['exercise'])
         self.assertEqual(recovered['html'].count('height:45mm'), 2)
@@ -70,6 +70,65 @@ class LandscapeRecoveryTests(unittest.TestCase):
         self.assertEqual(result['images'],page['images'])
         self.assertEqual(result['html'].count('height:45mm'), 2)
         self.assertEqual(result['quality_profile']['visual_area_mm2'], 8000)
+
+    def dense_page(self):
+        """Keep a passage, six context labels and two generous response panels."""
+        page = self.page()
+        labels = ['Tray A: sunny window', 'Tray B: shaded corner', 'Same soil in each tray',
+                  'Same water in each tray', 'Measure after one week', 'Record leaves and height']
+        page['exercise']['captions'] = [dict(id=f'label_{i}', text=text) for i, text in enumerate(labels)]
+        page['html'] += ''.join(f'<p data-content="caption_label_{i}"></p>' for i in range(6))
+        for question in page['exercise']['questions']:
+            question['space_mm'] = 55
+        return page
+
+    def test_reading_panel_fits_dense_page_for_both_active_bands(self):
+        """Fit real A4 geometry where every previous stacked composition overflows."""
+        page = self.dense_page()
+        original = deepcopy(page)
+        for band in ['3rd-4th', '5th-6th']:
+            with self.subTest(band=band):
+                config = load_grade_config()[band]
+                candidates = list(layout_recovery_candidates(page, 12, config['visual_area_mm2']))
+                for stacked in candidates[:3]:
+                    with self.assertRaisesRegex(ValueError, 'Design overflow'):
+                        validate_design(stacked, 12, quality=config,
+                            expected_title='Garden Investigators', require_coherent=True)
+                result = validate_design(candidates[3], 12, quality=config,
+                    expected_title='Garden Investigators', require_coherent=True)
+                self.assertEqual(result['exercise'], original['exercise'])
+                self.assertEqual(result['images'], original['images'])
+                self.assertEqual(result['html'].count('height:55mm'), 2)
+                for caption in original['exercise']['captions']:
+                    self.assertIn(caption['text'], result['html'])
+                self.assertIn(original['exercise']['passage'], result['html'])
+        self.assertEqual(page, original)
+
+    def test_dense_page_uses_one_provider_response(self):
+        """Production retry handling tries the additional composition before Gemini reauthoring."""
+        page = self.dense_page()
+        api = Mock()
+        api.chat.completions.create.return_value = SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content=json.dumps(page)), finish_reason='stop')])
+        config = load_grade_config()['3rd-4th']
+        with patch('core.creative_generator.text_provider_names', return_value=['gemini']), \
+             patch('core.creative_generator.text_client', return_value=(api, 'test')), \
+             patch('core.creative_generator.time.sleep'):
+            result = ask_json(layout_contract(13, 12, coherent=True), self.validate, 'Activity design 8',
+                response_schema=design_schema(dict(render_mode='authored', mechanic='design shelter'), config))
+        self.assertEqual(api.chat.completions.create.call_count, 1)
+        self.assertEqual(result['exercise'], page['exercise'])
+        self.assertEqual(result['html'].count('height:55mm'), 2)
+
+    def test_reading_recovery_keeps_safety_guards(self):
+        """Refuse unbound instructions, untracked drawing panels and invalid manifests."""
+        for extra in ['<div style="height:40mm"></div>', '<p>Write another explanation.</p>']:
+            page = self.dense_page()
+            page['html'] += extra
+            self.assertIsNone(reading_panel_recovery(page, 12, 8000))
+        page = self.dense_page()
+        page['images'] = None
+        self.assertIsNone(reading_panel_recovery(page, 12, 8000))
 
     def test_untracked_space_and_unbound_tasks_are_not_discarded_for_fit(self):
         """Candidate generation must not erase independently authored actions or work panels."""

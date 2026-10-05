@@ -189,6 +189,51 @@ def multiple_illustration_recovery(page: dict, minimum_font: int, visual_area: f
         return None
 
 
+def reading_panel_recovery(page: dict, minimum_font: int, visual_area: float) -> dict | None:
+    """Place supporting reading beside artwork, retaining full-width response areas."""
+    exercise = page.get('exercise', {}) if isinstance(page, dict) else {}
+    if not isinstance(exercise, dict):
+        return None
+    captions = exercise.get('captions', [])
+    if not (exercise.get('passage') or (isinstance(captions, list) and len(captions) >= 2)):
+        return None
+    # Reuse the lossless binding and untracked-workspace safety checks before
+    # changing composition. This is an alternative layout, never a content edit.
+    base = single_illustration_recovery(page, minimum_font, visual_area)
+    if base is None:
+        return None
+    exercise = base['exercise']
+    asset = base['images'][0]['id']
+    colors = re.findall(r'#[0-9a-fA-F]{6}\b', page['html'])
+    accent = colors[0] if colors else '#167E80'
+    wash = colors[1] if len(colors) > 1 else '#EAF5F2'
+    height = math.ceil(visual_area * 1.04 / 100)
+    if height > 150:
+        return None
+    text_style = f'font-size:{minimum_font}pt;line-height:1.2;margin:0 0 2mm'
+    pieces = [f'<h1 data-content="title" style="font-size:{minimum_font+5}pt;color:{accent};'
+              f'background-color:{wash};padding:3mm;margin:0 0 3mm"></h1>',
+              f'<p data-content="name" style="{text_style}"></p>']
+    if re.search(r'Date:\s*_+', base['html']):
+        pieces.append(f'<p data-content="date" style="{text_style}"></p>')
+    supporting = [f'<p data-content="directions" style="{text_style}"></p>']
+    if exercise.get('passage'):
+        supporting.append(f'<div data-content="passage" style="{text_style}"></div>')
+    for caption in exercise.get('captions', []):
+        supporting.append(f'<p data-content="caption_{caption["id"]}" style="{text_style}"></p>')
+    pieces.append('<table style="width:175mm;table-layout:fixed;border-spacing:0;margin:0 0 3mm"><tbody><tr>'
+                  f'<td style="width:100mm;padding:0;vertical-align:top"><img data-asset="{asset}" '
+                  f'style="width:100mm;height:{height}mm"/></td>'
+                  '<td style="width:75mm;padding:0 0 0 3mm;vertical-align:top">' + ''.join(supporting) +
+                  '</td></tr></tbody></table>')
+    for question in exercise.get('questions', []):
+        pieces.append(f'<div data-content="question_{question["id"]}" style="{text_style};'
+                      f'padding:1mm;border-top:0.5mm solid {accent}"></div>')
+    result = deepcopy(base)
+    result['html'] = ''.join(pieces)
+    return result
+
+
 def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float):
     """Try bounded lossless compositions with sufficient art before another model rewrite."""
     single = single_illustration_recovery(page,minimum_font,visual_area)
@@ -214,6 +259,10 @@ def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float
                                  lambda match:gallery,balanced['html'],count=1,flags=re.S)
         yield balanced
         yield multiple
+    reading = reading_panel_recovery(page,minimum_font,visual_area)
+    if reading is not None:
+        yield reading
     exact = single_exact_visual_recovery(page,minimum_font,visual_area)
     if exact is not None:
         yield exact
+

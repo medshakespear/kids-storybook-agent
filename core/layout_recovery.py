@@ -223,7 +223,7 @@ def multiple_illustration_recovery(page: dict, minimum_font: int, visual_area: f
 
 
 def reading_panel_recovery(page: dict, minimum_font: int, visual_area: float) -> dict | None:
-    """Place supporting reading beside artwork, retaining full-width response areas."""
+    """Place supporting reading beside all artwork, retaining full-width response areas."""
     exercise = page.get('exercise', {}) if isinstance(page, dict) else {}
     if not isinstance(exercise, dict):
         return None
@@ -232,7 +232,11 @@ def reading_panel_recovery(page: dict, minimum_font: int, visual_area: float) ->
         return None
     # Reuse the lossless binding and untracked-workspace safety checks before
     # changing composition. This is an alternative layout, never a content edit.
-    base = single_illustration_recovery(page, minimum_font, visual_area)
+    images = page.get('images')
+    if not isinstance(images, list) or not 1 <= len(images) <= 4:
+        return None
+    base = (single_illustration_recovery(page, minimum_font, visual_area) if len(images) == 1
+            else multiple_illustration_recovery(page, minimum_font, visual_area))
     if base is None:
         return None
     exercise = base['exercise']
@@ -243,6 +247,14 @@ def reading_panel_recovery(page: dict, minimum_font: int, visual_area: float) ->
     height = math.ceil(visual_area * 1.04 / 100)
     if height > 150:
         return None
+    if len(images) == 1:
+        artwork = f'<img data-asset="{asset}" style="width:100mm;height:{height}mm"/>'
+    else:
+        from core.illustration_gallery import illustration_grid
+        try:
+            artwork = illustration_grid([image['id'] for image in base['images']], visual_area)
+        except ValueError:
+            return None
     text_style = f'font-size:{minimum_font}pt;line-height:1.2;margin:0 0 2mm'
     pieces = [f'<h1 data-content="title" style="font-size:{minimum_font+5}pt;color:{accent};'
               f'background-color:{wash};padding:3mm;margin:0 0 3mm"></h1>',
@@ -255,8 +267,7 @@ def reading_panel_recovery(page: dict, minimum_font: int, visual_area: float) ->
     for caption in exercise.get('captions', []):
         supporting.append(f'<p data-content="caption_{caption["id"]}" style="{text_style}"></p>')
     pieces.append('<table style="width:175mm;table-layout:fixed;border-spacing:0;margin:0 0 3mm"><tbody><tr>'
-                  f'<td style="width:100mm;padding:0;vertical-align:top"><img data-asset="{asset}" '
-                  f'style="width:100mm;height:{height}mm"/></td>'
+                  f'<td style="width:100mm;padding:0;vertical-align:top">{artwork}</td>'
                   '<td style="width:75mm;padding:0 0 0 3mm;vertical-align:top">' + ''.join(supporting) +
                   '</td></tr></tbody></table>')
     for question in exercise.get('questions', []):

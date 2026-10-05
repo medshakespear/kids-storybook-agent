@@ -21,3 +21,31 @@ def illustration_gallery(ids: list[str], height: float) -> str:
 def gallery_minimum_height(count: int, area: float) -> int:
     """Meet the total artwork floor with room for rounding and panel gutters."""
     return math.ceil(area*1.04/(175-(count-1)))
+
+
+def illustration_grid(ids: list[str], area: float, width: float = 100) -> str:
+    """Fit 2-4 equal substantial panels in a compact two-column artwork block."""
+    if (not 2 <= len(ids) <= 4 or len(set(ids)) != len(ids)
+            or any(not re.fullmatch(r'[a-z][a-z0-9_]{0,30}', aid) for aid in ids)):
+        raise ValueError('Grid needs 2-4 distinct declared lowercase illustration IDs')
+    if not math.isfinite(area) or area <= 0 or not math.isfinite(width) or not 60 <= width <= 175:
+        raise ValueError('Grid needs a positive artwork budget and printable width')
+    panel_width = (width - 1) / 2
+    panel_height = math.ceil(area * 1.04 / (len(ids) * panel_width))
+    rows = math.ceil(len(ids) / 2)
+    if rows * panel_height + rows - 1 > 150:
+        raise ValueError('Artwork grid cannot fit within its printable height budget')
+    markup = []
+    for row in range(rows):
+        cells = []
+        for col in range(2):
+            index = row * 2 + col
+            bottom = 1 if row < rows - 1 else 0
+            right = 1 if col == 0 else 0
+            image = (f'<img data-asset="{ids[index]}" style="display:block;width:{panel_width:.4f}mm;'
+                     f'height:{panel_height}mm"/>' if index < len(ids) else '')
+            cells.append(f'<td style="width:{panel_width+right:.4f}mm;padding:0 {right}mm {bottom}mm 0;'
+                         f'vertical-align:top">{image}</td>')
+        markup.append('<tr>' + ''.join(cells) + '</tr>')
+    return (f'<table style="width:{width:g}mm;table-layout:fixed;border-spacing:0;margin:0">'
+            '<tbody>' + ''.join(markup) + '</tbody></table>')

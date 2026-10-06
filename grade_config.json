@@ -118,7 +118,12 @@
     "skill_notes": "Multi-step thinking, multiplication facts and exact division, evidence from short informational passages, word relationships, explain choices. Do not use babyish counting tasks.",
     "visual_area_mm2": 8000,
     "minimum_text_pt": 12,
-    "purposeful_activity_layout": true
+    "purposeful_activity_layout": true,
+    "reading_words": {
+      "min": 220,
+      "max": 300
+    },
+    "reading_guidance": "Use accessible paragraphs, concrete examples, clear transitions and meaningful context clues; require inference supported by the text, not preschool picture tasks."
   },
   "5th-6th": {
     "page_count": {
@@ -159,6 +164,11 @@
     "skill_notes": "Upper-elementary reasoning: authentic planning constraints, multi-digit arithmetic, precise vocabulary, inference and evidence, compare solutions, justify design decisions. No infantile clip art or tracing.",
     "visual_area_mm2": 6000,
     "minimum_text_pt": 11,
-    "purposeful_activity_layout": true
+    "purposeful_activity_layout": true,
+    "reading_words": {
+      "min": 320,
+      "max": 420
+    },
+    "reading_guidance": "Use nuanced informational texts, academic vocabulary explained in context, evidence-based inference, author purpose and comparisons of ideas; avoid condescending language."
   }
 }

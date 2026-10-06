@@ -476,12 +476,15 @@ def answer_key_markup(pack: dict, mode: str = 'standard') -> str:
     heading_style = 'font-size:10pt;margin:0 0 1mm;line-height:1.15' if compact else ''
     paragraph_style = f'font-size:{font:g}pt;margin:0;line-height:1.2;overflow-wrap:anywhere' if compact else ''
     keys = ''.join(
-        f'<section style="{section_style}"><h3 style="{heading_style}">{i}. {html.escape(p["title"])}</h3>'
+        f'<section style="{section_style}"><h3 style="{heading_style}">{"PDF page "+str(i+1) if pack.get("content_format")=="reading_qcm" else str(i)}. {html.escape(p["title"])}</h3>'
         f'<p style="{paragraph_style}">{html.escape(answer_text(p))}</p></section>'
-        for i,p in enumerate(pack['pages'],1))
+        for i,p in enumerate(pack['pages'],1) if pack.get('content_format')!='reading_qcm' or p.get('page_type')=='qcm')
     intro_style = 'font-size:10pt;margin-bottom:3mm' if compact else ''
+    intro = ('PDF page numbers identify the question pages. Each question has one correct answer.'
+             if pack.get('content_format') == 'reading_qcm'
+             else 'Activity numbers match the student pages. Creative answers may vary.')
     return ('<h1>Answer Key</h1>'
-            f'<p style="{intro_style}">Activity numbers match the student pages. Creative answers may vary.</p>'
+            f'<p style="{intro_style}">{intro}</p>'
             '<div class="key">'+keys+'</div>')
 
 
@@ -548,7 +551,7 @@ def check_visual_quality(document, profile: dict, *, cover: bool = False) -> Non
                 raise ValueError(f"Student text is too small: use at least {profile['minimum_text_pt']}pt")
     # The cover includes the separately placed logo; student pages do not.
     minimum = profile['visual_area_mm2']
-    if not cover and not sufficient_visual_area(areas, minimum):
+    if not cover and minimum > 0 and not sufficient_visual_area(areas, minimum):
         raise ValueError(f'Visuals are too small: use at least {minimum:g} square mm of meaningful artwork/diagrams, '
                          f'including one large main visual of at least {minimum*.55:g} square mm '
                          'or 2-4 substantial panels (each at least 75% of an equal share of the total target); '

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from core.creative_generator import ask_json, layout_contract, merge_prompt_repair, validate_design
+from core.creative_generator import ask_json, layout_contract, merge_prompt_repair, validate_design, generate_creative_pack
 from core.pipeline import generate_book, load_grade_config
 from core.response_schemas import design_schema, plan_schema, visual_schema
 from core.layout_recovery import multiple_illustration_recovery
@@ -133,6 +133,7 @@ class GeminiStructuredGenerationTests(unittest.TestCase):
              patch('core.creative_generator.text_client',return_value=(api,'fixture-model')), \
              patch('core.creative_generator.text_worker_limit',return_value=1), \
              patch('core.creative_generator.time.sleep'), \
+             patch('core.pipeline.generate_activity_pack',side_effect=generate_creative_pack), \
              patch('core.pipeline.text_provider_names',return_value=['gemini']), \
              patch('core.pipeline.image_provider_name',return_value='cloudflare'), \
              patch('core.pipeline.generate_activity_images',side_effect=attach_creative_test_art):

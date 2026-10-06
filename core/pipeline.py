@@ -15,7 +15,7 @@ from core.grade_policy import require_active_grade
 from core.providers import text_provider_names, image_provider_name
 from core.creative_generator import generate_creative_images as generate_activity_images
 from core.creative_generator import strip_creative_art as strip_local_art
-from core.creative_generator import generate_creative_pack as generate_activity_pack
+from core.reading_generator import generate_reading_pack as generate_activity_pack
 from core.creative_layout import build_creative_pdf as build_activity_pdf
 from core.calendar_rules import today_in_timezone
 from core.paths import GRADE_CONFIG_PATH, OUTPUT_DIR, ensure_runtime_directories
@@ -43,7 +43,7 @@ def generate_book(
     grade_config: dict[str, Any] | None = None,
     output_dir: str | Path = OUTPUT_DIR,
 ) -> tuple[dict[str, Any], Path]:
-    """Generate illustrated exercises with one consolidated final answer page."""
+    """Generate reading passages and QCM pages with one consolidated final answer page."""
 
     require_active_grade(grade_band)
     text_provider_names()

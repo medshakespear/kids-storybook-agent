@@ -63,8 +63,8 @@ def pick_daily_book_specs(
                   "invention workshop", "weather observers", "community kindness lab",
                   "playground designers", "recycling team", "library treasure hunt",
                   "space explorers", "pattern museum", "healthy habits investigation"]
-        approaches = ["sorting and explaining", "counting and solving", "reading clues",
-                      "matching connections", "designing and testing", "planning and reflecting"]
+        approaches = ["investigating how it works", "comparing ideas", "causes and effects",
+                      "reading evidence", "vocabulary in context", "explaining real-world changes"]
         events = [{"event_name": "Everyday classroom skills", "occurs_on": reference.isoformat(),
                    "theme_angles": [f"{topic}: {approach}" for topic in topics for approach in approaches],
                    "evergreen": True}]

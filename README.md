@@ -1,92 +1,54 @@
-# Classroom Activity Pack Agent
+# Classroom Reading and QCM Agent
 
-Generates original **printable classroom exercise packs for grades 3–6 only**, not storybooks.
-Active grade bands are `3rd-4th` and `5th-6th` in both cron and webhook modes.
-Requests for Pre-K–2 are rejected before AI calls. Legacy younger-grade profiles
-remain in the configuration for historical/offline validation, but cannot be generated.
-Gemini plans the activities AND authors their page layouts. Cloudflare supplies original illustrations. Python/WeasyPrint
-validates and assembles the model-authored designs as A4 PDFs. There is no database.
+Generates original illustrated reading-comprehension packs for **grades 3–6**.
+Both cron and webhook use the reading engine. Active bands are `3rd-4th` and
+`5th-6th`; younger-grade requests are rejected before API calls.
 
 ## What each pack includes
 
-- An illustrated cover, student activities, and exactly one final answer page.
-- 10 student worksheets for either 3rd-4th or 5th-6th.
-- No teacher guide, teaching tips, or separate teacher worksheets. Total: **12 PDF pages**.
-- The original **The Classroom Activity Collection** store logo appears on the cover.
-- Original activity concepts and compositions chosen by the AI from the grade,
-  theme, and teacher description. There is no hardcoded exercise-type menu or
-  required repeating count/match/sort sequence.
-- Large, colorful visual supports for young learners; restrained accents and
-  more text/reasoning for older learners. White workspaces keep printing practical.
+The default is **12 A4 pages**: a branded illustrated cover, five passage/question
+pairs, and one final answer key. Each pair has one illustrated reading page and
+one QCM (multiple-choice) page with five questions and four choices, A–D.
+That gives **five passages and 25 questions per pack**. No teacher guide,
+picture-counting puzzles, sorting worksheets, or unrelated arithmetic tasks.
 
-These are actual student tasks with answer space, not lists of ideas. A planning
-call chooses distinct learning activities and their visual compositions. Separate
-calls author the cover and each student page using restricted HTML/inline CSS,
-with a pack-specific palette and up to four original illustration briefs per page.
-Exact visual puzzle pages may use Python graphics without a Cloudflare illustration.
-Python supplies page boundaries, checks supported markup and printable bounds,
-embeds artwork without cropping, and adds the single consolidated answer page.
-Cloudflare produces the artwork; Gemini decides what the art should show.
-Identical briefs are reused within a pack. Expect 10-12 design calls before retries
-and up to 36-44 image calls, depending on grade and design. There are no AI image
-review calls or review-driven regenerations. Provider quotas still apply; free
-daily capacity is not guaranteed. Missing art fails the pack explicitly.
-Each image receives its own scene instructions and the shared rendering style;
-the global cast is not injected into object-only assets. Exact character
-consistency is not guaranteed. Check that pictures agree with questions before use.
+| Band | Passage length | Reading focus |
+| --- | --- | --- |
+| 3rd-4th | 220–300 words | Main idea, details, vocabulary in context, inference, cause and effect |
+| 5th-6th | 320–420 words | Evidence-based inference, author's purpose, text structure, vocabulary and comparisons |
 
-## Faster generation, branding, and image checks
+Passages have 3–4 paragraphs. Each question set covers at least three reading
+skills, including inference, with no more than two literal-detail questions.
+Gemini generates content JSON and performs a second text-only comprehension
+review. Python checks distinct options, answer letters, word counts and supporting
+quotes that occur in the passage. The same reviewed object supplies student
+questions and the final answer key. This reduces inconsistencies but cannot
+prove factual accuracy or guarantee that every distractor is unambiguous.
 
-Independent cover/student designs run in parallel after a single shared plan.
-Illustrations also run in parallel and keep their original page/asset ordering.
-Default concurrency is deliberately limited, and PDF rendering is serialized to
-keep the font/layout libraries safe. Logs report design, image generation, PDF assembly, and total elapsed time so slow stages are visible.
+Python supplies all HTML/CSS and checks actual printable bounds and font sizes;
+Gemini no longer authors page layouts. Reading pages include relevant colorful
+artwork; question pages keep a clean, readable layout. Questions are answered
+from the passage, never by guessing quantities or details in AI artwork.
+Cloudflare generates **six images** per default pack: one cover and five passage
+illustrations. Local file checks remain; Gemini does not review images.
+The original store logo at `assets/store-logo.png` is embedded on the cover.
+Existing PDFs are unchanged. Review new content and answers before classroom use
+or sale; these are static PDFs, not editable worksheets.
 
-The original logo is bundled at `assets/store-logo.png` and embedded directly by
-Python. Its bytes are unchanged; trusted cover CSS trims the surrounding white
-margin in the displayed layout. The AI does not redraw it. A 41mm header is
-reserved before the generated cover content, including during layout checks.
-Existing PDFs remain unchanged; these settings apply to newly generated packs.
+No new API key or setting is required for this format. Deploy the updated branch
+on both Railway services. Four Gemini keys and four Cloudflare account/token
+pairs remain supported. Quotas and provider outages can still stop generation.
+`activity_pages=10` in each active grade configuration means ten student pages
+(five pairs); it must be even. There is no database.
 
-AI image review is removed. Cloudflare artwork goes directly through local file
-validation and into the PDF; Gemini is used only for activity planning, text and
-page design. No image is sent to Gemini for approval or review-driven regeneration.
-Python still rejects missing, corrupt or undersized files and checks printable
-page bounds. These checks do not judge artistic or educational correctness.
+## Performance settings
 
-The webhook returns `image_review: {"status":"disabled","checked":0,"regenerated":0}`
-for compatibility, plus `image_validation`, `page_count`, and `generation_seconds`.
-Old `REVIEW_WORKERS` and `IMAGE_REPAIR_ATTEMPTS` variables are ignored and can be
-removed from Railway. No new variable or API key is needed. Deploy this commit on
-both services; existing PDFs remain available.
-
-Optional performance variables on **both** Railway services:
-
-| Variable | Default | Allowed | Purpose |
-| --- | --- | --- | --- |
-| `DESIGN_WORKERS` | `3` | 1-4 | Independent page-design requests |
-| `IMAGE_WORKERS` | `3` | 1-4 | Independent image-generation requests |
-| `GEMINI_REQUEST_TIMEOUT_SECONDS` | `45` | 10-120 | Timeout for each text request |
-| `GEMINI_CALL_BUDGET_SECONDS` | `90` | 15-300 | Budget for starting/retrying one completion |
-| `GEMINI_TRANSIENT_ATTEMPTS` | `2` | 1-3 | Attempts per slot for temporary failures |
-| `IMAGE_REQUEST_TIMEOUT_SECONDS` | `60` | 15-180 | Cloudflare response timeout |
-
-These defaults work without adding variables. If your project's small rate limit
-cannot support parallel calls, reduce the two worker settings to `1`.
-An in-flight HTTP call remains governed by its transport timeouts; the completion
-budget prevents further retries after it is spent, not a strict whole-book deadline.
-Image requests have two attempts by default. Actual runtime depends on provider
-latency, quotas, artwork count and page-design repairs; **three-minute generation
-is not guaranteed**. Removing AI image review eliminates its extra calls and retries.
-
-The PDFs are static and are NOT editable forms or personalized name books.
-No automatic class-name personalization is supplied. Originality and varied layouts
-are requested, not guarantees of novelty or professional design quality.
-Before selling or teaching, review content, answer keys, cultural context, reading
-level, and print quality. The shared exercise compiler checks exact puzzles and
-declared arithmetic, with text proofreading for other content. Human review is
-still needed: layout and automated content checks cannot detect every visual or
-educational flaw. No standards alignment is claimed.
+One planning call plus five passage calls and five comprehension-review calls
+are required before retries. Independent pairs and illustrations can run in
+parallel. `DESIGN_WORKERS` and `IMAGE_WORKERS` default to `3` (range 1–4);
+text workers are capped by configured credential capacity. Reduce to `1` for
+small provider quotas. Real latency depends on provider response times and
+retries; no fixed generation time is guaranteed.
 
 ## Daily selection: random events in the next 30 days
 
@@ -96,8 +58,8 @@ educational flaw. No standards alignment is claimed.
 3. Randomly choose an eligible event, then one of its theme angles, per book.
    Events with more angles do not receive extra selection weight.
 4. Avoid recently used theme/grade pairs where possible and shuffle grade bands
-   in balanced groups of four.
-5. If the entire window has no eligible events, use creative evergreen activities.
+   in balanced groups of the two active bands.
+5. If the entire window has no eligible events, use evergreen reading themes.
 
 Year boundaries and movable holidays are handled by calendar rules.
 Daily count remains `DAILY_BOOK_COUNT` (default 6-8; allowed 1-20).
@@ -262,14 +224,14 @@ users; manual website configuration above is the recommended path.
   Does not scrape or copy the reference product; omitted grade uses history rotation.
 
 ```json
-{"link": "https://example.com/classroom-sorting-activities", "grade_band": "3rd-4th"}
+{"link": "https://example.com/garden-reading-comprehension", "grade_band": "3rd-4th"}
 ```
 
-For a detailed creative brief, no link is required:
+For a reading-topic brief, no link is required:
 
 ```json
 {
-  "description": "Create a colorful garden detective pack. Children investigate plant needs, invent a watering tool, and draw a comic ending. Use varied illustrated page compositions with generous drawing space.",
+  "description": "Create illustrated informational readings about plant needs, fair scientific tests and garden ecosystems. Include multiple-choice questions about inference, vocabulary and evidence.",
   "grade_band": "3rd-4th"
 }
 ```
@@ -290,508 +252,36 @@ the resource type, event period, and whether selection was event-based or evergr
 
 ## Local development and checks
 
-Python 3.11+ and WeasyPrint's native libraries are required. The Dockerfile installs
-native dependencies and fonts. Export provider keys in your shell, then:
+Python 3.11+ and WeasyPrint native libraries are required. The Dockerfile installs
+native dependencies and fonts. Export provider credentials, then run:
 
 ```bash
 pip install -r requirements.txt
 python -m unittest discover -s tests -v
 python webhook_server.py
-# In another invocation, with the same exported environment:
+# Separate terminal, with the same credentials:
 DAILY_BOOK_COUNT=1 python cron_job.py
 ```
 
-Or build and run Docker, passing the exported credentials:
-
-```bash
-docker build -t classroom-agent .
-docker run --rm -p 8080:8080 -e GEMINI_API_KEY -e CLOUDFLARE_ACCOUNT_ID -e CLOUDFLARE_API_TOKEN classroom-agent
-```
-
-Tests use mocked API responses and original deterministic exercise fixtures; they
-do not spend API credits. Offline PDF tests check all four grade layouts. Layout
-overflow is rejected rather than silently hiding content. Live content and account
-quotas must still be tested after deployment.
-
-Before requesting a redesigned page, Python tries measured local layout repairs:
-wrapping-safe `white-space` styles, bounded table/child widths and auto-width cells,
-then tighter paragraph spacing and cell padding if necessary. `nowrap` becomes
-`normal`; `pre` becomes `pre-wrap` so text is not forced outside the page. Any
-successful repair mode is stored on that page and used in both preview and final
-PDF rendering. These adjustments preserve every question, font size, and explicit
-response-area height; they never clip content or scale the whole page. Pages that
-still overflow after local repair go back to Gemini with measured feedback.
-
-Each creative unit (plan, cover, or one student page) has bounded retries with
-validation feedback. Student-page answer keys come from the shared exercise specification;
-there is no independent answer draft. The final key is measured on A4 and uses compact
-spacing when necessary. Only if it still cannot fit does a bounded request shorten
-canonical question answer fields; text proofreading checks their original essential
-conditions again. Student tasks, artwork and question IDs are preserved. All six HTML heading levels are supported. Each unit uses
-validation feedback and the latest draft. Completed pages stay in memory when a
-later page needs correction. Python assigns page order. All pages are print-checked
-with fixed-size preview image boxes before illustration spending. Final PDFs are
-checked again with real art. Model-authored code is never executed; scripts, file
-links, external resource loads, and unsupported layout declarations are rejected.
-Gemini and Cloudflare HTTP 429 move the failed request to the next available slot.
-This does not remove quotas or guarantee recovery during outages. Interrupted runs
-do not retain unfinished pages across container restarts.
+Tests mock provider responses and render original offline fixtures; they do not
+spend API credits. Reading tests cover both active grade bands, content validation,
+student layouts and the single final key. Legacy design tests remain for shared
+renderer/backend compatibility. Live provider responses need a deployment test.
+Generation has bounded validation feedback and transport retries. Failed requests
+are reported without publishing a partial PDF. Completed units stay in memory
+until the run finishes; interrupted runs do not resume after container restart.
 
 ## Main modules
 
-- `core/calendar_rules.py`: exact periods and timezone-aware today.
-- `core/theme_picker.py`: current-event / evergreen themes and random grade batches.
-- `core/creative_generator.py`: AI activity planning, page design, repair and illustrations.
-- `core/page_contract.py`: bind printed content and answers to one exercise specification.
-- `core/task_visuals.py`: exact printable graphics and computed puzzle answers.
-- `core/exercise_quality.py`: arithmetic checks and text-only proofreading.
-- `core/creative_layout.py`: restricted HTML/CSS, print preflight, final PDF and answer page.
-- `core/image_review.py`: local image-file integrity checks only (no AI calls).
-- `core/runtime.py`: bounded configuration and ordered parallel work.
-- `core/pipeline.py`: shared activity generation and atomic PDF output.
-- `core/providers.py`: Gemini/OpenAI text routing and sanitized errors.
-- `core/credential_pool.py`: four-slot failover, cooldowns, and shared-quota handling.
-- `core/book_library.py`, `core/delivery.py`, `core/state_manager.py`: storage.
+- `core/reading_generator.py`: grade-specific passages, QCM, text review and deterministic layouts.
+- `core/pipeline.py`: shared cron/webhook generation and atomic PDF output.
+- `core/creative_layout.py`: print preflight, logo, PDF assembly and final answer key.
+- `core/creative_generator.py`: shared JSON request/retry and illustration backend; its legacy creative pack entry point is no longer the production path.
+- `core/providers.py`, `core/credential_pool.py`: provider routing, four-slot failover and cooldowns.
+- `core/image_review.py`: local image integrity checks only.
+- `core/calendar_rules.py`, `core/theme_picker.py`: dates, event selection and grade rotation.
+- `core/book_library.py`, `core/delivery.py`, `core/state_manager.py`: storage and delivery.
 - `cron_job.py`, `webhook_server.py`: scheduled and on-demand entry points.
 
-Legacy story and fixed-template activity modules are retained for compatibility;
-the active pipeline uses the creative engine and reuses the image backend.
-`DAILY_BOOK_COUNT` and `/books` keep their existing names
-to avoid breaking your Railway configuration and download links.
-
-
-## Exercise correctness and usable visuals
-
-New packs use stricter image manifests: missing images and blank prompts must be
-repaired by the author, rather than silently merged, substituted or guessed.
-Lower-grade pages have measured minimum visual area and text-size requirements;
-small decorative mascot thumbnails alone cannot pass. The author is directed to
-use one main activity per page and avoid repeating generic reflection boxes.
-
-Gemini still does **not** review generated images. It authors the content and
-performs one **text-only exercise/answer proofreading pass** before image spending.
-A concrete content defect repairs only the affected page; the resulting pack gets
-one further text check. Persistent defects stop publication with their page number.
-This adds one proofreading request when the first draft passes, plus bounded
-repairs if needed. It is not a guarantee of educational correctness.
-
-New student pages use `creative_bound_v2`. Gemini returns **one exercise specification**
-and an original HTML layout with empty named content slots. Python fills the title,
-directions, passage, numbered questions and response spaces from that specification.
-The final answer key uses those same question records. Individual answers are bounded
-to 180 characters, without a conflicting 350-character aggregate cap. Final-sheet
-preflight checks actual geometry and uses 10pt or 9.5pt key text where necessary;
-grade-specific student fonts remain unchanged. Independent instruction and
-answer drafts are rejected. A repair preserves the planned activity mechanism.
-
-Gemini may invent open-ended design, crafts, writing, reading, investigations and
-reasoning activities with varied layouts. For closed visual puzzles, Python supports
-seven exact drawing components: mazes, differences, sorting, patterns, matching
-(including silhouettes), size comparisons and counting. Their visible objects and
-solutions come from identical data. A size comparison asks about size, never assumes
-physical weight from a picture. Unsupported subjects use meaningful original artwork
-and open activities rather than silently being replaced by generic shapes.
-
-Plans normalize ordinary tool names such as "counting" and "shadow matching" while
-preserving their precise rules. Open drawing, coloring and craft briefs mislabeled
-as exact puzzles recover authored mode. An exact tool with the same learning goal
-can appear at most twice; different authored concepts may share broad mechanic
-labels. Unsupported closed puzzles still require correction. Text proofreading checks planned intent,
-actual printed questions and the shared key, including comprehension evidence and
-question numbering. Local arithmetic checks validate declared results, explicit
-question computations and numerical key values. These checks reduce known errors;
-they cannot guarantee the correctness of every invented activity or image.
-
-Missing/null and empty authored illustration manifests recover by page type. Exact pages with an
-explicit computed graphic and no raster image slots normalize to `images: []`.
-Authored pages use a narrow AI prompt requesting only the missing ID/prompt list;
-Python retains the original task and existing image layout. If no image slots exist,
-the repair adds visible artwork while canonical exercise fields remain unchanged.
-Repeated null responses remain in this recovery scope. Missing prompts are never
-replaced with invented local placeholders or blank imagery.
-
-Arithmetic validation repairs are scoped to the identified question's calculation
-and answer fields; they cannot change its prompt, layout, artwork or work space.
-A sole unbound text-only `h1` is treated as the page's headline draft and filled
-with the planned activity title. Additional unknown headings still need canonical
-caption fields. Static `label` maps to `span`; emphasis, small headings and table
-text cells support canonical slots. Images and structural tables cannot be text
-slots, and wrong math is still rejected by normal verification.
-
-As a final local overflow fallback, fixed heights on compound outer panels can
-be removed when the panel contains artwork and an independently dimensioned
-canonical response area. Image dimensions, canonical response heights, text and
-answers stay intact. Empty panels or unidentified work spaces retain their heights,
-and healthy page layouts remain unchanged. Actual A4 bounds and visual minimums
-are checked after this reflow.
-
-Layout-only overflow/visual-size retries contribute HTML only; Python retains the
-original exercise and image manifest. A modest visual-area shortfall can be fixed
-locally by enlarging the main illustration by at most 35% per dimension, followed
-by the same real page-fit, font and visual-area checks. Tiny thumbnails and pages
-that cannot fit still require redesign; response areas and text never shrink.
-`DESIGN_VALIDATION_ATTEMPTS` defaults to 4 (allowed 3–6), independently of transient
-API retry settings, giving distinct content defects one additional bounded repair.
-
-Explicit singleton illustration objects and keyed ID-to-prompt maps normalize to
-an image list while preserving authored prompts. Missing or ambiguous manifests
-still need correction. The content binder compares whole formatted text containers
-with canonical exercise fields before assigning slots, so harmless emphasis and
-line breaks do not cause retries. Unrelated wording, media and dimensioned work
-areas cannot be swallowed as formatting; original source layouts remain available
-for subsequent repairs and answer-key compaction.
-
-Shared exercise pages normalize equivalent illustration ID spellings (case, spaces
-and hyphens) in both manifests and HTML. Different subjects are never rebound by
-position. True missing, undeclared or repeated references report their exact IDs
-and counts. Repair guidance preserves purposeful prompts and task content, and ID
-normalization collisions remain errors so distinct artwork cannot be merged.
-
-When a single answer/criterion exceeds its 180-character limit or is empty, the
-retry applies only that answer field to the retained original page. Model changes
-to questions, response areas, HTML or illustration manifests are ignored during
-this scoped repair. The repaired page still passes normal math, content and print
-checks. Answers are never truncated automatically. Small-visual diagnostics report
-measured total and largest artwork areas; repair prompts retain exercises and work
-space while recomposing meaningful artwork at the grade-specific size floor.
-
-Exact puzzle graphics own their numbered directions and computed answers. A normal
-exact page uses `exercise.questions: []`, omits directions/passage and places the
-graphic once. Optional additional actions use different question IDs and matching
-`question_ID` slots. Repair feedback identifies reserved labels and parallel
-directions together, and consistently requests `html`, `images`, `exercise` rather
-than the legacy separate visual/answer drafts. Unknown instructions are corrected,
-not silently discarded; actual extra student tasks and response space are preserved.
-
-Optional canonical `exercise.captions` contain short contextual headings or image
-labels, printed through `data-content="caption_ID"` slots. Captions join the shared
-content specification and text proofreading; arbitrary unbound HTML text remains
-rejected. Local page fitting skips duplicate markup attempts. Overflow repairs
-preserve task content, readable fonts and response space while recomposing panels.
-An isolated `Challenge Tip:` heading is registered locally as a canonical caption;
-the tip itself must still come from the shared exercise fields. JSON decoding accepts
-Markdown fences or identical object echoes, but rejects conflicting objects and
-trailing prose rather than silently discarding content.
-For a standalone printed arithmetic expression with a bare numeric answer, Python
-can correct the declared result and answer key locally after checking the calculation
-against the printed expression. The complete page is then validated again. Word
-problems, mismatched operations and prose criteria still require semantic repair.
-Long or missing question prompts receive a field-only repair; Python retains all
-other fields and requires the same numeric quantities. A successful scoped repair
-that reveals a different defect can earn at most two additional repair calls per
-unit; repeated failures of the same defect receive no extra budget. Correct prior
-repairs remain in the retained page. Explicit printed rounding instructions (nearest
-cent, tenth, hundredth, or a stated number of decimal places) use exact half-up
-rounding in both math checks. Without an instruction, exact arithmetic remains required.
-Print cleanup removes decorative box/text shadows locally. Layout and content-binding
-repairs preserve tasks and image prompts while allowing new captions only for complete
-wording already drafted in the retained page. Equivalent caption names are rebound
-by identical text; redundant empty copies of a known caption print once. Unknown
-empty slots and duplicated question slots remain errors with available-slot feedback.
-Tiny artwork requires actual recomposition into a large meaningful main visual;
-visual area and student response-space checks remain enforced.
-Planner mode recovery derives a missing `render_mode` only from a known exact tool
-or open-task mechanic. Equivalent names such as SVG/computed and AI-authored map
-to the corresponding mode. Ambiguous values identify the failing page and receive
-a mode-only correction with an explicit page number; book metadata, task concepts
-and layout briefs are retained. Exercise designs still require an explicit mode.
-Layout retries request compact HTML-only JSON instead of repeating the entire
-exercise and image manifest. After a failed layout retry, a single-illustration
-authored page may use local measured recomposition with its existing palette,
-large square artwork and canonical text slots. Original binding and math must
-validate first; original questions, answers, captions, image prompts and response
-spaces remain unchanged. The result must pass all ordinary print checks. Complex
-multi-image layouts and unresolved unbound wording stay on the AI repair path.
-An ineligible recovery attempt does not consume the local recovery opportunity;
-caption binding or other required content repairs can make a later page eligible.
-Initial authored-page prompts also budget reading content by grade: roughly 60,
-90 or 120 passage words when combining text, large artwork and student workspace.
-These are authoring targets, not silent truncation or relaxed print checks.
-When a student-page response omits the shared `exercise` object, a focused retry
-requests only that object with explicit authored/exact JSON structures. Python
-retains the original illustration manifest and HTML, then runs the complete task,
-math, text-binding and print checks. A missing specification is never accepted as
-a blank worksheet. Shadow matching is planned as the supported `matching` tool
-with `mode: shadow`, rather than the unsupported `shadows` mechanic.
-
-Worksheet metadata supports optional `data-content="date"` and `name` slots.
-Measured visual growth supports both AI illustration and computed SVG slots.
-If a valid single-diagram exact page still overflows after layout repair, a local
-recomposition uses the diagram's aspect ratio, visual-area target and minimum
-printed glyph size. Puzzle data, captions, additional questions and their response
-spaces remain intact. Every candidate is revalidated; independent blank working
-panels, unbound wording and invalid puzzle content cannot be discarded to fit.
-Repeated blank Name/Date containers are removed locally before compilation,
-including raw, formatted and explicitly bound copies. Filled metadata, pictures,
-instructions and duplicate question slots are never removed by this recovery.
-On an exact-puzzle page, a uniquely slotted additional open drawing/design/writing
-action may move from the puzzle's reserved number to an unused label. Its task,
-answer and response space are retained. Duplicate or closed puzzle instructions
-still require a semantic correction. Pattern option recovery retains the motif,
-removes duplicate choices and includes its verified next symbol exactly once.
-The SVG and final key are recomputed together. Invalid motifs, unsupported symbols
-and out-of-range option counts remain validation failures. Ambiguous references
-still require a semantic correction. Whole canonical
-text can also bind through nested text-only paragraphs; extra instructions,
-media, empty block panels and dimensioned working areas are not discarded.
-Complete blank Date labels bind locally, including inline formatting. Isolated
-`Zone ID` and `Challenge Tip:` labels register as canonical captions. Short
-indexed diagram identifiers also bind locally (e.g. Node A, Point 1,
-Station B or Zone 2). Only complete identifiers qualify; text describing actions,
-numeric results or relationships still needs canonical exercise fields. The
-existing six-caption limit and duplicate-label checks remain active.
-Instructions, values and answers still require shared exercise fields. Local
-layout recovery retains these registered captions and the blank date field.
-
-When the calculation is already verified but the prose
-key is inconsistent, the provider correction is restricted to that question's
-answer field; the verified expression/result, task and artwork cannot change.
-Validation feedback includes the computed expected value and received key.
-Complete elementary cardinal answers from zero to ninety-nine (optionally with
-a simple counting unit, such as `twenty beads`) are recognized exactly. Fractions,
-ambiguous narrative wording and incorrect number words still require correction.
-
-Numeric-result recovery evaluates the existing declared expression and updates
-an unambiguous leading numeric answer or percentage in the shared key. Units,
-context quantities, question wording and the chosen operation are retained.
-Exact fractions and explicitly requested rounding use the same arithmetic source.
-Ambiguous or multi-step answer prose still needs semantic repair, and normal
-text proofreading still verifies that the chosen operation solves the word problem.
-
-Cloudflare artwork is for expressive scenes and open-ended inspiration. Exact-count
-and precise hidden-detail answers must not depend on generated pixels. Gemini image
-checking stays disabled. The real cover logo, one final answer page and grade-specific
-page counts are preserved. Existing PDFs are unchanged: regenerate after deploying
-both Railway services. No new environment variables or credentials are required.
-
-Modules: `core/page_contract.py` (shared content binding), `core/task_visuals.py`
-(exact graphics/answers), `core/exercise_quality.py` (math checks and text proofreading).
-
-Pre-K layout repairs use the same 14pt minimum as final printing. Smaller model-authored captions are raised locally before measuring the page. Excess cosmetic spacing may be compacted, while explicit illustration and response-area heights are preserved. Unfit pages receive measured overflow feedback and a grade-specific repair instruction.
-
-
-Calculation repair keeps the shared exercise schema: each arithmetic question has
-`exercise.questions[].calculation` with a numeric computation and final value.
-Unknown equations such as `x+8=20` stay in the printed prompt; their computation
-is `20-8`. Local notation cleanup supports explicit percentages (`15%*200`),
-proper thousands grouping, currency prefixes and common multiplication symbols.
-Variables, functions, verbal formulas, powers and incorrect answers remain rejected.
-Diagnostics identify the question and offending expression for targeted repair.
-
-New designs discard model-authored clipping/scrolling CSS declarations and expose
-all content before measuring printable bounds. This avoids a needless cover retry
-for `overflow:hidden`; oversized content still fails print preflight. Gemini HTTP
-503 responses remain provider-side availability errors and receive bounded retries.
-
-
-Content-binding recovery handles redundant model drafts locally: text inside a
-known `data-content` slot is replaced by canonical exercise text. Unbound wording
-that exactly matches a unique canonical title, direction or question can bind
-without another model request. Unrelated wording, duplicate explicit slots,
-misplaced graphics and executable markup remain invalid. Diagnostics quote the
-unbound wording so a repair can bind it without redesigning the exercise.
-
-Harmless HTML5 print wrappers are normalized consistently in content compilation
-and PDF rendering: `header`/`footer`/`figure` become `div`, `main`/`article` become
-`section`, and `figcaption` becomes `p`. Their explicit supported styles are kept;
-attribute, resource-loading and print-boundary checks remain enforced.
-
-### Gemini generation reliability
-
-Gemini plan, cover, student-page and content-review requests now use stage-specific
-JSON response schemas through the OpenAI-compatible endpoint. Required objects,
-non-null image lists, literal rendering modes, exact-puzzle integer fields and
-supported symbol names are specified before generation. Python still validates
-all values, exercise correctness, printed wording, response spaces and actual
-WeasyPrint page bounds; structured JSON alone does not establish correctness.
-
-Question prompts should aim for 140–220 characters. The hard limits are now
-220 / 320 / 480 / 600 characters for Pre-K-K / 1st-2nd / 3rd-4th / 5th-6th,
-respectively, so an otherwise readable older-grade word problem is not rejected
-solely for exceeding 220 characters. Actual font, artwork, workspace and page-fit
-requirements still apply. Oversized prompt repairs receive only the original
-question, retained answer/calculation and explicit numeric facts. The merge keeps
-all other fields and rejects changed numerical values or rounding instructions;
-equivalent numerical formatting such as `12.00` versus `12` is accepted.
-
-For valid content with an oversized or undersized-art layout, Python attempts a
-checked local reflow before requesting another design. It can preserve one exact
-visual or all one-to-four authored illustrations; no questions, artwork assets or
-canonical response areas are deleted. If the retained task cannot fit at readable
-sizes, generation still reports a failure rather than clipping or hiding content.
-Gemini pixel/image review remains disabled. No new environment variables are
-needed. Redeploy both Railway services from the latest GitHub commit.
-
-The offline reliability regression runs the complete 12-page generation pipeline,
-including retained-data repairs, fixture artwork embedding and PDF writing. It
-uses simulated provider responses and does not measure live Gemini availability
-or Cloudflare image quality.
-
-Planner options are now conditional on the selected tool: matching supports only
-`mode` (`shadow` or `identical`), sorting supports only `attribute` (`shape`,
-`color` or `size`), and other exact tools and authored tasks omit those options.
-If an older or malformed response mixes these fields, a scoped correction retains
-the entire plan and changes only the affected page's `mechanic_constraints`.
-Explicit rules implied by aliases such as shadow matching remain protected.
-
-Exact-puzzle wording conflicts now use a shared-content repair, rather than a
-layout-only caption merge. The original exact graphic data, existing additional
-questions/answers/workspace and illustration manifest are retained. Parallel
-puzzle directions cannot be hidden in captions (including `caption_directions`)
-or bound to nonexistent `directions`/`passage` slots. Factual contextual captions
-remain supported; genuinely additional student actions belong in canonical
-questions and the final answer key. The repaired page still undergoes full
-content and print-fit validation.
-
-Local layout recovery now tries a bounded set of distinct compositions instead
-of disabling recovery after one failed square panel. Reading/response-heavy
-single-illustration pages may use wider art panels meeting the same visual-area
-threshold. The current repaired draft is used instead of an older retained
-layout. Each candidate is rechecked for one-page fit, minimum fonts, all content,
-artwork area and unchanged canonical response heights. At most eight distinct
-recovery candidates are checked per design unit; repeated candidates are skipped.
-Images retain uncropped `contain` fitting. Exact diagrams keep their aspect ratio
-and readable labels, and independent untracked work panels are never discarded.
-
-Missing/`auto` image dimensions are now normalized locally before print checks.
-Responsive percentage heights receive an explicit physical height because a
-printable sheet has no browser viewport-height contract. Positive cm/in/pt/px
-sizes and uppercase units are converted to millimetres. Exact diagrams use their
-validated SVG aspect ratio; illustrations get bounded sizing defaults and remain
-uncropped. Already valid dimensions are retained. Zero/negative sizes, duplicate
-attributes and unsafe CSS remain errors. Every normalized page still passes the
-same content, font, artwork-area and one-page overflow checks.
-
-### Activity presentation quality
-
-Student pages use task-specific artwork instructions: blank outlines for face drawing,
-line art for coloring, and separated pieces for making activities. Gemini chooses the
-creative activities; exact closed-answer puzzles are drawn and answered by Python.
-The grade configuration enables `purposeful_activity_layout`: exact pages use large,
-consistent printable panels, their titles describe the actual puzzle, and counting
-pages include three rows with distinct quantities. Candy corn is supported as a real
-vector symbol. Additional questions and their response spaces are retained. Authored
-drawing prompts use neutral answer-box references to avoid incorrect above/below wording.
-These checks do not enable Gemini image review or guarantee artistic quality; inspect
-new PDFs before listing them for sale.
-
-Reading and writing pages now use canonical vertical flow, with full-width text instead
-of narrow fixed-height sidebars. Rendered text/image collision checks run alongside
-pagination and outer-bound checks. Sentence-completion prompts print a declared starter
-or become an open sentence-writing task when no starter exists. Explicitly blank blanket,
-pattern-grid and pumpkin-face work surfaces are drawn locally as clean PNG templates;
-they do not consume an image API request or enable an AI image checker. Planning and
-text proofreading ask for substantive theme connections and accurate cultural context,
-rather than relabeling generic symbols as cultural artifacts. These are generation
-controls, not a guarantee that AI-produced educational content is ready for sale.
-
-Teacher-facing answer criteria are grade-aware: up to 180 characters for early grades,
-and up to 400 for grades 3-6. Student prompt limits and font sizes remain separate.
-The single final answer sheet still receives measured fitting and, when needed,
-scoped answer-key condensation. A one-page vertical spill of at most 8mm can trigger
-one measured illustration-height adjustment, provided meaningful visual-area floors
-remain satisfied. Exact puzzle labels, student wording and response heights are retained.
-
-Canonical presentation is prepared once per page. If print checks fail, local recovery
-uses that prepared, uncompiled source and retains its revised layout during revalidation.
-This prevents presentation from restoring the same oversized composition on every retry.
-The recovery still checks all questions, response spaces, font floors and visual-area floors.
-
-Exact-puzzle metadata defects use content/binding repair rather than a layout-only
-retry. Reserved duplicate labels and oversized or instructional captions can be corrected
-while pinning the computed visual, assets, and already valid additional questions.
-Distinct explanation actions and explicit arithmetic follow-ups receive unused question
-labels locally, with matching content slots and answer-key references. Ambiguous repeated
-puzzle actions still require semantic correction. Factual captions mentioning student
-skills are distinguished from imperative task directions.
-
-Exact pages also bind complete declarative context paragraphs into canonical caption
-slots while preserving their wording. Standalone separators such as a colon no longer
-trigger a content retry. A literal duplicate of the computed puzzle instruction can be
-removed locally only when it has no separate calculation or response space; ambiguous
-paraphrases and genuine additional tasks still use semantic repair. Context binding
-checks structure, not factual accuracy, and does not promote questions or commands.
-
-A missing or overlong caption uses a caption-only response schema. Python accepts only
-that caption's corrected text and retains the original layout, puzzle, illustrations,
-additional questions, answers and response spaces. Captions still pass their length,
-content and print checks; failed wording validation remains a bounded retry.
-
-Artwork quality accepts either one dominant illustration or 2-4 substantial panels.
-The total grade-specific visual-area floor stays unchanged. For a distributed panel
-composition, every panel must reach at least 75% of an equal share of that floor;
-tiny icon collections do not qualify. This avoids forcing comparison or sequencing
-pages into a single oversized picture. Font, response-space, collision and one-page
-bounds checks still apply, including during small-overflow recovery.
-
-Safe semantic HTML wrappers are normalized before source checks and exercise binding.
-For example, `header` becomes `div`, using the same alias table as the print renderer.
-Inert metadata (`class`, `id`, role, tooltip/alt and descriptive ARIA attributes) is
-removed from the inline-only input. Printed text, styles, canonical slots, image IDs
-and workspace dimensions remain intact. Scripts, external resources, active or unknown
-attributes, duplicate functional attributes and unsafe CSS remain validation errors.
-
-Exact instruction captions receive a specific caption-ID diagnostic. A caption that
-literally repeats the computed graphic's instructions can be removed locally with its
-text-only slot; sized workspaces, artwork and distinct student actions are retained.
-Ambiguous wording still uses content repair. During that repair Python restores
-existing additional questions, criteria and response dimensions instead of relying
-on Gemini to reproduce them exactly, and restores any missing question slot. All
-merged tasks and the resulting layout still receive normal validation.
-
-Out-of-range arithmetic reports the question ID, measured result and configured range.
-A scoped repair simplifies that question's prompt, expression and answer together;
-Python preserves its original response space, artwork, layout and other tasks. The
-usual exact-answer, grade-range and print checks run again. Planning and page prompts
-now include the configured operand and result limits. Grade limits are not relaxed.
-
-`name_label` and `date_label` slots map to canonical name/date fields; duplicate metadata
-is still rejected. Authored pages with 2-4 illustrations use a shared equal-panel row
-with measured widths, explicit heights and panel gutters. Local recovery tries that
-compact composition before the dominant-image/sidebar composition, keeping every asset,
-question, answer and response area. The full grade-specific visual-area floor and print
-bounds remain required; an intrinsically overfull exercise still needs content repair.
-
-The restricted arithmetic evaluator allows numeric literals up to 1,000,000 in absolute
-value, matching its intermediate-result safety bound. Grade-specific final-result limits
-remain separate. Thus `12000*15/100` and `12000*0.15` both evaluate exactly to 1800;
-large percentage bases no longer trigger a misleading syntax error. Oversized literals
-receive a magnitude error. Variables, functions, powers and executable syntax stay blocked.
-
-Exact-puzzle recovery uses the same path for all four grade bands and all seven puzzle
-mechanics. During recovery preparation only, SVG label readability is deferred so Python
-can size a semantically validated diagram before checking its printed labels. Final
-validation still enforces each grade's font, artwork, response-space and A4 bounds.
-Small-label errors enter local layout recovery rather than requiring another model rewrite.
-Distinct open reasoning extensions (including “How could…” and “Why…”) receive unused
-question labels with matching slots; their wording, criteria and writing space stay intact.
-
-Print markup converts valid legacy `width`, `height`, `align`, `valign` and `bgcolor`
-hints into inline CSS before source validation. Unitless HTML dimensions retain their
-pixel meaning; explicit inline CSS takes precedence. Passive image-loading and named
-page metadata are removed. All grade-specific geometry and task checks still run.
-Unknown/invalid attributes now report the exact attribute name and HTML tag without
-logging its value. Duplicate bindings, scripts, external resources and hidden content
-remain rejected; the model prompts list the allowed HTML attributes explicitly.
-
-Computed sorting supports 2-8 distinct groups from the supplied shape/color/size rule.
-Python lays additional bins out in a measured grid and derives their exact memberships;
-it preserves every supplied picture and the chosen rule. A one-group collection still
-needs semantic correction because it provides no classification choice. Readability,
-artwork floors and printable bounds remain enforced.
-
-A calculation attached to a clearly nonnumeric conceptual question is detached locally
-only when both the printed prompt and prose answer have no numeric facts or quantitative
-signals. The original wording, answer, label and writing space remain intact. Quantitative
-and ambiguous questions keep their calculation and exact-answer validation. This handles
-stray arithmetic metadata without forcing a numeric answer into a science explanation;
-it does not certify the factual correctness of arbitrary AI-authored prose.
-
-Printed arithmetic comparison uses complete standalone expressions, including parentheses,
-instead of comparing a fraction or intermediate operation embedded in a word problem with
-the final result. Shared-question proofreading metadata follows the same rule. A conflicting
-valid calculation on a standalone numeric task can be rebuilt locally from the printed
-expression, updating its result and numeric answer together while preserving the prompt,
-artwork and response space. Word-problem operations and prose answers still use semantic
-review/repair; Python does not guess an operation from their quantities. Final grade limits,
-answer verification and printable geometry remain enforced.
+Legacy story/puzzle modules are retained for compatibility. `DAILY_BOOK_COUNT`,
+`/generate` and `/books` retain their names and existing request/download formats.

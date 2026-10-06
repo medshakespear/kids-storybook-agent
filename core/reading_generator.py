@@ -22,6 +22,100 @@ def bounded(value, name, limit):
     return value.strip()
 
 
+def passage_word_count(paragraphs):
+    """Count passage words identically in generation feedback and validation."""
+    return len(re.findall(r"\b[\w]+(?:['’-][\w]+)*\b", ' '.join(paragraphs)))
+
+
+def passage_length_feedback(paragraphs, config):
+    """Give a measured expansion or reduction target inside the grade range."""
+    count = passage_word_count(paragraphs)
+    low, high = config['reading_words']['min'], config['reading_words']['max']
+    target = (low + high) // 2
+    action = f'add about {target-count} words' if count < target else f'remove about {count-target} words'
+    return (f'Reading passage needs {low}-{high} words; received {count}. '
+            f'Target {target} words: {action}. Use four balanced paragraphs of about {target//4} words. '
+            'Count passage words only; questions and choices do not count. Preserve supporting quotations.')
+
+
+def repair_unit_limits(raw, config, label):
+    """Repair only passage length and overlong choices, retaining the rest of a draft."""
+    if not isinstance(raw, dict):
+        return raw
+    unit = deepcopy(raw)
+    paragraphs = unit.get('paragraphs')
+    if isinstance(paragraphs,list) and 3 <= len(paragraphs) <= 4 and all(isinstance(p,str) and p.strip() for p in paragraphs):
+        low, high = config['reading_words']['min'],config['reading_words']['max']
+        if not low <= passage_word_count(paragraphs) <= high:
+            source_questions = unit.get('questions')
+            source_questions = source_questions if isinstance(source_questions,list) else []
+            original_text = ' '.join(' '.join(paragraphs).casefold().split())
+            quotes = [q['evidence'] for q in source_questions if isinstance(q,dict)
+                      and isinstance(q.get('evidence'),str) and q['evidence'].strip()
+                      and ' '.join(q['evidence'].casefold().split()) in original_text]
+            def validate_passage(raw_repair):
+                """Require the repaired length and every retained evidence quotation."""
+                if not isinstance(raw_repair,dict) or not isinstance(raw_repair.get('paragraphs'),list):
+                    raise ValueError('Return only an object containing paragraphs')
+                result = raw_repair['paragraphs']
+                if not 3 <= len(result) <= 4:
+                    raise ValueError('Supply 3-4 balanced paragraphs')
+                result = [bounded(p,'Paragraph',1300) for p in result]
+                if not low <= passage_word_count(result) <= high:
+                    raise ValueError(passage_length_feedback(result,config))
+                normalized = ' '.join(' '.join(result).casefold().split())
+                if any(' '.join(q.casefold().split()) not in normalized for q in quotes):
+                    raise ValueError('Passage length repair must retain every supporting quotation verbatim')
+                return result
+            prompt = ('Repair ONLY the passage length in this retained reading unit. '
+                      +passage_length_feedback(paragraphs,config)+' '+config['reading_guidance']+
+                      ' Expand with relevant explanations and concrete examples, never filler, invented statistics '
+                      'or unverified cultural claims. Preserve facts and topic. Keep these EXISTING evidence quotations '
+                      f'verbatim: {json.dumps(quotes)}. Never invent facts to justify an unsupported answer. '
+                      'Do not change questions, answers, title or image prompt. Return {"paragraphs":[...]}.\n'
+                      +json.dumps(unit))
+            unit['paragraphs'] = ask_json(prompt,validate_passage,label+' passage-length repair',3000,
+                                         response_schema=obj({'paragraphs':array(text(1300),3,4)}))
+    questions = unit.get('questions')
+    if not isinstance(questions,list):
+        return unit
+    overlong = {}
+    for index,question in enumerate(questions,1):
+        if isinstance(question,dict) and isinstance(question.get('options'),dict):
+            for letter in LETTERS:
+                value = question['options'].get(letter)
+                if isinstance(value,str) and len(value.strip()) > 55:
+                    overlong[f'{index}:{letter}'] = value
+    if overlong:
+        def validate_choices(raw_repair):
+            """Require precisely the requested replacement choices without truncation."""
+            replacements = raw_repair.get('replacements') if isinstance(raw_repair,dict) else None
+            if not isinstance(replacements,dict) or set(replacements) != set(overlong):
+                raise ValueError('Return exactly the requested replacement choice IDs')
+            replacements = {ref:bounded(value,f'Choice {ref}',55) for ref,value in replacements.items()}
+            candidate = deepcopy(unit)
+            for ref,value in replacements.items():
+                number,letter = ref.split(':')
+                candidate['questions'][int(number)-1]['options'][letter] = value
+            for question in candidate['questions']:
+                if isinstance(question,dict) and isinstance(question.get('options'),dict):
+                    values = [' '.join(str(v).casefold().split()) for v in question['options'].values()]
+                    if len(set(values)) != len(values):
+                        raise ValueError('Shortened choices must remain distinct')
+            return candidate
+        lengths = {ref:len(value.strip()) for ref,value in overlong.items()}
+        prompt = ('Rewrite ONLY these overlong multiple-choice options as concise complete choices. '
+                  f'Current character counts: {json.dumps(lengths)}. Each replacement must be 1-55 characters; '
+                  'aim for 35-45 characters. Preserve meaning, negations, quantities, answer-letter correctness '
+                  'and plausible distractors. Never truncate a sentence or swap letters. Keep all other fields '
+                  'and choices unchanged. Return {"replacements":{"question:letter":"short choice"}} '
+                  'with exactly the listed IDs. The independent comprehension review follows this repair.\n'
+                  +json.dumps(unit))
+        unit = ask_json(prompt,validate_choices,label+' choice-length repair',2000,
+                        response_schema=obj({'replacements':obj({ref:text(55) for ref in overlong})}))
+    return unit
+
+
 def unit_schema():
     """Request content only; Python owns every printable layout and answer label."""
     question = obj({'prompt':text(120), 'skill':enum(SKILLS),
@@ -48,10 +142,10 @@ def validate_unit(raw, config, *, retained=None):
         raise ValueError('Reading passage needs 3-4 paragraphs')
     unit['paragraphs'] = [bounded(p,'Paragraph',1300) for p in paragraphs]
     passage = ' '.join(unit['paragraphs'])
-    count = len(re.findall(r"\b[\w]+(?:['’-][\w]+)*\b", passage))
+    count = passage_word_count(unit['paragraphs'])
     low, high = config['reading_words']['min'], config['reading_words']['max']
     if not low <= count <= high:
-        raise ValueError(f'Reading passage needs {low}-{high} words; received {count}')
+        raise ValueError(passage_length_feedback(unit['paragraphs'],config))
     unit['image_prompt'] = bounded(unit.get('image_prompt'),'Illustration prompt',650)
     questions = unit.get('questions')
     if not isinstance(questions,list) or len(questions) != 5:
@@ -73,7 +167,7 @@ def validate_unit(raw, config, *, retained=None):
         options = question.get('options')
         if not isinstance(options,dict) or set(options) != set(LETTERS):
             raise ValueError('Every question needs exactly A, B, C and D options')
-        question['options'] = {letter:bounded(options[letter],f'Option {letter}',55) for letter in LETTERS}
+        question['options'] = {letter:bounded(options[letter],f'Question {number}, option {letter}',55) for letter in LETTERS}
         values = [' '.join(v.casefold().split()) for v in question['options'].values()]
         if len(set(values)) != 4 or any(v in {'all of the above','none of the above'} for v in values):
             raise ValueError('Options must be distinct, plausible choices without all/none of the above')
@@ -158,7 +252,7 @@ Grades 5-6: more detailed texts, reasoning about evidence, author's purpose, tex
         prompt = f'''Write an ORIGINAL {grade_band} informational reading and five multiple-choice questions.
 Theme: {theme}. Topic: {plan['topics'][index]}. User context: {source_context or theme}.
 Other unit topics (avoid repetition): {json.dumps(plan['topics'])}
-Passage: {low}-{high} words, 3-4 paragraphs. {config['reading_guidance']}
+Passage: {low}-{high} words; aim for {(low+high)//2} words in four balanced paragraphs of about {(low+high)//8} words. Passage words exclude questions and choices. {config['reading_guidance']}
 State reliable facts only. Avoid unsupported dates/statistics, fabricated quotations or cultural generalizations.
 No babyish picture puzzles, arithmetic calculations, drawing, sorting, mazes or teacher instructions.
 Questions: five, with four distinct plausible choices A-D, exactly ONE defensible correct choice.
@@ -169,7 +263,8 @@ Provide a verbatim quote from the passage and a concise explanation for every co
 Question prompts <=120 characters; choices <=55; explanations <=110; quotes <=180.
 Include one relevant original image prompt <=650 chars, no wording or numbers; no guessing exact image counts.
 Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_prompt, questions.'''
-        unit = ask_json(prompt,lambda raw:validate_unit(raw,config),f'Reading {index+1}',6000,response_schema=unit_schema())
+        unit = ask_json(prompt,lambda raw:validate_unit(repair_unit_limits(raw,config,f'Reading {index+1}'),config),
+                        f'Reading {index+1}',6000,response_schema=unit_schema())
         review_prompt = ('Independently solve and proofread these five reading-comprehension questions. '
             'Keep title and image_prompt VERBATIM. Return the complete unit. Correct factual errors in the passage if needed while preserving its topic and grade word range. '
             'Repair questions, options, answer letters, quotes or explanations if needed. '
@@ -179,7 +274,7 @@ Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_promp
             +json.dumps(unit))
         def validate_review(raw):
             """Validate review content and retry wording if the fixed page cannot fit."""
-            reviewed = validate_unit(raw,config,retained=unit)
+            reviewed = validate_unit(repair_unit_limits(raw,config,f'Comprehension review {index+1}'),config,retained=unit)
             try:
                 pair = render_unit(reviewed,index+1,config)
             except ValueError as exc:

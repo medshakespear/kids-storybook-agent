@@ -19,6 +19,10 @@ picture-counting puzzles, sorting worksheets, or unrelated arithmetic tasks.
 
 Passages have 3–4 paragraphs. Each question set covers at least three reading
 skills, including inference, with no more than two literal-detail questions.
+Short or overlong passages receive a scoped passage rewrite with a measured word
+target and retained evidence quotations. Overlong choices receive a batched rewrite
+of only the failed choices; no text is padded or silently truncated. Valid units
+need no extra repair calls. Repairs still use bounded provider/validation retries.
 Gemini generates content JSON and performs a second text-only comprehension
 review. Python checks distinct options, answer letters, word counts and supporting
 quotes that occur in the passage. The same reviewed object supplies student

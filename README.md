@@ -177,13 +177,18 @@ available slot. Successful text designs and illustrations already in that runnin
 pack are retained. Rejected credentials (401/403) are skipped until configuration
 changes or the process restarts. Validation errors repair the same design using
 the healthy key; invalid prompts/models do not cycle through all credentials.
-For Gemini connection/timeouts, HTTP 408/409, and 5xx errors (including 503), retry
-the same slot up to two total attempts by default with exponential backoff and jitter, then
-cool it down and try the next configured slot with the unchanged request. There
-are at most 8 HTTP attempts per completion by default with four slots, subject to
-the 90-second retry budget; the content-repair
-loop does not restart an exhausted pool. Cloudflare network/5xx errors retain
-their existing bounded retries. No new environment variables are needed.
+For Gemini connection/timeouts, HTTP 408/409 and 5xx errors (including 503), the
+pool immediately tries the next available credential with the unchanged request.
+Each pool round visits each slot once; temporary outages use short cooldowns,
+while a supplied `Retry-After` is honored. The outer JSON call allows at most
+`GEMINI_TRANSPORT_ATTEMPTS` pool rounds (default **3**) and shares a
+`GEMINI_TRANSPORT_BUDGET_SECONDS` deadline (default **120 seconds**) across them.
+A new pool round does not restart that deadline. `GEMINI_CALL_BUDGET_SECONDS`
+(default 120) and `GEMINI_REQUEST_TIMEOUT_SECONDS` (default 40) further bound an
+individual facade/HTTP request. Existing Railway variables override these defaults.
+A successful HTTP response with invalid content starts a separate bounded content
+repair budget; a provider outage does not consume a content-validation attempt.
+Cloudflare retains its bounded network/5xx retries. No new variables are required.
 
 `API_KEY_COOLDOWN_SECONDS` defaults to **60** (allowed 1-86400). A longer provider
 `Retry-After` or Gemini `RetryInfo` delay takes precedence. Cloudflare's explicit
@@ -192,9 +197,9 @@ unavailable, generation returns a clear error; it never loops through keys forev
 or silently switches to paid OpenAI. Cooldowns are shared by requests within one
 process, but are not persisted or coordinated between web and cron. Restarting a
 process does not reset the provider's quota. Each run has a fresh local pool.
-For Gemini temporary errors, a server delay longer than 10 seconds cools that slot
-immediately instead of holding the worker asleep; shorter server delays are
-honored before its next retry. A 503 does not permanently disable a key. A
+Gemini server delays put the affected slot on cooldown while other slots may proceed.
+If all slots are blocked, the next wait respects the earliest available cooldown and
+the overall deadline; waits beyond that deadline stop the completion. A 503 does not permanently disable a key. A
 provider-wide outage can affect every key, so failover cannot guarantee success;
 if all slots fail, retry the run later. See Google's
 [retry guidance](https://ai.google.dev/gemini-api/docs/troubleshooting#retry-strategy).
@@ -347,7 +352,12 @@ just the passage, printed question prompts and A–D choices. It cannot see the 
 answer key, evidence quotations or explanations. It can report no valid option or multiple
 valid options. Detected mismatches trigger repairs of only the affected numbered questions;
 the passage and other questions remain frozen. Repaired questions are solved again, with
-at most two repair rounds. Unresolved mismatches stop PDF publication before image spending.
+at most two repair rounds followed by one fresh replacement of any still-failing
+questions. The replacement sees the passage and accepted questions, not the old faulty
+question objects. It must pass another blind solve. Unresolved defects still stop PDF
+publication before image spending. Question repair uses the same scoped choice-length,
+evidence and explanation-wording helpers as initial generation. The log reports the
+expected/reviewer letters, quality flags and specific review reason for each failed question.
 The final key explanations come from the independent solve, and balanced letter relabeling
 then moves each correct option together with its key letter. This is model-based semantic
 review, not a guarantee of correctness or an external factual verification service.

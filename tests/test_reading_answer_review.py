@@ -43,7 +43,7 @@ class ReadingAnswerReviewTests(unittest.TestCase):
         def ask(prompt, validate, label, *args, **kwargs):
             """Reject the unrelated choice, then return one precise repair."""
             calls.append(label)
-            if label.endswith('answer repair'):
+            if label.endswith(('answer repair','fresh question replacement')):
                 return validate({'repairs':[{'number':2,'question':deepcopy(self.unit['questions'][1])}]})
             return validate(self.solutions(self.unit,broken=len(calls)==1))
         result=verify_question_answers(broken,self.config,'Reading',ask=ask)
@@ -59,12 +59,12 @@ class ReadingAnswerReviewTests(unittest.TestCase):
         def ask(prompt, validate, label, *args, **kwargs):
             """Simulate a provider repeatedly failing to repair a semantic defect."""
             calls.append(label)
-            if label.endswith('answer repair'):
+            if label.endswith(('answer repair','fresh question replacement')):
                 return validate({'repairs':[{'number':2,'question':deepcopy(self.unit['questions'][1])}]})
             return validate(self.solutions(self.unit,broken=True))
         with self.assertRaisesRegex(ActivityGenerationError,'PDF not published'):
             verify_question_answers(self.unit,self.config,'Reading',ask=ask)
-        self.assertEqual(len(calls),5)
+        self.assertEqual(len(calls),7)
 
     def test_quality_fault_is_repaired_even_when_selected_answer_is_correct(self):
         """A correct letter does not excuse literal inference or absurd distractors."""
@@ -72,7 +72,7 @@ class ReadingAnswerReviewTests(unittest.TestCase):
         def ask(prompt,validate,label,*args,**kwargs):
             """Flag quality once, then verify the scoped repair independently."""
             calls.append(label)
-            if label.endswith('answer repair'):
+            if label.endswith(('answer repair','fresh question replacement')):
                 self.assertIn('inference must require',prompt)
                 return validate({'repairs':[{'number':3,'question':deepcopy(self.unit['questions'][2])}]})
             result=self.solutions(self.unit)
@@ -81,6 +81,55 @@ class ReadingAnswerReviewTests(unittest.TestCase):
             return validate(result)
         self.assertEqual(verify_question_answers(self.unit,self.config,'Reading',ask=ask),self.unit)
         self.assertEqual(len(calls),3)
+
+    def test_repair_uses_scoped_choice_and_explanation_length_helpers(self):
+        """Reproduce the overlong choice/explanation failures in the uploaded run."""
+        from unittest.mock import patch
+        calls, wording_calls=[],[]
+        def wording(prompt,validate,label,*args,**kwargs):
+            """Only shorten the failed canonical field without truncating other content."""
+            wording_calls.append(label)
+            replacements={'2:A':self.unit['questions'][1]['options']['A']} if 'choice-length' in label else {'2:explanation':self.unit['questions'][1]['explanation']}
+            return validate({'replacements':replacements})
+        def ask(prompt,validate,label,*args,**kwargs):
+            """Return an otherwise correct repair with the reported long fields."""
+            calls.append(label)
+            if label.endswith('answer repair'):
+                question=deepcopy(self.unit['questions'][1])
+                question['options']['A']+=' Extra explanations make this option unnecessarily long.'
+                question['explanation']+=' This explanation repeats a long description of the reading instead of providing a concise answer. '*2
+                return validate({'repairs':[{'number':2,'question':question}]})
+            return validate(self.solutions(self.unit,broken=len(calls)==1))
+        with patch('core.reading_generator.ask_json',side_effect=wording):
+            result=verify_question_answers(self.unit,self.config,'Reading',ask=ask)
+        self.assertEqual(result,self.unit)
+        self.assertEqual(len(wording_calls),2)
+        self.assertEqual(len(calls),3)
+
+    def test_persistent_question_gets_fresh_scoped_replacement(self):
+        """Two failed repairs no longer immediately discard the entire workbook."""
+        calls=[]
+        replacement=deepcopy(self.unit['questions'][1])
+        replacement['prompt']='Why should a class check how sunlight changes?'
+        def ask(prompt,validate,label,*args,**kwargs):
+            """The fourth independent solve accepts a genuinely new question."""
+            calls.append(label)
+            if label.endswith('fresh question replacement'):
+                payload=json.loads(prompt.split('\n')[-1])
+                self.assertEqual([q['number'] for q in payload['accepted_questions']],[1,3,4,5])
+                self.assertNotIn('questions',payload)
+                return validate({'repairs':[{'number':2,'question':replacement}]})
+            if label.endswith('answer repair'):
+                return validate({'repairs':[{'number':2,'question':deepcopy(self.unit['questions'][1])}]})
+            return validate(self.solutions(self.unit,broken=len(calls)<7))
+        with self.assertLogs('core.reading_answer_review',level='WARNING') as logs:
+            result=verify_question_answers(self.unit,self.config,'Reading',ask=ask)
+        self.assertEqual(result['questions'][1]['prompt'],replacement['prompt'])
+        self.assertEqual(result['paragraphs'],self.unit['paragraphs'])
+        self.assertEqual(len(calls),7)
+        self.assertIn('expected A, reviewer NONE',' '.join(logs.output))
+        for index in (0,2,3,4):
+            self.assertEqual(result['questions'][index],self.unit['questions'][index])
 
     def test_solver_rejects_duplicate_or_missing_numbers(self):
         """The independent solution cannot accidentally bind one question to another."""

@@ -128,7 +128,7 @@ class CredentialPool:
                 # 5xx/timeouts are provider-health events, not quota depletion.
                 # Keep them briefly out of rotation without sidelining a good key
                 # for the full quota cooldown.
-                until = time.monotonic() + max(5.0, min(15.0, error.retry_after or 0))
+                until = time.monotonic() + max(5.0, error.retry_after or 0)
             group = self.credentials[index].quota_group
             for other, credential in enumerate(self.credentials):
                 if other == index or (error.status_code == 429 and group and credential.quota_group == group):

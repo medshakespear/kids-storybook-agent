@@ -1,6 +1,9 @@
 """Blind text-only answer verification, with bounded repairs of faulty questions."""
 from copy import deepcopy
 import json
+import logging
+
+LOGGER = logging.getLogger(__name__)
 
 from core.activity_generator import ActivityGenerationError
 from core.response_schemas import array, enum, integer, obj, text
@@ -12,7 +15,7 @@ def verify_question_answers(unit, config, label, *, ask):
     This is independent model-based semantic review, not external fact checking.
     No images are sent. Repairs cannot change the passage or unaffected questions.
     """
-    from core.reading_generator import bounded, validate_unit, unit_schema
+    from core.reading_generator import bounded, validate_unit, unit_schema, prepare_reading_unit
     current = deepcopy(unit)
     solution_schema = obj({'solutions': array(obj({
         'number': integer(1, 5), 'answer': enum(['A','B','C','D','NONE','AMBIGUOUS']),
@@ -40,7 +43,7 @@ def verify_question_answers(unit, config, label, *, ask):
             found[number] = dict(answer=solution['answer'], reason=bounded(solution.get('reason'),'Review reason',110),quality_issues=issues)
         return found
 
-    for attempt in range(3):
+    for attempt in range(4):
         # The proposed key, explanations and supporting quotations are deliberately
         # absent. Otherwise a reviewer can rationalize an unrelated selected choice.
         blind = {'paragraphs': current['paragraphs'], 'questions': [
@@ -53,7 +56,10 @@ def verify_question_answers(unit, config, label, *, ask):
                   'literal_inference means a question labeled inference merely asks for an explicitly stated fact, '
                   'instead of combining details into an unstated conclusion. implausible_distractors means '
                   'wrong choices are unrelated, absurd, obvious giveaways or cannot plausibly reflect a misunderstanding of this passage. '
+                  'Judge real defects, not stylistic preferences. A short but sensible same-topic misunderstanding '
+                  'is a valid distractor. literal_inference applies ONLY when skill is inference. '
                   'Return quality_issues [] when neither defect exists; otherwise use those exact labels. '
+                  'When flagging a defect, explain its specific cause in reason. '
                   'Return solutions with number, quality_issues, '
                   'answer and a brief reason of at most 110 characters (aim for 60-90). Do not invent missing options.\n'+json.dumps(blind))
         solutions = ask(prompt, validate_solutions, label+' blind answer verification', 2200,
@@ -64,9 +70,10 @@ def verify_question_answers(unit, config, label, *, ask):
             for number, result in solutions.items():
                 current['questions'][number-1]['explanation'] = result['reason']
             return validate_unit(current,config)
-        if attempt == 2:
-            numbers = ', '.join(str(n) for n in sorted(faults))
-            raise ActivityGenerationError(f'{label}: answer verification still fails for questions {numbers}; PDF not published')
+        details = '; '.join(f"Q{n}: expected {current['questions'][n-1]['answer']}, reviewer {r['answer']}, issues {r['quality_issues']}: {r['reason']}" for n,r in sorted(faults.items()))
+        LOGGER.warning('%s: answer-check defects (pass %s/4): %s',label,attempt+1,details)
+        if attempt == 3:
+            raise ActivityGenerationError(f'{label}: answer verification still fails after two repairs and one fresh replacement; {details}; PDF not published')
         retained = deepcopy(current)
 
         def validate_repairs(raw):
@@ -81,7 +88,10 @@ def verify_question_answers(unit, config, label, *, ask):
                     raise ValueError('Unknown or duplicate repaired question number')
                 seen.add(number)
                 candidate['questions'][number-1] = deepcopy(repair.get('question'))
-            return validate_unit(candidate,config,retained=retained)
+            candidate = prepare_reading_unit(candidate,config,label+' repaired questions',retained=retained)
+            if candidate['paragraphs'] != retained['paragraphs'] or any(candidate['questions'][i]!=q for i,q in enumerate(retained['questions']) if i+1 not in faults):
+                raise ValueError('Question repair must preserve passage and every unaffected question')
+            return candidate
 
         repair_schema = obj({'repairs':array(obj({'number':integer(1,5),
                              'question':unit_schema()['properties']['questions']['items']}),len(faults),len(faults))})
@@ -92,5 +102,21 @@ def verify_question_answers(unit, config, label, *, ask):
                   'no correct choice exists, replace the faulty choice, not just the answer letter. '
                   'Repair flagged quality defects even if the answer letter was correct: inference must require a supported unstated conclusion; use plausible same-topic misunderstandings as distractors. Retain the grade skill mix. Copy real passage evidence. '
                   'Do not insert claims into the passage to justify a bad option.\n'+json.dumps(retained))
-        current = ask(prompt,validate_repairs,label+' answer repair',3500,response_schema=repair_schema)
+        repair_label = label+' answer repair'
+        if attempt == 2:
+            # Do not keep editing an anchored bad question. Supply the passage and
+            # accepted questions only, and require a genuinely new scoped question.
+            source = {k:v for k,v in retained.items() if k!='questions'}
+            source['accepted_questions']=[{'number':n,'question':q} for n,q in enumerate(retained['questions'],1) if n not in faults]
+            source['replacement_requirements']=[{'number':n,'skill':retained['questions'][n-1]['skill'],'defect':result} for n,result in sorted(faults.items())]
+            prompt = ('Write BRAND-NEW questions to replace ONLY the listed failing numbers. '
+                      'Do not paraphrase the old question or repeat its flawed reasoning. Use the frozen '
+                      'passage and keep accepted questions unchanged. Every replacement must have exactly '
+                      'one supported A-D answer and plausible passage-based distractors. Keep the specified '
+                      'reading skill; an inference combines details into an unstated conclusion, not a copied fact. '
+                      'Return repairs [{number,question}], five fields plus evidence/explanation as in the schema. '
+                      'Prompt <=120 characters, options <=55 (aim 35-45), explanation <=110 (aim 60-90), '
+                      'evidence <=180 and copied verbatim. Never invent passage facts.\n'+json.dumps(source))
+            repair_label = label+' fresh question replacement'
+        current = ask(prompt,validate_repairs,repair_label,3500,response_schema=repair_schema)
     raise AssertionError('Unreachable answer-review state')

@@ -73,12 +73,19 @@ class GeminiPoolClient:
         self.pool = get_provider_pool("gemini")
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
         self._closed = False
+        self._request_deadline = None
+
+    def set_request_deadline(self, deadline):
+        """Share the outer completion budget with credential failover HTTP calls."""
+        self._request_deadline = deadline
 
     def create(self, **kwargs):
         """Retry the same completion on another available key after a limit error."""
         if self._closed:
             raise RuntimeError("Text client is closed")
-        deadline = time.monotonic() + int_setting('GEMINI_CALL_BUDGET_SECONDS', 180, 30, 300)
+        deadline = time.monotonic() + int_setting('GEMINI_CALL_BUDGET_SECONDS', 120, 30, 300)
+        if self._request_deadline is not None:
+            deadline = min(deadline,self._request_deadline)
         timeout = int_setting('GEMINI_REQUEST_TIMEOUT_SECONDS', 40, 10, 120)
 
         def request(credential):
@@ -186,16 +193,16 @@ def safe_api_error(provider: str, exc: Exception, model: str | None = None) -> P
                              status_code=429, rotate=provider == "gemini", retry_after=delay)
     if status in {401, 403}:
         return ProviderError(f"{provider}: authentication or permission denied; check its API key and access.",
-                             status_code=status, rotate=False)
+                             status_code=status, rotate=provider == "gemini")
     if status is not None:
         if status in {408, 409} or 500 <= status <= 599:
             hint = ("service temporarily unavailable or overloaded" if status == 503
                     else "temporary server or request failure")
             return ProviderError(f"{provider}: HTTP {status}; {hint}. Retry later if all slots fail.",
-                                 True, status_code=status, rotate=False, retry_after=delay)
+                                 True, status_code=status, rotate=provider == "gemini", retry_after=delay)
         return ProviderError(f"{provider}: HTTP {status}; check model availability and provider settings.",
                              status_code=status)
     if isinstance(exc, APIConnectionError):
         return ProviderError(f"{provider}: temporary connection failure or timeout.",
-                             True, rotate=False)
+                             True, rotate=provider == "gemini")
     return ProviderError(f"{provider}: request failed ({type(exc).__name__}).", True)

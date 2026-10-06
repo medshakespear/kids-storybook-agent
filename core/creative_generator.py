@@ -11,6 +11,7 @@ from html.parser import HTMLParser
 from uuid import uuid4
 
 from core.activity_generator import ActivityGenerationError, _text
+from core.credential_pool import ProviderError
 from core.creative_layout import check_page, preflight_pack, PROPERTIES, TAGS, reveal_print_content
 from core.image_generator import generate_images
 from core.task_visuals import VISUAL_CONTRACT, BOUND_VISUAL_CONTRACT, page_visuals, normalize_visual_metadata, SHAPES, COLORS
@@ -406,15 +407,17 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     max_validation_attempts = int_setting('DESIGN_VALIDATION_ATTEMPTS', 4, 3, 6)
     progress_allowance = 2
     previous_defect = None
-    # A real Gemini 503 incident can last longer than a few seconds. Keep the
-    # current sticky key and back off slowly; only 429 quota handling may rotate.
-    max_transport_failures = int_setting('GEMINI_TRANSPORT_ATTEMPTS', 8, 3, 12)
+    # The credential pool handles HTTP failover; the outer loop shares a deadline
+    # so multiple pool rounds cannot restart the budget indefinitely.
+    max_transport_failures = int_setting('GEMINI_TRANSPORT_ATTEMPTS', 3, 1, 12)
+    transport_budget = int_setting('GEMINI_TRANSPORT_BUDGET_SECONDS',120,30,600)
 
     for provider in text_provider_names():
         api, model = text_client(provider)
         try:
             validation_attempt = 0
             transport_failures = 0
+            transport_deadline = time.monotonic() + transport_budget
             while validation_attempt < max_validation_attempts:
                 content = None
                 validated_draft = None
@@ -457,6 +460,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     response_format = ({'type':'json_schema','json_schema':{
                         'name':'activity_response','schema':schema}} if schema is not None and provider=='gemini'
                         else {'type':'json_object'})
+                    if provider == 'gemini':
+                        if time.monotonic() >= transport_deadline:
+                            raise ProviderError('gemini: completion transport time budget exhausted; retry later.',False)
+                        setter = getattr(api,'set_request_deadline',None)
+                        if callable(setter):
+                            setter(transport_deadline)
                     response = api.chat.completions.create(
                         model=model,
                         messages=messages,
@@ -577,6 +586,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         LOGGER.info('%s: scoped repair succeeded; allowing repair of the next independent defect',label)
                     previous_defect = defect
                     transport_failures = 0
+                    transport_deadline = time.monotonic() + transport_budget
                     reason = f'{label}: {provider}: {exc}'
                     errors.append(reason)
                     LOGGER.warning('%s', reason)
@@ -1030,10 +1040,13 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     transport_failures += 1
                     if transport_failures >= max_transport_failures:
                         break
-                    base_delay = min(60.0, 5.0 * (2 ** (transport_failures - 1)))
+                    base_delay = min(15.0, 2.0 * (2 ** (transport_failures - 1)))
                     delay = max(base_delay, failure.retry_after or 0) + random.random()
+                    if provider == 'gemini' and time.monotonic()+delay >= transport_deadline:
+                        errors.append(f'{label}: gemini: completion transport time budget exhausted; retry later.')
+                        break
                     LOGGER.info(
-                        '%s: transient Gemini failure; keeping the same key and retrying in %.1fs (%s/%s)',
+                        '%s: transient provider failure; retrying the same completion through available slots in %.1fs (%s/%s)',
                         label, delay, transport_failures + 1, max_transport_failures)
                     time.sleep(delay)
         finally:

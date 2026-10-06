@@ -142,6 +142,52 @@ class ReadingAnswerReviewTests(unittest.TestCase):
             return validate(self.solutions(self.unit))
         verify_question_answers(self.unit,self.config,'Reading',ask=ask)
 
+    def test_verbose_review_reason_does_not_block_either_grade(self):
+        """Accept verbose internal reasoning without expanding printed explanations."""
+        for band in ('3rd-4th', '5th-6th'):
+            with self.subTest(band=band):
+                config = load_grade_config()[band]
+                unit = reading_fixture(band)
+                calls = []
+                def ask(prompt, validate, label, *args, **kwargs):
+                    """Return valid answers with unnecessarily long reviewer reasons."""
+                    calls.append(label)
+                    result = self.solutions(unit)
+                    for solution in result['solutions']:
+                        solution['reason'] = 'The passage supports this option through several details. ' * 25
+                    return validate(result)
+                self.assertEqual(verify_question_answers(unit,config,'Reading',ask=ask),unit)
+                self.assertEqual(len(calls),1)
+
+    def test_verbose_defect_reason_is_preserved_for_repair(self):
+        """Length normalization must never suppress a NONE answer or quality defect."""
+        reason = 'The options do not answer the printed question. ' * 5
+        calls = []
+        def ask(prompt, validate, label, *args, **kwargs):
+            """Verify the full diagnostic reaches the scoped repair request."""
+            calls.append(label)
+            if label.endswith('answer repair'):
+                self.assertIn(reason.strip(),prompt)
+                return validate({'repairs':[{'number':2,'question':deepcopy(self.unit['questions'][1])}]})
+            result = self.solutions(self.unit,broken=len(calls)==1)
+            if len(calls)==1:
+                result['solutions'][1]['reason'] = reason
+            return validate(result)
+        self.assertEqual(verify_question_answers(self.unit,self.config,'Reading',ask=ask),self.unit)
+        self.assertEqual(len(calls),3)
+
+    def test_empty_or_nontext_review_reason_still_fails(self):
+        """Malformed reasons cannot silently bypass answer review."""
+        def ask(prompt, validate, *args, **kwargs):
+            """Check required diagnostic content independently of its length."""
+            for reason in (None, '', '   ', 123):
+                malformed = self.solutions(self.unit)
+                malformed['solutions'][0]['reason'] = reason
+                with self.assertRaisesRegex(ValueError,'nonempty text'):
+                    validate(malformed)
+            return validate(self.solutions(self.unit))
+        verify_question_answers(self.unit,self.config,'Reading',ask=ask)
+
     def test_cover_uses_scene_not_title_and_activity_image_path(self):
         """Prevent the title entering image prompts or the recurring story-cast style."""
         plan={'title':'Voices of Native Nations Reading Workbook','overview':'Read original texts.',

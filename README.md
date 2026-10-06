@@ -358,7 +358,9 @@ question objects. It must pass another blind solve. Unresolved defects still sto
 publication before image spending. Question repair uses the same scoped choice-length,
 evidence and explanation-wording helpers as initial generation. The log reports the
 expected/reviewer letters, quality flags and specific review reason for each failed question.
-The final key explanations come from the independent solve, and balanced letter relabeling
+Concise final key explanations come from the independent solve. Longer reviewer reasons
+remain intact for diagnostics and question repairs; they do not invalidate an otherwise
+valid solve or replace the existing validated, print-sized explanation. Balanced letter relabeling
 then moves each correct option together with its key letter. This is model-based semantic
 review, not a guarantee of correctness or an external factual verification service.
 

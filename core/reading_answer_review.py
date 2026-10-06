@@ -15,11 +15,11 @@ def verify_question_answers(unit, config, label, *, ask):
     This is independent model-based semantic review, not external fact checking.
     No images are sent. Repairs cannot change the passage or unaffected questions.
     """
-    from core.reading_generator import bounded, validate_unit, unit_schema, prepare_reading_unit
+    from core.reading_generator import validate_unit, unit_schema, prepare_reading_unit
     current = deepcopy(unit)
     solution_schema = obj({'solutions': array(obj({
         'number': integer(1, 5), 'answer': enum(['A','B','C','D','NONE','AMBIGUOUS']),
-        'reason': text(110, 'Brief passage-based explanation of the selected option or defect.'),
+        'reason': text(1000, 'Passage-based explanation; prefer at most 110 characters.'),
         'quality_issues': array(enum(['literal_inference','implausible_distractors']),0,2)
     }), 5, 5)})
 
@@ -40,7 +40,13 @@ def verify_question_answers(unit, config, label, *, ask):
             issues = solution.get('quality_issues')
             if not isinstance(issues,list) or any(i not in ('literal_inference','implausible_distractors') for i in issues):
                 raise ValueError('Return quality_issues as a list of supported defect labels, or []')
-            found[number] = dict(answer=solution['answer'], reason=bounded(solution.get('reason'),'Review reason',110),quality_issues=issues)
+            reason = solution.get('reason')
+            if not isinstance(reason, str) or not reason.strip():
+                raise ValueError('Review reason must be nonempty text')
+            # Review diagnostics are not printed content. Preserve the full reason
+            # for semantic repairs instead of rejecting or truncating a valid solve.
+            reason = ' '.join(reason.split())
+            found[number] = dict(answer=solution['answer'], reason=reason,quality_issues=issues)
         return found
 
     for attempt in range(4):
@@ -68,7 +74,11 @@ def verify_question_answers(unit, config, label, *, ask):
                   if result['answer'] != current['questions'][n-1]['answer'] or result['quality_issues']}
         if not faults:
             for number, result in solutions.items():
-                current['questions'][number-1]['explanation'] = result['reason']
+                # The existing explanation already passed the printable contract.
+                # A verbose reviewer reason must not force a new API request or
+                # overflow the shared answer-key page.
+                if len(result['reason']) <= 110:
+                    current['questions'][number-1]['explanation'] = result['reason']
             return validate_unit(current,config)
         details = '; '.join(f"Q{n}: expected {current['questions'][n-1]['answer']}, reviewer {r['answer']}, issues {r['quality_issues']}: {r['reason']}" for n,r in sorted(faults.items()))
         LOGGER.warning('%s: answer-check defects (pass %s/4): %s',label,attempt+1,details)

@@ -387,13 +387,48 @@ def validate_unit(raw, config, *, retained=None):
     return unit
 
 
+
+def workbook_colors(config, number):
+    """Give each reading pair a coordinated, print-friendly color identity."""
+    palettes = (('#166D88','#E0F2F7','#E88B35','#FFF0DA'),
+                ('#AA4338','#FCECE7','#377E80','#E4F3EF'),
+                ('#70529B','#F0E9FA','#C78629','#FFF1D9'),
+                ('#267357','#E2F3E9','#BC6748','#FCEDE3'),
+                ('#245EA0','#E5EFFB','#AF6041','#FCECDF'))
+    accent, wash, secondary, alternate = palettes[(number-1) % len(palettes)]
+    if config['student_font_pt'] < 12:
+        # Upper grades retain color with calmer large-area fills.
+        wash, alternate = '#F1F4F8', '#F8F1E8'
+    return accent, wash, secondary, alternate
+
+
+def render_cover(plan, grade_band, config, reading_count):
+    """Compose a concise branded cover dominated by uncropped artwork."""
+    esc = html.escape
+    accent, wash, secondary, alternate = workbook_colors(config,1)
+    grade = grade_band.replace('th','').replace('rd','').replace('-','–')
+    cover_html = (
+        f'<h1 style="font-size:27pt;line-height:1.1;color:{accent};margin:0 0 3mm;'
+        f'padding:2mm 0;border-bottom:1.5mm solid {secondary}">{esc(plan["title"])}</h1>'
+        f'<p style="font-size:14pt;margin:0 0 3mm;padding:2mm;background-color:{wash};'
+        f'color:{accent};font-weight:bold">Grades {esc(grade)} • Reading Comprehension</p>'
+        f'<div style="background-color:{alternate};padding:2mm;margin:0 0 3mm;text-align:center">'
+        '<img data-asset="cover" style="width:176mm;height:151mm"/></div>'
+        f'<p style="font-size:12pt;line-height:1.25;margin:0 0 3mm">{esc(plan["overview"])}</p>'
+        f'<p style="font-size:12pt;line-height:1.2;padding:3mm;margin:0;background-color:{wash};'
+        f'border-left:2mm solid {secondary};color:{accent};font-weight:bold">'
+        f'{reading_count} readings • {reading_count*5} questions • Answer key</p>')
+    return dict(title=plan['title'],html=cover_html,images=[dict(id='cover',
+        prompt=f'Original rich editorial illustration about {plan["title"]}: {plan["overview"]}. '
+               'Large clear focal scene with coordinated vivid colors and meaningful details. No text or numbers.')])
+
+
 def render_unit(unit, number, config):
     """Render illustrated readings and spacious QCM pages with a shared answer model."""
     esc = html.escape
     font = config['student_font_pt']
-    secondary = config.get('secondary', '#E9A83B')
-    accent, wash = config['accent'], config['wash']
-    heading = f'font-size:17pt;line-height:1.12;color:{accent};margin:0 0 3mm;padding:2mm 0;border-bottom:1mm solid {secondary}'
+    accent, wash, secondary, alternate = workbook_colors(config,number)
+    heading = f'font-size:17pt;line-height:1.12;color:{accent};background-color:{wash};margin:0 0 3mm;padding:2mm;border-bottom:1mm solid {secondary}'
     plain = f'font-size:{font}pt;line-height:1.24;margin:0 0 3mm'
     title = unit['title']
     body = f'<p style="{plain};color:{accent};font-weight:bold">READING {number} • INFORMATIONAL TEXT</p>'
@@ -423,7 +458,7 @@ def render_unit(unit, number, config):
     quiz += f'<p style="{plain}">Name: __________________________  Date: ______________</p>'
     quiz += f'<p style="{plain}">Circle one answer for each question. Use details from Reading {number}.</p>'
     for index, question in enumerate(unit['questions'],1):
-        quiz += f'<section style="margin:0 0 3mm;padding:2.5mm;background-color:{wash if index % 2 else config.get("alternate_wash", "#FFF6E5")};border-left:1mm solid {accent if index % 2 else secondary}">'
+        quiz += f'<section style="min-height:31mm;margin:0 0 3mm;padding:2.5mm;background-color:{wash if index % 2 else alternate};border-left:1mm solid {accent if index % 2 else secondary}">'
         quiz += f'<p style="{plain};font-weight:bold;margin:0 0 1.5mm">{index}. {esc(question["prompt"])}</p>'
         for letter in LETTERS:
             quiz += (f'<p style="font-size:{font}pt;line-height:1.2;margin:0 0 1mm">'
@@ -450,7 +485,9 @@ Theme: {theme}. Inspiration/context: {source_context or theme}.
 Use the context as inspiration; do not copy any referenced product. The format is READING + QCM ONLY.
 The product is a READING COMPREHENSION WORKBOOK. Its title must describe the complete set of
 readings; do not advertise a weight/math challenge, experiment, game or hands-on project that is not
-actually included. Its overview must describe reading skills, not claim students will do experiments.
+actually included. Use a SHORT cover title of 3-7 words, at most 52 characters.
+Write a single SHORT description, at most 110 characters (roughly 12-18 words).
+Its overview must describe reading skills, not claim students will do experiments.
 Return title, overview, and topics: exactly {count//2} short descriptions with different substantive learning goals.
 Make the theme central to every reading. Plan concrete knowledge children can use, not
 abstract articles about how researchers or authors work. Choose five genuinely different angles:
@@ -461,7 +498,7 @@ monolithic claims and invented histories; represent named communities accurately
 For science use correct explanations; never confuse size with mass, weight or strength.
 Grades 3-4: accessible informational reading, vocabulary in context, main idea, inference, cause/effect.
 Grades 5-6: more detailed texts, reasoning about evidence, author's purpose, text structure and inference.'''
-    schema = obj({'title':text(80),'overview':text(350),'topics':array(text(350),count//2,count//2)})
+    schema = obj({'title':text(52),'overview':text(110),'topics':array(text(350),count//2,count//2)})
     def validate_plan(raw):
         """Keep the plan concise and require a distinct topic for every pair."""
         if not isinstance(raw,dict) or not isinstance(raw.get('topics'),list) or len(raw['topics']) != count//2:
@@ -469,7 +506,7 @@ Grades 5-6: more detailed texts, reasoning about evidence, author's purpose, tex
         topics = [bounded(t,'Topic',350) for t in raw['topics']]
         if len(set(t.casefold() for t in topics)) != len(topics):
             raise ValueError('Reading topics must be distinct')
-        return dict(title=bounded(raw.get('title'),'Pack title',80),overview=bounded(raw.get('overview'),'Overview',350),topics=topics)
+        return dict(title=bounded(raw.get('title'),'Short cover title',52),overview=bounded(raw.get('overview'),'Short cover description',110),topics=topics)
     plan = ask_json(topics_prompt,validate_plan,'Reading plan',3000,response_schema=schema)
     low, high = config['reading_words']['min'],config['reading_words']['max']
     def make_unit(index):
@@ -531,12 +568,7 @@ Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_promp
     random.SystemRandom().shuffle(positions)
     generated = [(balance_answer_positions(unit,index,positions[index*5:index*5+5]),pair) for index,(unit,pair) in enumerate(generated)]
     pages = [page for index,(unit,_) in enumerate(generated) for page in render_unit(unit,index+1,config)]
-    cover = dict(title=plan['title'],images=[dict(id='cover',prompt=f'Original editorial illustration about {theme}: {plan["overview"]}. No text or numbers.')],
-        html=f'<h1 style="font-size:30pt;color:{config["accent"]};margin:0 0 5mm">{html.escape(plan["title"])}</h1>'
-             f'<p style="font-size:16pt;background-color:{config["wash"]};padding:3mm;border-left:2mm solid {config["secondary"]}">Grades {html.escape(grade_band.replace("th", "").replace("rd", "").replace("-", "–"))} | Reading Comprehension</p>'
-             f'<img data-asset="cover" style="width:175mm;height:110mm;margin:2mm 0 4mm"/>'
-             f'<p style="font-size:12pt">{html.escape(plan["overview"])}</p>'
-             f'<p style="font-size:12pt">{count//2} readings | {count//2*5} multiple-choice questions | Answer key included</p>')
+    cover = render_cover(plan,grade_band,config,count//2)
     pack = dict(title=plan['title'],overview=plan['overview'],theme=theme,grade_band=grade_band,
         content_format='reading_qcm',art_direction=config['illustration_style'],character_description='',
         cover=cover,pages=pages,reading_units=[unit for unit,_ in generated],

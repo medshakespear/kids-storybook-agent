@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from core.pipeline import load_grade_config
 from core.reading_generator import (balance_answer_positions, passage_quality_issues,
-                                    repair_unit_quality, render_unit)
+                                    repair_unit_quality, render_unit, render_cover, workbook_colors)
 from core.creative_layout import answer_key_markup
 from tests.test_reading_generator import reading_fixture
 
@@ -37,6 +37,25 @@ class ReadingProductQualityTests(unittest.TestCase):
             repaired = repair_unit_quality(flagged, load_grade_config()['3rd-4th'], 'Test')
         self.assertEqual(repaired, original)
         self.assertEqual(flagged['questions'], original['questions'])
+
+    def test_cover_uses_large_art_and_short_text_at_print_bounds(self):
+        """The maximum cover copy and larger image fit beside the required store logo."""
+        from core.creative_layout import check_page
+        for band in ('3rd-4th','5th-6th'):
+            config = load_grade_config()[band]
+            plan = {'title':'Discover the World Through Close Reading and Ideas'[:52],
+                    'overview':'Explore original themed texts, build vocabulary, and practise making thoughtful choices with passage evidence.'[:110]}
+            page = render_cover(plan,band,config,5)
+            check_page(page,config['student_font_pt'],cover=True)
+            self.assertIn('height:151mm',page['html'])
+            self.assertIn('5 readings',page['html'])
+            self.assertIn('Answer key',page['html'])
+
+    def test_reading_pairs_have_distinct_coordinated_colors(self):
+        """Five units vary their accent while upper-grade fills remain restrained."""
+        config = load_grade_config()['3rd-4th']
+        self.assertEqual(len({workbook_colors(config,n)[0] for n in range(1,6)}),5)
+        self.assertEqual(workbook_colors(config,1),workbook_colors(config,6))
 
     def test_absolute_safety_and_unlabeled_town_examples_are_flagged(self):
         """Catch the concrete editorial defects seen in a generated Halloween pack."""
@@ -72,7 +91,7 @@ class ReadingProductQualityTests(unittest.TestCase):
             self.assertIn(f'width:{size}mm;height:{size}mm', reading['html'])
             self.assertIn('Read with a purpose', reading['html'])
             self.assertIn('border-bottom:1mm solid', reading['html'])
-            self.assertIn('background-color:'+load_grade_config()[band]['alternate_wash'],quiz['html'])
+            self.assertIn('background-color:'+workbook_colors(load_grade_config()[band],1)[3],quiz['html'])
             self.assertEqual(len(quiz['answer_items']), 5)
             key = answer_key_markup({'content_format': 'reading_qcm', 'pages': [reading, quiz]})
             self.assertEqual(key.count('<strong>'), 5)

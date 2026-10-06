@@ -321,3 +321,9 @@ respectively. Product titles should describe the reading comprehension actually 
 review explicitly checks inference versus literal recall, plausible distractors, fictional example
 labels, historical explanations, and overly absolute safety claims. Local repair catches selected
 risky patterns; it does not replace factual verification by a person.
+
+Each reading/question pair now has its own coordinated accent color (teal, coral, purple,
+green or blue). Upper-grade large-area fills stay restrained. Question panels reserve a
+consistent minimum height for a more balanced page. Covers request a title of at most
+52 characters and a description of at most 110 characters, with 151mm-high uncropped
+artwork, a colored grade band and a concise feature strip beneath the required store logo.

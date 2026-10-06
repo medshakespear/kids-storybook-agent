@@ -30,7 +30,20 @@ def brand_header() -> str:
 
 def cover_fragment(page: dict, preview: bool = False) -> str:
     """Reserve cover space for branding before the model-authored composition."""
-    return brand_header() + fragment(page, preview)
+    content = brand_header() + fragment(page, preview)
+    if page.get('cover_background') != 'curved_color':
+        return content
+    # Trusted, locally authored decoration: never model HTML or a remote resource.
+    backdrop = ('<svg xmlns="http://www.w3.org/2000/svg" width="186" height="265" viewBox="0 0 186 265">'
+                '<rect width="186" height="265" rx="10" fill="#E0F2F7"/>'
+                '<ellipse cx="178" cy="18" rx="80" ry="48" fill="#F5C89A"/>'
+                '<ellipse cx="-8" cy="237" rx="98" ry="55" fill="#B8DDD9"/>'
+                '<circle cx="172" cy="245" r="32" fill="#ECC8DB"/>'
+                '<circle cx="12" cy="18" r="7" fill="#E88B35"/>'
+                '<circle cx="163" cy="83" r="5" fill="#C4D5EC"/></svg>')
+    encoded = base64.b64encode(backdrop.encode()).decode()
+    return (f'<div class="reading-cover" style="background-image:url(data:image/svg+xml;base64,{encoded})">'
+            + content + '</div>')
 
 TAGS = {'div', 'section', 'p', 'span', 'strong', 'b', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
         'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'br', 'img'}
@@ -271,6 +284,9 @@ def document_markup(bodies: list[str], font: int = 13) -> str:
     article:last-child {{break-after:auto;}}
     img {{object-fit:contain;max-width:100%;}} h1,h2,h3,h4,h5,h6,p {{margin:0 0 3mm;}}
     .store-logo {{height:36mm;overflow:hidden;text-align:center;margin-bottom:5mm;}}
+    .reading-cover {{width:186mm;height:265mm;background-size:186mm 265mm;background-repeat:no-repeat;border-radius:10mm;}}
+    .reading-cover .store-logo {{background:white;border-radius:10mm 10mm 5mm 5mm;}}
+    .reading-cover .design {{padding:0 3mm;}}
     .store-logo img {{width:88mm;height:88mm;max-width:none;position:relative;top:-25mm;}}
     h4,h5,h6 {{font-size:1em;}}
     table {{width:100%;table-layout:fixed;}} td,th {{vertical-align:top;}}

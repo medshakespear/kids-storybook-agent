@@ -47,9 +47,49 @@ class ReadingProductQualityTests(unittest.TestCase):
                     'overview':'Explore original themed texts, build vocabulary, and practise making thoughtful choices with passage evidence.'[:110]}
             page = render_cover(plan,band,config,5)
             check_page(page,config['student_font_pt'],cover=True)
-            self.assertIn('height:151mm',page['html'])
+            self.assertIn('height:160mm',page['html'])
             self.assertIn('5 readings',page['html'])
             self.assertIn('Answer key',page['html'])
+
+    def test_cover_has_curved_background_and_no_description(self):
+        """Cover decoration is trusted SVG and the overview never prints."""
+        from core.creative_layout import cover_fragment, document_markup, check_document, data_only_fetcher
+        from weasyprint import HTML
+        plan = {'title':'Stand Up Together', 'overview':'THIS DESCRIPTION MUST NOT PRINT', 'topics':['Children playing outdoors.']}
+        config = load_grade_config()['3rd-4th']
+        page = render_cover(plan,'3rd-4th',config,5)
+        markup = document_markup([cover_fragment(page,True)],config['student_font_pt'])
+        self.assertNotIn(plan['overview'],markup)
+        self.assertIn('reading-cover',markup)
+        self.assertIn('data:image/svg+xml;base64,',markup)
+        check_document(HTML(string=markup,url_fetcher=data_only_fetcher).render(),1)
+
+    def test_answer_schedule_has_no_runs_and_varied_pages(self):
+        """Keys stay balanced while every complete set has at least three letters."""
+        import random
+        from core.reading_generator import answer_position_schedule
+        for seed in range(50):
+            schedule=answer_position_schedule(25,random.Random(seed))
+            self.assertEqual(sorted(Counter(schedule).values()),[6,6,6,7])
+            self.assertTrue(all(len(set(schedule[i:i+5]))>=3 for i in range(0,25,5)))
+            self.assertFalse(any(schedule[i]==schedule[i+1]==schedule[i+2] for i in range(23)))
+
+    def test_scene_removes_text_prone_display_requests(self):
+        """Keep scene context while replacing surfaces that invite garbled lettering."""
+        from core.reading_generator import illustration_scene
+        scene=illustration_scene('Two friends beside colorful posters and a chalkboard in a classroom.')
+        self.assertIn('Two friends',scene)
+        self.assertIn('plain undecorated surfaces',scene)
+        self.assertNotIn('colorful posters',scene)
+        self.assertNotIn('a chalkboard',scene)
+
+    def test_bullying_definitions_and_report_prerequisites_trigger_repair(self):
+        """Repeated behavior is not mandatory and evidence cannot delay adult help."""
+        config=load_grade_config()['3rd-4th']
+        for extra in ('Bullying must happen repeatedly over and over.',
+                      'For bullying use a four-step plan: step one find a witness, step two write notes.'):
+            unit=reading_fixture();unit['paragraphs'][0]+=' '+extra
+            self.assertTrue(passage_quality_issues(unit,config))
 
     def test_reading_pairs_have_distinct_coordinated_colors(self):
         """Five units vary their accent while upper-grade fills remain restrained."""

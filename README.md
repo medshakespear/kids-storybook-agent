@@ -325,8 +325,9 @@ risky patterns; it does not replace factual verification by a person.
 Each reading/question pair now has its own coordinated accent color (teal, coral, purple,
 green or blue). Upper-grade large-area fills stay restrained. Question panels reserve a
 consistent minimum height for a more balanced page. Covers request a title of at most
-52 characters and a description of at most 110 characters, with 151mm-high uncropped
-artwork, a colored grade band and a concise feature strip beneath the required store logo.
+52 characters, with 160mm-high uncropped artwork and no printed description. A pastel
+background with curved coral, teal and lilac shapes frames the store logo, rounded title panel,
+grade band and concise feature strip. Decoration is local SVG, not AI-generated typography.
 
 ### Independent answer verification
 
@@ -344,3 +345,13 @@ Reading workbooks now explicitly use the activity-art prompt path instead of the
 storybook-character style. Cover art is based on a reviewed reading scene rather than the
 product title, with explicit no-lettering and no-generic-costume instructions. There is still
 no Gemini image reviewer; inspect the final illustrations before selling.
+
+The independent text solve also audits whether inference questions actually require an
+unstated conclusion and whether distractors are plausible misunderstandings of the passage.
+Quality defects trigger the same bounded, question-only repair as incorrect answers.
+Balanced keys avoid three identical consecutive letters and use at least three letters per
+five-question set. Bullying passages receive additional checks for potential repetition and
+prompt adult reporting without witness/documentation prerequisites. Illustration scene prompts
+replace text-prone display surfaces with plain surfaces and request closed unmarked books.
+No image reviewer is used; image generators can still violate prompts, so visually inspect
+the final PDF before listing it for sale.

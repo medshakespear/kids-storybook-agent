@@ -16,7 +16,8 @@ def verify_question_answers(unit, config, label, *, ask):
     current = deepcopy(unit)
     solution_schema = obj({'solutions': array(obj({
         'number': integer(1, 5), 'answer': enum(['A','B','C','D','NONE','AMBIGUOUS']),
-        'reason': text(110, 'Brief passage-based explanation of the selected option or defect.')
+        'reason': text(110, 'Brief passage-based explanation of the selected option or defect.'),
+        'quality_issues': array(enum(['literal_inference','implausible_distractors']),0,2)
     }), 5, 5)})
 
     def validate_solutions(raw):
@@ -33,24 +34,32 @@ def verify_question_answers(unit, config, label, *, ask):
                 raise ValueError('Solution numbers must be exactly 1-5, each once')
             if solution.get('answer') not in ('A','B','C','D','NONE','AMBIGUOUS'):
                 raise ValueError('Select A-D, NONE or AMBIGUOUS')
-            found[number] = dict(answer=solution['answer'], reason=bounded(solution.get('reason'),'Review reason',110))
+            issues = solution.get('quality_issues')
+            if not isinstance(issues,list) or any(i not in ('literal_inference','implausible_distractors') for i in issues):
+                raise ValueError('Return quality_issues as a list of supported defect labels, or []')
+            found[number] = dict(answer=solution['answer'], reason=bounded(solution.get('reason'),'Review reason',110),quality_issues=issues)
         return found
 
     for attempt in range(3):
         # The proposed key, explanations and supporting quotations are deliberately
         # absent. Otherwise a reviewer can rationalize an unrelated selected choice.
         blind = {'paragraphs': current['paragraphs'], 'questions': [
-            {'number': n, 'prompt': q['prompt'], 'options': q['options']}
+            {'number': n, 'prompt': q['prompt'], 'options': q['options'], 'skill':q['skill']}
             for n,q in enumerate(current['questions'],1)]}
         prompt = ('Solve these five reading questions using ONLY the passage and printed options. '
                   'No answer key is supplied. Select NONE when no option answers the question, and '
                   'AMBIGUOUS when two or more options are defensible. Never select a merely related '
-                  'option or borrow the answer from another question. Return solutions with number, '
+                  'option or borrow the answer from another question. Also audit question quality: '
+                  'literal_inference means a question labeled inference merely asks for an explicitly stated fact, '
+                  'instead of combining details into an unstated conclusion. implausible_distractors means '
+                  'wrong choices are unrelated, absurd, obvious giveaways or cannot plausibly reflect a misunderstanding of this passage. '
+                  'Return quality_issues [] when neither defect exists; otherwise use those exact labels. '
+                  'Return solutions with number, quality_issues, '
                   'answer and a brief reason of at most 110 characters (aim for 60-90). Do not invent missing options.\n'+json.dumps(blind))
         solutions = ask(prompt, validate_solutions, label+' blind answer verification', 2200,
                         response_schema=solution_schema)
         faults = {n: result for n,result in solutions.items()
-                  if result['answer'] != current['questions'][n-1]['answer']}
+                  if result['answer'] != current['questions'][n-1]['answer'] or result['quality_issues']}
         if not faults:
             for number, result in solutions.items():
                 current['questions'][number-1]['explanation'] = result['reason']
@@ -81,7 +90,7 @@ def verify_question_answers(unit, config, label, *, ask):
                   'passage, title, illustration and every unaffected question unchanged. A selected '
                   'option must actually answer its own prompt and agree with its explanation. When '
                   'no correct choice exists, replace the faulty choice, not just the answer letter. '
-                  'Retain plausible distractors and the grade skill mix. Copy real passage evidence. '
+                  'Repair flagged quality defects even if the answer letter was correct: inference must require a supported unstated conclusion; use plausible same-topic misunderstandings as distractors. Retain the grade skill mix. Copy real passage evidence. '
                   'Do not insert claims into the passage to justify a bad option.\n'+json.dumps(retained))
         current = ask(prompt,validate_repairs,label+' answer repair',3500,response_schema=repair_schema)
     raise AssertionError('Unreachable answer-review state')

@@ -22,7 +22,7 @@ class ReadingAnswerReviewTests(unittest.TestCase):
     def solutions(self, unit, broken=False):
         """Supply numbered independent answers through the real review validator."""
         return {'solutions':[dict(number=n,answer='NONE' if broken and n==2 else q['answer'],
-                                  reason=q['explanation']) for n,q in enumerate(unit['questions'],1)]}
+                                  reason=q['explanation'],quality_issues=[]) for n,q in enumerate(unit['questions'],1)]}
 
     def test_solver_cannot_see_the_key_or_explanation(self):
         """Independent solving removes answer priming and creates matching key explanations."""
@@ -31,7 +31,7 @@ class ReadingAnswerReviewTests(unittest.TestCase):
             payload = json.loads(prompt.split('\n')[-1])
             self.assertEqual(set(payload), {'paragraphs','questions'})
             for q in payload['questions']:
-                self.assertEqual(set(q), {'number','prompt','options'})
+                self.assertEqual(set(q), {'number','prompt','options','skill'})
             return validate(self.solutions(self.unit))
         self.assertEqual(verify_question_answers(self.unit,self.config,'Reading',ask=ask),self.unit)
 
@@ -65,6 +65,22 @@ class ReadingAnswerReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(ActivityGenerationError,'PDF not published'):
             verify_question_answers(self.unit,self.config,'Reading',ask=ask)
         self.assertEqual(len(calls),5)
+
+    def test_quality_fault_is_repaired_even_when_selected_answer_is_correct(self):
+        """A correct letter does not excuse literal inference or absurd distractors."""
+        calls=[]
+        def ask(prompt,validate,label,*args,**kwargs):
+            """Flag quality once, then verify the scoped repair independently."""
+            calls.append(label)
+            if label.endswith('answer repair'):
+                self.assertIn('inference must require',prompt)
+                return validate({'repairs':[{'number':3,'question':deepcopy(self.unit['questions'][2])}]})
+            result=self.solutions(self.unit)
+            if len(calls)==1:
+                result['solutions'][2]['quality_issues']=['literal_inference','implausible_distractors']
+            return validate(result)
+        self.assertEqual(verify_question_answers(self.unit,self.config,'Reading',ask=ask),self.unit)
+        self.assertEqual(len(calls),3)
 
     def test_solver_rejects_duplicate_or_missing_numbers(self):
         """The independent solution cannot accidentally bind one question to another."""

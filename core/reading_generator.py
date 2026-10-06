@@ -262,6 +262,11 @@ def passage_quality_issues(unit, config):
         issues.append('Replace absolute safety promises with a precise statement of which hazard is reduced.')
     if re.search(r'\b(?:town|village|city) of [A-Z][a-z]+', passage) and not re.search(r'\b(?:fictional|imaginary|imagine)\b', passage, re.I):
         issues.append('Identify an invented town/event example explicitly as fictional; remove unsupported real-world performance statistics.')
+    if re.search(r'\bbully(?:ing|ies)\b', passage, re.I):
+        if re.search(r'(?:must|has to|needs to).*?repeat|happen.*?repeatedly', passage, re.I) and not re.search(r'potential|could happen again|may happen again', passage, re.I):
+            issues.append('Bullying involves a power imbalance and repeated behavior OR the potential to repeat; do not require completed repetition.')
+        if re.search(r'(?:four|three|\d)[ -]step|step (?:one|two|three|1|2|3)', passage, re.I) and re.search(r'witness|evidence|notes|write', passage, re.I):
+            issues.append('Seek trusted adult help promptly. Never make finding a witness, collecting evidence or writing notes a prerequisite for reporting. Optional documentation comes after seeking help and only when safe.')
     return issues
 
 
@@ -310,6 +315,28 @@ def balance_answer_positions(unit, reading_index, positions=None):
             question['options'][target], question['options'][old] = question['options'][old], question['options'][target]
         question['answer'] = target
     return revised
+
+def answer_position_schedule(count, rng=None):
+    """Balance letters globally without runs or a single-letter question page."""
+    rng = rng or random.SystemRandom()
+    positions = [LETTERS[i % 4] for i in range(count)]
+    for _ in range(200):
+        rng.shuffle(positions)
+        if all(len(set(positions[i:i+5])) >= min(3, len(positions[i:i+5])) for i in range(0,count,5)) and all(not positions[i] == positions[i+1] == positions[i+2] for i in range(count-2)):
+            return positions
+    # Guaranteed bounded fallback retains balance and all four letters per full set.
+    offset = rng.randrange(4)
+    return [LETTERS[(i+offset) % 4] for i in range(count)]
+
+
+def illustration_scene(prompt):
+    """Keep text-prone surfaces blank without asking an AI to inspect images."""
+    scene = re.sub(r'\b(?:posters?|banners?|signage|signs?|noticeboards?|billboards?|whiteboards?|blackboards?|chalkboards?)\b',
+                   'plain undecorated surfaces', prompt, flags=re.I)
+    return ('Artwork composition: natural setting or simple plain walls; closed unmarked books only. '
+            'Every surface is blank and undecorated. Show the action and relevant objects, not a decorated classroom display. '
+            'No lettering, writing, labels, logos, banners, posters, signs or screens. Scene: '+scene)
+
 
 def prepare_reading_unit(raw, config, label, *, retained=None):
     """Apply scoped repairs in dependency order before strict shared validation."""
@@ -410,18 +437,17 @@ def render_cover(plan, grade_band, config, reading_count, *, scene_prompt=None):
     grade = grade_band.replace('th','').replace('rd','').replace('-','–')
     cover_html = (
         f'<h1 style="font-size:27pt;line-height:1.1;color:{accent};margin:0 0 3mm;'
-        f'padding:2mm 0;border-bottom:1.5mm solid {secondary}">{esc(plan["title"])}</h1>'
+        f'padding:3mm;background-color:{wash};border-radius:5mm;border-bottom:1.5mm solid {secondary}">{esc(plan["title"])}</h1>'
         f'<p style="font-size:14pt;margin:0 0 3mm;padding:2mm;background-color:{wash};'
         f'color:{accent};font-weight:bold">Grades {esc(grade)} • Reading Comprehension</p>'
-        f'<div style="background-color:{alternate};padding:2mm;margin:0 0 3mm;text-align:center">'
-        '<img data-asset="cover" style="width:176mm;height:151mm"/></div>'
-        f'<p style="font-size:12pt;line-height:1.25;margin:0 0 3mm">{esc(plan["overview"])}</p>'
+        f'<div style="background-color:{alternate};padding:2mm;margin:0 0 3mm;border-radius:8mm;text-align:center">'
+        '<img data-asset="cover" style="width:176mm;height:160mm"/></div>'
         f'<p style="font-size:12pt;line-height:1.2;padding:3mm;margin:0;background-color:{wash};'
         f'border-left:2mm solid {secondary};color:{accent};font-weight:bold">'
         f'{reading_count} readings • {reading_count*5} questions • Answer key</p>')
     scene = scene_prompt or plan.get('topics', ['A classroom reading scene'])[0]
-    return dict(title=plan['title'],html=cover_html,images=[dict(id='cover',
-        prompt='ART ONLY: '+scene+' Original polished editorial scene, large clear focal subject. '
+    return dict(title=plan['title'],html=cover_html,cover_background='curved_color',images=[dict(id='cover',
+        prompt='ART ONLY: '+illustration_scene(scene)+' Original polished editorial scene, large clear focal subject. '
                'No lettering, words, typography, symbols used as writing, titles or logos. '
                'No poster or book-cover text. For cultural topics use accurate relevant objects or settings, '
                'not generic costumes, feather headdresses or pan-cultural mascots. Coordinated vivid colors.')])
@@ -454,7 +480,7 @@ def render_unit(unit, number, config):
     body += f'<p style="{plain};color:{accent}">Continue to the five questions on the next page.</p>'
     # Art has a full square footprint; the legacy worksheet quota is inappropriate
     # for a 420-word reading. Its physical size is fixed and tested instead.
-    reading = dict(title=title,html=body,images=[dict(id=f'reading_{number}',prompt=unit['image_prompt'])],
+    reading = dict(title=title,html=body,images=[dict(id=f'reading_{number}',prompt=illustration_scene(unit['image_prompt']))],
         answers='',page_type='reading',reading_unit=number,
         quality_profile=dict(minimum_text_pt=font,visual_area_mm2=0))
     quiz = f'<p style="{plain};color:{accent};font-weight:bold">READING {number} • CHECK YOUR UNDERSTANDING</p>'
@@ -490,9 +516,8 @@ Use the context as inspiration; do not copy any referenced product. The format i
 The product is a READING COMPREHENSION WORKBOOK. Its title must describe the complete set of
 readings; do not advertise a weight/math challenge, experiment, game or hands-on project that is not
 actually included. Use a SHORT cover title of 3-7 words, at most 52 characters.
-Write a single SHORT description, at most 110 characters (roughly 12-18 words).
-Its overview must describe reading skills, not claim students will do experiments.
-Return title, overview, and topics: exactly {count//2} short descriptions with different substantive learning goals.
+Do not generate a cover description or overview.
+Return title and topics: exactly {count//2} short descriptions with different substantive learning goals.
 Make the theme central to every reading. Plan concrete knowledge children can use, not
 abstract articles about how researchers or authors work. Choose five genuinely different angles:
 real-world explanation, an everyday example, a practical process, comparison, and a thoughtful problem.
@@ -502,7 +527,7 @@ monolithic claims and invented histories; represent named communities accurately
 For science use correct explanations; never confuse size with mass, weight or strength.
 Grades 3-4: accessible informational reading, vocabulary in context, main idea, inference, cause/effect.
 Grades 5-6: more detailed texts, reasoning about evidence, author's purpose, text structure and inference.'''
-    schema = obj({'title':text(52),'overview':text(110),'topics':array(text(350),count//2,count//2)})
+    schema = obj({'title':text(52),'topics':array(text(350),count//2,count//2)})
     def validate_plan(raw):
         """Keep the plan concise and require a distinct topic for every pair."""
         if not isinstance(raw,dict) or not isinstance(raw.get('topics'),list) or len(raw['topics']) != count//2:
@@ -510,7 +535,7 @@ Grades 5-6: more detailed texts, reasoning about evidence, author's purpose, tex
         topics = [bounded(t,'Topic',350) for t in raw['topics']]
         if len(set(t.casefold() for t in topics)) != len(topics):
             raise ValueError('Reading topics must be distinct')
-        return dict(title=bounded(raw.get('title'),'Short cover title',52),overview=bounded(raw.get('overview'),'Short cover description',110),topics=topics)
+        return dict(title=bounded(raw.get('title'),'Short cover title',52),topics=topics)
     plan = ask_json(topics_prompt,validate_plan,'Reading plan',3000,response_schema=schema)
     low, high = config['reading_words']['min'],config['reading_words']['max']
     def make_unit(index):
@@ -526,7 +551,7 @@ research language such as "researchers found", "studies show" or "peer-reviewed 
 State well-established facts only. No invented study results, unsupported dates/statistics,
 fabricated quotations or cultural generalizations. Clearly label any invented example as a fictional scenario.
 For bullying: never blame targets, recommend confronting a bully alone, or frame a power imbalance as
-ordinary peer conflict requiring peer mediation. Emphasize safe help from responsible trusted adults.
+ordinary peer conflict requiring peer mediation. Define bullying using a power imbalance plus repetition OR potential repetition. A single disagreement is not automatically bullying. Seek trusted adult help promptly; witnesses or notes are NEVER required before reporting. Documentation is optional, after seeking help and only if safe. Do not invent a school's policy; label any example process fictional. Emphasize safe help from responsible trusted adults.
 No babyish picture puzzles, arithmetic calculations, drawing, sorting, mazes or teacher instructions.
 Questions: five, with four distinct plausible choices A-D, exactly ONE defensible correct choice.
 Use at least three reading skills, including inference; at most two literal-detail questions. Grades 5-6 must include author_purpose, text_structure or comparison. Vary correct answer positions across A-D.
@@ -545,7 +570,7 @@ universal facts. Avoid contrived fractions or measurements with unspecified quan
 Provide a verbatim quote from the passage and a concise explanation for every correct answer.
 Question prompts <=120 characters; choices <=55 (aim for 35-45); explanations <=110 (aim for 60-90); quotes <=180. Use complete concise sentences.
 Include one relevant original image prompt <=650 chars: show a large clear focal subject with purposeful contextual details, vivid coordinated colors and a polished textbook illustration composition, no wording or numbers; no guessing exact image counts.
-For cultural illustrations prefer specific relevant objects, environments or contemporary learning scenes; avoid generic historical costumes, feather headdresses and pan-cultural mascots. Never include lettering.
+For cultural illustrations prefer specific relevant objects, environments or contemporary learning scenes; avoid generic historical costumes, feather headdresses and pan-cultural mascots. Never include lettering. Prefer outdoors, natural settings or plain undecorated walls. Do not include posters, banners, signs, chalkboards, whiteboards, screens or open printed books; use closed unmarked books if needed.
 Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_prompt, questions.'''
         unit = ask_json(prompt,lambda raw:prepare_reading_unit(raw,config,f'Reading {index+1}'),
                         f'Reading {index+1}',6000,response_schema=unit_schema())
@@ -571,12 +596,11 @@ Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_promp
         return verified, render_unit(verified,index+1,config)
     workers = text_worker_limit(int_setting('DESIGN_WORKERS',3,1,4))
     generated = ordered_parallel(make_unit,range(count//2),workers)
-    positions = [LETTERS[i % 4] for i in range(count//2*5)]
-    random.SystemRandom().shuffle(positions)
+    positions = answer_position_schedule(count//2*5)
     generated = [(balance_answer_positions(unit,index,positions[index*5:index*5+5]),pair) for index,(unit,pair) in enumerate(generated)]
     pages = [page for index,(unit,_) in enumerate(generated) for page in render_unit(unit,index+1,config)]
     cover = render_cover(plan,grade_band,config,count//2,scene_prompt=generated[0][0]['image_prompt'])
-    pack = dict(title=plan['title'],overview=plan['overview'],theme=theme,grade_band=grade_band,
+    pack = dict(title=plan['title'],theme=theme,grade_band=grade_band,
         content_format='reading_qcm',resource_type='activity_pack',art_direction=config['illustration_style'],character_description='',
         cover=cover,pages=pages,reading_units=[unit for unit,_ in generated],
         content_checks=dict(status='passed',review='text_only',reading_units=count//2,questions=count//2*5,

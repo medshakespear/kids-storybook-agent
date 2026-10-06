@@ -296,3 +296,20 @@ until the run finishes; interrupted runs do not resume after container restart.
 
 Legacy story/puzzle modules are retained for compatibility. `DAILY_BOOK_COUNT`,
 `/generate` and `/books` retain their names and existing request/download formats.
+
+
+### Reading-pack quality and layout
+
+Production packs serve grades 3–4 and 5–6. Each 12-page pack includes the store-logo cover,
+five illustrated informational readings, five multiple-choice pages, and one final answer sheet.
+Python lays out every page; the model supplies content rather than arbitrary HTML/CSS.
+Square artwork is displayed without cropping, questions have clear answer labels, and the final
+key prints a separate row for each answer and explanation. Correct choices are relabeled using
+a shuffled balanced schedule; the shared content object keeps the question pages and key aligned.
+
+Generation and independent text review now ask for concrete age-accessible writing, explained
+vocabulary, and plausible passage-based distractors. A targeted passage rewrite catches extreme
+sentence density and vague unsupported research claims before evidence checks. These are heuristic
+checks, not certified reading-level scores or external fact checking. No AI image reviewer is used.
+Before selling, review facts, question ambiguity, illustrations, and the final PDF yourself;
+model review and local print checks cannot guarantee instructional accuracy or sales.

@@ -94,7 +94,8 @@ class ReadingGeneratorTests(unittest.TestCase):
                 for page in (3,5,7,9,11):
                     self.assertIn(f'PDF page {page}.',key)
                 self.assertNotIn('Creative answers may vary',key)
-                self.assertEqual(key.count('1. B:'),5)
+                self.assertEqual(key.count('<strong>1.'),5)
+                self.assertEqual(key.count('<strong>'),25)
                 for page in pack['pages']:
                     self.assertNotIn('Observations guide planning',page['html'])
                 doc=HTML(string=pack_markup(pack,self.config[band],preview=True),url_fetcher=data_only_fetcher).render()
@@ -149,3 +150,4 @@ class ReadingGeneratorTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 generate_reading_pack('Garden','1st-2nd',self.config)
             ask.assert_not_called()
+

@@ -82,7 +82,7 @@
   "3rd-4th": {
     "page_count": {
       "min": 12,
-      "max": 14
+      "max": 12
     },
     "words_per_page": {
       "min": 38,
@@ -123,12 +123,12 @@
       "min": 220,
       "max": 300
     },
-    "reading_guidance": "Use accessible paragraphs, concrete examples, clear transitions and meaningful context clues; require inference supported by the text, not preschool picture tasks."
+    "reading_guidance": "Write for ages 8-10: concrete explanations and relatable examples, mostly short sentences, clear transitions, and a few essential terms defined naturally. Require text-supported inference without adult academic jargon."
   },
   "5th-6th": {
     "page_count": {
-      "min": 14,
-      "max": 16
+      "min": 12,
+      "max": 12
     },
     "words_per_page": {
       "min": 65,
@@ -169,6 +169,6 @@
       "min": 320,
       "max": 420
     },
-    "reading_guidance": "Use nuanced informational texts, academic vocabulary explained in context, evidence-based inference, author purpose and comparisons of ideas; avoid condescending language."
+    "reading_guidance": "Write for ages 10-12: explain meaningful real-world ideas with concrete examples, varied readable sentences, and essential vocabulary defined in context. Challenge reasoning through inference, comparison and text structure rather than dense academic language."
   }
 }

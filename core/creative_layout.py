@@ -475,10 +475,22 @@ def answer_key_markup(pack: dict, mode: str = 'standard') -> str:
     section_style = ('margin:0 0 2mm;border-top:0.5mm solid #188a91;padding-top:1mm' if compact else '')
     heading_style = 'font-size:10pt;margin:0 0 1mm;line-height:1.15' if compact else ''
     paragraph_style = f'font-size:{font:g}pt;margin:0;line-height:1.2;overflow-wrap:anywhere' if compact else ''
-    keys = ''.join(
-        f'<section style="{section_style}"><h3 style="{heading_style}">{"PDF page "+str(i+1) if pack.get("content_format")=="reading_qcm" else str(i)}. {html.escape(p["title"])}</h3>'
-        f'<p style="{paragraph_style}">{html.escape(answer_text(p))}</p></section>'
-        for i,p in enumerate(pack['pages'],1) if pack.get('content_format')!='reading_qcm' or p.get('page_type')=='qcm')
+    sections = []
+    for i, page in enumerate(pack['pages'], 1):
+        if pack.get('content_format') == 'reading_qcm' and page.get('page_type') != 'qcm':
+            continue
+        label = 'PDF page '+str(i+1) if pack.get('content_format') == 'reading_qcm' else str(i)
+        heading = f'<h3 style="{heading_style}">{label}. {html.escape(page["title"])}</h3>'
+        items = page.get('answer_items')
+        if pack.get('content_format') == 'reading_qcm' and items:
+            content = ''.join(
+                f'<p style="font-size:{font:g}pt;margin:0 0 1.5mm;line-height:1.2">'
+                f'<strong>{item["number"]}. {html.escape(item["answer"])}:</strong> '
+                f'{html.escape(item["explanation"])}</p>' for item in items)
+        else:
+            content = f'<p style="{paragraph_style}">{html.escape(answer_text(page))}</p>'
+        sections.append(f'<section style="{section_style}">{heading}{content}</section>')
+    keys = ''.join(sections)
     intro_style = 'font-size:10pt;margin-bottom:3mm' if compact else ''
     intro = ('PDF page numbers identify the question pages. Each question has one correct answer.'
              if pack.get('content_format') == 'reading_qcm'
@@ -557,3 +569,4 @@ def check_visual_quality(document, profile: dict, *, cover: bool = False) -> Non
                          'or 2-4 substantial panels (each at least 75% of an equal share of the total target); '
                          f'measured total {area:.0f} square mm and largest visual {largest:.0f} square mm. '
                          'Preserve response space')
+

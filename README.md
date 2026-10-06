@@ -22,7 +22,10 @@ skills, including inference, with no more than two literal-detail questions.
 Short or overlong passages receive a scoped passage rewrite with a measured word
 target and retained evidence quotations. Overlong choices receive a batched rewrite
 of only the failed choices; no text is padded or silently truncated. Valid units
-need no extra repair calls. Repairs still use bounded provider/validation retries.
+need no extra repair calls. Missing or paraphrased evidence triggers a scoped repair
+of only the affected questions, with the passage frozen. Harmless quote typography
+and whitespace differences are normalized; invented wording remains invalid.
+Repairs still use bounded provider/validation retries.
 Gemini generates content JSON and performs a second text-only comprehension
 review. Python checks distinct options, answer letters, word counts and supporting
 quotes that occur in the passage. The same reviewed object supplies student

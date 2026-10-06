@@ -3,6 +3,7 @@ from copy import deepcopy
 import html
 import re
 import json
+import unicodedata
 
 from core.creative_generator import ask_json
 from core.creative_layout import check_page, preflight_pack
@@ -20,6 +21,70 @@ def bounded(value, name, limit):
     if not isinstance(value, str) or not value.strip() or len(value.strip()) > limit:
         raise ValueError(f'{name} must be nonempty text of at most {limit} characters')
     return value.strip()
+
+
+def normalize_excerpt(value):
+    """Compare copied excerpts across harmless typography and whitespace differences."""
+    value = unicodedata.normalize('NFKC',value)
+    value = value.translate(str.maketrans({'‘':"'",'’':"'",'“':'"','”':'"','–':'-','—':'-'}))
+    return ' '.join(value.casefold().split())
+
+
+def excerpt_in_passage(excerpt, paragraphs):
+    """Require an existing contiguous excerpt; never use fuzzy semantic matching."""
+    if not isinstance(excerpt,str) or not excerpt.strip():
+        return False
+    quote = excerpt.strip().strip('"“”')
+    quote = normalize_excerpt(quote)
+    if not quote:
+        return False
+    # A copied word/number must not be a fragment of a longer source token.
+    start = r'(?<!\w)' if quote[0].isalnum() or quote[0]=='_' else ''
+    end = r'(?!\w)' if quote[-1].isalnum() or quote[-1]=='_' else ''
+    return re.search(start+re.escape(quote)+end,normalize_excerpt(' '.join(paragraphs))) is not None
+
+
+def repair_unit_evidence(raw, label):
+    """Repair only unsupported question/evidence pairs while freezing the passage."""
+    if not isinstance(raw,dict) or not isinstance(raw.get('paragraphs'),list) or not 3 <= len(raw['paragraphs']) <= 4 or not all(isinstance(p,str) and p.strip() for p in raw['paragraphs']):
+        return raw
+    questions = raw.get('questions')
+    if not isinstance(questions,list) or len(questions) != 5 or not all(isinstance(q,dict) for q in questions):
+        return raw
+    failed = {str(i):q for i,q in enumerate(questions,1) if isinstance(q,dict)
+              and (not excerpt_in_passage(q.get('evidence'),raw['paragraphs'])
+                   or len(str(q.get('evidence','')).strip()) > 180)}
+    if not failed:
+        return deepcopy(raw)
+    unit = deepcopy(raw)
+    def validate_evidence(repair):
+        """Accept precisely the requested questions with actually copied excerpts."""
+        replacements = repair.get('questions') if isinstance(repair,dict) else None
+        if not isinstance(replacements,dict) or set(replacements) != set(failed):
+            raise ValueError('Return only the requested question numbers')
+        candidate = deepcopy(unit)
+        for ref,question in replacements.items():
+            if not isinstance(question,dict):
+                raise ValueError('Each replacement question must be a JSON object')
+            evidence = bounded(question.get('evidence'),f'Question {ref} evidence',180)
+            if not excerpt_in_passage(evidence,unit['paragraphs']):
+                raise ValueError(f'Question {ref}: copy a contiguous excerpt that actually occurs in the retained passage; do not paraphrase')
+            candidate['questions'][int(ref)-1] = deepcopy(question)
+        return candidate
+    question_schema = unit_schema()['properties']['questions']['items']
+    prompt = ('Repair ONLY these reading questions: '+', '.join(failed)+'. Their evidence is missing, '
+              'paraphrased, too long or not present in the passage. Keep the passage, title, image prompt and '
+              'all other questions unchanged. Independently solve each affected question from the retained passage. '
+              'Copy a contiguous supporting excerpt of at most 180 characters DIRECTLY from a paragraph, '
+              'including its exact words; no ellipsis or invented wording. Use a meaningful clause or sentence, '
+              'not an isolated common word. Evidence must support the selected '
+              'choice, not merely appear somewhere in the passage. Preserve the question and choices when '
+              'supported. If no choice is defensibly correct, repair that affected question/choices instead '
+              'of inserting new claims into the passage or selecting an unrelated quote. Keep one correct '
+              'answer, skill mix and character limits. Return {"questions":{"number":{complete question}}} '
+              'for precisely the listed numbers. Independent comprehension review follows.\n'+json.dumps(unit))
+    return ask_json(prompt,validate_evidence,label+' evidence repair',3000,
+                    response_schema=obj({'questions':obj({ref:question_schema for ref in failed})}))
 
 
 def passage_word_count(paragraphs):
@@ -49,10 +114,9 @@ def repair_unit_limits(raw, config, label):
         if not low <= passage_word_count(paragraphs) <= high:
             source_questions = unit.get('questions')
             source_questions = source_questions if isinstance(source_questions,list) else []
-            original_text = ' '.join(' '.join(paragraphs).casefold().split())
             quotes = [q['evidence'] for q in source_questions if isinstance(q,dict)
                       and isinstance(q.get('evidence'),str) and q['evidence'].strip()
-                      and ' '.join(q['evidence'].casefold().split()) in original_text]
+                      and excerpt_in_passage(q['evidence'],paragraphs)]
             def validate_passage(raw_repair):
                 """Require the repaired length and every retained evidence quotation."""
                 if not isinstance(raw_repair,dict) or not isinstance(raw_repair.get('paragraphs'),list):
@@ -63,8 +127,7 @@ def repair_unit_limits(raw, config, label):
                 result = [bounded(p,'Paragraph',1300) for p in result]
                 if not low <= passage_word_count(result) <= high:
                     raise ValueError(passage_length_feedback(result,config))
-                normalized = ' '.join(' '.join(result).casefold().split())
-                if any(' '.join(q.casefold().split()) not in normalized for q in quotes):
+                if any(not excerpt_in_passage(q,result) for q in quotes):
                     raise ValueError('Passage length repair must retain every supporting quotation verbatim')
                 return result
             prompt = ('Repair ONLY the passage length in this retained reading unit. '
@@ -174,8 +237,8 @@ def validate_unit(raw, config, *, retained=None):
         if question.get('answer') not in LETTERS:
             raise ValueError('Answer must identify one of A-D')
         question['evidence'] = bounded(question.get('evidence'),'Supporting quotation',180)
-        if ' '.join(question['evidence'].casefold().split()) not in ' '.join(passage.casefold().split()):
-            raise ValueError('Every answer needs a verbatim supporting quote from the passage')
+        if not excerpt_in_passage(question['evidence'],unit['paragraphs']):
+            raise ValueError(f'Question {number}: every answer needs a verbatim supporting quote copied from the passage; do not paraphrase')
         question['explanation'] = bounded(question.get('explanation'),'Answer explanation',110)
     if len(set(skills)) < 3 or skills.count('detail') > 2 or 'inference' not in skills:
         raise ValueError('Include inference and at least three skills; no more than two literal-detail questions')
@@ -263,7 +326,7 @@ Provide a verbatim quote from the passage and a concise explanation for every co
 Question prompts <=120 characters; choices <=55; explanations <=110; quotes <=180.
 Include one relevant original image prompt <=650 chars, no wording or numbers; no guessing exact image counts.
 Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_prompt, questions.'''
-        unit = ask_json(prompt,lambda raw:validate_unit(repair_unit_limits(raw,config,f'Reading {index+1}'),config),
+        unit = ask_json(prompt,lambda raw:validate_unit(repair_unit_evidence(repair_unit_limits(raw,config,f'Reading {index+1}'),f'Reading {index+1}'),config),
                         f'Reading {index+1}',6000,response_schema=unit_schema())
         review_prompt = ('Independently solve and proofread these five reading-comprehension questions. '
             'Keep title and image_prompt VERBATIM. Return the complete unit. Correct factual errors in the passage if needed while preserving its topic and grade word range. '
@@ -274,7 +337,7 @@ Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_promp
             +json.dumps(unit))
         def validate_review(raw):
             """Validate review content and retry wording if the fixed page cannot fit."""
-            reviewed = validate_unit(repair_unit_limits(raw,config,f'Comprehension review {index+1}'),config,retained=unit)
+            reviewed = validate_unit(repair_unit_evidence(repair_unit_limits(raw,config,f'Comprehension review {index+1}'),f'Comprehension review {index+1}'),config,retained=unit)
             try:
                 pair = render_unit(reviewed,index+1,config)
             except ValueError as exc:

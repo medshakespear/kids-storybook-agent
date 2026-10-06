@@ -327,3 +327,20 @@ green or blue). Upper-grade large-area fills stay restrained. Question panels re
 consistent minimum height for a more balanced page. Covers request a title of at most
 52 characters and a description of at most 110 characters, with 151mm-high uncropped
 artwork, a colored grade band and a concise feature strip beneath the required store logo.
+
+### Independent answer verification
+
+After all passage/choice repairs and editorial review, a separate text-only solve receives
+just the passage, printed question prompts and A–D choices. It cannot see the proposed
+answer key, evidence quotations or explanations. It can report no valid option or multiple
+valid options. Detected mismatches trigger repairs of only the affected numbered questions;
+the passage and other questions remain frozen. Repaired questions are solved again, with
+at most two repair rounds. Unresolved mismatches stop PDF publication before image spending.
+The final key explanations come from the independent solve, and balanced letter relabeling
+then moves each correct option together with its key letter. This is model-based semantic
+review, not a guarantee of correctness or an external factual verification service.
+
+Reading workbooks now explicitly use the activity-art prompt path instead of the recurring
+storybook-character style. Cover art is based on a reviewed reading scene rather than the
+product title, with explicit no-lettering and no-generic-costume instructions. There is still
+no Gemini image reviewer; inspect the final illustrations before selling.

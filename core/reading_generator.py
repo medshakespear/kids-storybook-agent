@@ -12,6 +12,7 @@ from core.grade_policy import require_active_grade
 from core.providers import text_worker_limit
 from core.response_schemas import array, enum, obj, text
 from core.runtime import int_setting, ordered_parallel
+from core.reading_answer_review import verify_question_answers
 
 SKILLS = ('main_idea', 'detail', 'inference', 'vocabulary', 'cause_effect', 'text_structure', 'author_purpose', 'comparison')
 LETTERS = ('A', 'B', 'C', 'D')
@@ -402,7 +403,7 @@ def workbook_colors(config, number):
     return accent, wash, secondary, alternate
 
 
-def render_cover(plan, grade_band, config, reading_count):
+def render_cover(plan, grade_band, config, reading_count, *, scene_prompt=None):
     """Compose a concise branded cover dominated by uncropped artwork."""
     esc = html.escape
     accent, wash, secondary, alternate = workbook_colors(config,1)
@@ -418,9 +419,12 @@ def render_cover(plan, grade_band, config, reading_count):
         f'<p style="font-size:12pt;line-height:1.2;padding:3mm;margin:0;background-color:{wash};'
         f'border-left:2mm solid {secondary};color:{accent};font-weight:bold">'
         f'{reading_count} readings • {reading_count*5} questions • Answer key</p>')
+    scene = scene_prompt or plan.get('topics', ['A classroom reading scene'])[0]
     return dict(title=plan['title'],html=cover_html,images=[dict(id='cover',
-        prompt=f'Original rich editorial illustration about {plan["title"]}: {plan["overview"]}. '
-               'Large clear focal scene with coordinated vivid colors and meaningful details. No text or numbers.')])
+        prompt='ART ONLY: '+scene+' Original polished editorial scene, large clear focal subject. '
+               'No lettering, words, typography, symbols used as writing, titles or logos. '
+               'No poster or book-cover text. For cultural topics use accurate relevant objects or settings, '
+               'not generic costumes, feather headdresses or pan-cultural mascots. Coordinated vivid colors.')])
 
 
 def render_unit(unit, number, config):
@@ -541,6 +545,7 @@ universal facts. Avoid contrived fractions or measurements with unspecified quan
 Provide a verbatim quote from the passage and a concise explanation for every correct answer.
 Question prompts <=120 characters; choices <=55 (aim for 35-45); explanations <=110 (aim for 60-90); quotes <=180. Use complete concise sentences.
 Include one relevant original image prompt <=650 chars: show a large clear focal subject with purposeful contextual details, vivid coordinated colors and a polished textbook illustration composition, no wording or numbers; no guessing exact image counts.
+For cultural illustrations prefer specific relevant objects, environments or contemporary learning scenes; avoid generic historical costumes, feather headdresses and pan-cultural mascots. Never include lettering.
 Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_prompt, questions.'''
         unit = ask_json(prompt,lambda raw:prepare_reading_unit(raw,config,f'Reading {index+1}'),
                         f'Reading {index+1}',6000,response_schema=unit_schema())
@@ -560,20 +565,22 @@ Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_promp
                 raise ValueError('Reading/QCM page cannot fit. Shorten sentences and choices while preserving '
                                  f'the grade word range, five questions and evidence: {exc}') from exc
             return reviewed, pair
-        return ask_json(review_prompt,validate_review,
+        reviewed, _ = ask_json(review_prompt,validate_review,
             f'Comprehension review {index+1}',6000,response_schema=unit_schema())
+        verified = verify_question_answers(reviewed,config,f'Reading {index+1}',ask=ask_json)
+        return verified, render_unit(verified,index+1,config)
     workers = text_worker_limit(int_setting('DESIGN_WORKERS',3,1,4))
     generated = ordered_parallel(make_unit,range(count//2),workers)
     positions = [LETTERS[i % 4] for i in range(count//2*5)]
     random.SystemRandom().shuffle(positions)
     generated = [(balance_answer_positions(unit,index,positions[index*5:index*5+5]),pair) for index,(unit,pair) in enumerate(generated)]
     pages = [page for index,(unit,_) in enumerate(generated) for page in render_unit(unit,index+1,config)]
-    cover = render_cover(plan,grade_band,config,count//2)
+    cover = render_cover(plan,grade_band,config,count//2,scene_prompt=generated[0][0]['image_prompt'])
     pack = dict(title=plan['title'],overview=plan['overview'],theme=theme,grade_band=grade_band,
-        content_format='reading_qcm',art_direction=config['illustration_style'],character_description='',
+        content_format='reading_qcm',resource_type='activity_pack',art_direction=config['illustration_style'],character_description='',
         cover=cover,pages=pages,reading_units=[unit for unit,_ in generated],
         content_checks=dict(status='passed',review='text_only',reading_units=count//2,questions=count//2*5,
-                            checks=['grade_word_range','accessibility_signals','distinct_choices','passage_evidence','skill_mix','balanced_answer_positions','print_bounds']))
+                            checks=['grade_word_range','accessibility_signals','distinct_choices','passage_evidence','skill_mix','blind_answer_verification','balanced_answer_positions','print_bounds']))
     check_page(cover,config['student_font_pt'],cover=True)
     preflight_pack(pack,config)
     return pack

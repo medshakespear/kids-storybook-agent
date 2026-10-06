@@ -84,6 +84,8 @@ class ReadingGeneratorTests(unittest.TestCase):
                 """Return validated original content for planning, generation and review."""
                 if label == 'Reading plan':
                     return validate(dict(title='Garden Investigations',overview='Read about how observations help a school garden grow.',topics=[f'Garden investigation {n}' for n in range(5)]))
+                if 'blind answer verification' in label:
+                    return validate({'solutions':[{'number':i,'answer':q['answer'],'reason':'Supported by the passage.'} for i,q in enumerate(reading_fixture(band)['questions'],1)]})
                 return validate(reading_fixture(band))
             with self.subTest(band=band),patch('core.reading_generator.ask_json',side_effect=ask),patch('core.reading_generator.text_worker_limit',return_value=1):
                 pack=generate_reading_pack('School gardens',band,self.config)
@@ -131,6 +133,8 @@ class ReadingGeneratorTests(unittest.TestCase):
             """Supply validated content while preserving production rendering stages."""
             if label == 'Reading plan':
                 return validate(dict(title='Garden Investigations',overview='Read about garden evidence.',topics=[f'Garden {n}' for n in range(5)]))
+            if 'blind answer verification' in label:
+                return validate({'solutions':[{'number':i,'answer':q['answer'],'reason':'Supported by the passage.'} for i,q in enumerate(reading_fixture('5th-6th')['questions'],1)]})
             return validate(reading_fixture('5th-6th'))
         with tempfile.TemporaryDirectory() as folder, \
              patch('core.reading_generator.ask_json',side_effect=ask), \

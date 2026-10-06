@@ -65,14 +65,15 @@ class ThemePickerTests(unittest.TestCase):
         self.assertEqual(len({item["grade_band"] for item in specs}), 2)
 
     def test_url_seed_forbids_copying(self) -> None:
-        """Webhook guidance uses URL words while explicitly requiring originality."""
-
-        guidance = build_webhook_inspiration(
-            "https://example.com/Product/Data-Collection-Sheets-For-Goals-123"
-        )
-        self.assertIn("data collection sheets", guidance)
-        self.assertIn("Do not copy", guidance)
-        self.assertIn("Do not access or scrape", guidance)
+        """Webhook guidance uses actual page text and explicitly requires originality."""
+        from unittest.mock import patch
+        page={'url':'https://example.com/Product/123','title':'Data collection sheets','description':'Goals','text':'Actual page text'}
+        with patch('core.reference_reader.read_reference',return_value=page) as read:
+            guidance = build_webhook_inspiration(page['url'])
+        read.assert_called_once_with(page['url'])
+        self.assertIn('Actual page text',guidance)
+        self.assertIn('Do not copy',guidance)
+        self.assertIn('untrusted',guidance)
 
     def test_invalid_url_is_rejected(self) -> None:
         """Non-HTTP URL input is invalid."""

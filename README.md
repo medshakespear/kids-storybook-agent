@@ -244,11 +244,14 @@ users; manual website configuration above is the recommended path.
 ## Web API
 
 - `GET /health`: health check.
-- `GET /` or `/books`: public activity library (also shows old PDFs).
+- `GET /` or `/books`: activity library and generation form (also shows old PDFs).
 - `GET /api/books`: public JSON catalog.
 - `GET /output/<filename>.pdf`: download.
 - `POST /generate`: generate ONE original pack from `description`, `link`, or both.
-  Does not scrape or copy the reference product; omitted grade uses history rotation.
+  Reads public page text for the topic/learning goal without copying the reference product.
+  Omitted grade uses history rotation.
+- `POST /generation-jobs`: same input, returns HTTP 202 with a `job_id` and `status_url`.
+- `GET /generation-jobs/<job_id>`: queued/running/completed/failed status; completed jobs include the PDF link.
 
 ```json
 {"link": "https://example.com/garden-reading-comprehension", "grade_band": "3rd-4th"}
@@ -263,15 +266,36 @@ For a reading-topic brief, no link is required:
 }
 ```
 
-Descriptions accept up to 4,000 characters. Generation now involves multiple text
-and illustration calls and can take longer than the old templates. Prefer cron for
-long runs; a synchronous webhook can exceed an HTTP client's timeout. A disconnected
-client should check `/books` before retrying, since the server may finish the pack.
+### Generate from the website
 
-Response includes `title`, `grade_band`, `resource_type: "activity_pack"`,
-`pdf_path`, and `download_url`. Generation is synchronous and may take minutes.
-Set `WEBHOOK_API_KEY` on web and supply `X-API-Key` when calling `/generate`
-to prevent strangers consuming your quota. The library/downloads remain public.
+1. Open your Railway web service's public URL (the same page as `/books`).
+2. Select **From a link** and paste a public product/page URL, or select **From a description** and explain your topic and learning goals.
+3. Choose **Grades 3–4** or **Grades 5–6**.
+4. If `WEBHOOK_API_KEY` is configured, enter it in **Generation access key**. It is sent in the request header and is not stored in the browser or embedded in the page.
+5. Click **Generate workbook**. Keep the page open while it polls progress, then click **Download PDF**. The completed book is also saved in the library.
+
+Descriptions accept up to 4,000 characters. Link mode fetches actual HTML/text,
+including page title and description. It does not execute JavaScript, sign in,
+bypass site restrictions, or download referenced paid products. If a site blocks
+access or provides too little readable text, generation stops with a clear error;
+paste a description instead. Page data is treated as untrusted inspiration, not
+instructions. Public-address checks, DNS-pinned connections, checked redirects,
+request timeouts and a 1 MB response limit protect the fetch endpoint.
+
+The browser uses a background queue (one running job and one waiting job) so a
+long generation does not require a long-lived POST connection. Job status is
+transient memory, not a database. Use the documented **one-worker** Gunicorn
+command; multiple workers do not share these jobs. Service restarts interrupt
+unfinished jobs, and completed job records expire after an hour on the next
+submission. Completed PDFs and their catalog records persist through the existing
+storage/state mechanism. If you close the page or lose connection, check `/books`
+before submitting again. No automatic duplicate generation is started.
+
+The existing synchronous `POST /generate` still returns `title`, `grade_band`,
+`resource_type: "activity_pack"`, `pdf_path`, and `download_url`. It may take minutes.
+Set `WEBHOOK_API_KEY` on web and supply `X-API-Key` for both generation APIs and
+job polling to prevent strangers consuming your quota. The library/downloads
+remain public. The UI needs no new API service or environment variables.
 
 `GET /internal/state` and `POST /internal/books` require `X-Delivery-Token`;
 only cron uses them. Each uploaded filename is registered once. New metadata records

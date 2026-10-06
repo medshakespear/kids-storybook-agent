@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import random
-import re
 from datetime import date, datetime, timedelta
 from typing import Any
-from urllib.parse import unquote, urlparse
 from core.calendar_rules import find_active_events, find_events_in_window, today_in_timezone
 
 
@@ -131,29 +129,9 @@ def pick_daily_book_specs(
 
 
 def build_webhook_inspiration(link: str) -> str:
-    """Derive an original niche/angle prompt from URL text without scraping it."""
-
-    parsed = urlparse(link)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise ValueError("link must be a valid http or https URL")
-    raw = unquote(f"{parsed.netloc} {parsed.path}").lower()
-    tokens = re.findall(r"[a-z][a-z0-9]+", raw)
-    ignored = {
-        "www", "com", "org", "net", "product", "products", "item", "shop",
-        "teacherspayteachers", "https", "html", "php", "the", "and", "for",
-    }
-    useful = [token for token in tokens if token not in ignored and not token.isdigit()]
-    seed = " ".join(useful[:14]) or parsed.netloc
-    return (
-        f"Use only this URL-derived niche seed: '{seed}'. Create a fresh educational "
-        "printable exercise pack inspired by the broad topic or classroom skill suggested by "
-        "those words. Do not access or scrape the link. Do not copy, paraphrase, or "
-        "imitate the referenced product's wording, sequence, characters, page structure, "
-        "trade dress, branding, or visual identity. Invent original student tasks, "
-        "examples, answer keys, title, teaching approach, and visual layout. "
-        "Produce complete usable exercises, not a story or a list of activity ideas. "
-        "The output is a static PDF: do not promise editable fields or personalized names."
-    )
+    """Read public page text and frame it as original educational inspiration."""
+    from core.reference_reader import read_reference, reference_context
+    return reference_context(read_reference(link))
 
 
 def pick_webhook_grade_band(state: dict[str, Any]) -> str:

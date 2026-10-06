@@ -9,6 +9,10 @@ import os
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+from uuid import uuid4
+import time
 
 from flask import Flask, jsonify, request, send_from_directory, url_for, render_template
 
@@ -17,7 +21,8 @@ from core.paths import OUTPUT_DIR, ensure_runtime_directories
 from core.grade_policy import ACTIVE_GRADE_BANDS
 from core.pipeline import generate_book, load_grade_config
 from core.state_manager import load_state
-from core.theme_picker import build_webhook_inspiration, pick_webhook_grade_band
+from core.theme_picker import pick_webhook_grade_band
+from core.reference_reader import read_reference, reference_context, ReferenceReadError
 
 
 app = Flask(__name__)
@@ -41,90 +46,137 @@ def health() -> tuple[dict[str, str], int]:
     return {"status": "ok"}, 200
 
 
-@app.post("/generate")
-def generate() -> tuple[object, int] | object:
-    """Generate an original pack from a teacher description, reference URL, or both."""
-
-    if not _authorized():
-        return jsonify({"error": "Unauthorized. Supply a valid X-API-Key header."}), 401
-    if not request.is_json:
-        return jsonify({"error": "Request body must be JSON."}), 415
-    payload = request.get_json(silent=True)
+def generation_input(payload):
+    """Validate a generation brief before starting network or AI work."""
     if not isinstance(payload, dict):
-        return jsonify({"error": "Request body must be a JSON object."}), 400
-
-    link = payload.get("link")
-    description = payload.get('description', '')
+        raise ValueError('Request body must be a JSON object.')
+    link, description = payload.get('link', ''), payload.get('description', '')
+    if link is None:
+        link = ''
     if not isinstance(description, str) or len(description) > 4000:
-        return jsonify(error='description must be text of at most 4000 characters.'), 400
-    description = description.strip()
-    if link is not None:
-        if not isinstance(link, str) or len(link) > 2048:
-            return jsonify(error='link must be a URL string.'), 400
+        raise ValueError('description must be text of at most 4000 characters.')
+    if not isinstance(link, str) or len(link) > 2048:
+        raise ValueError('link must be a URL string.')
+    link, description = link.strip(), description.strip()
+    if link:
         try:
             parsed = urlparse(link)
-            valid_host = bool(parsed.hostname)
-            parsed.port  # Validate malformed ports before starting expensive work.
+            valid = parsed.scheme in {'http','https'} and parsed.hostname and not parsed.username and not parsed.password
+            parsed.port
         except ValueError:
-            return jsonify(error='link must be a valid http or https URL.'), 400
-        if not valid_host or parsed.scheme not in {'http', 'https'} or not parsed.netloc:
-            return jsonify(error='link must be a valid http or https URL.'), 400
+            valid = False
+        if not valid:
+            raise ValueError('link must be a valid public http or https URL.')
     if not link and not description:
-        return jsonify(error='Provide a description or a reference link.'), 400
+        raise ValueError('Provide a description or a reference link.')
+    grade_config = load_grade_config()
+    band = payload.get('grade_band')
+    if band is None:
+        band = pick_webhook_grade_band(load_state())
+    if not isinstance(band,str) or band not in ACTIVE_GRADE_BANDS or band not in grade_config:
+        raise ValueError('Only 3rd-4th and 5th-6th grade bands are enabled.')
+    return dict(link=link, description=description, grade_band=band, grade_config=grade_config)
 
+
+def run_generation(brief):
+    """Read a reference when supplied and use the shared generation/delivery pipeline."""
+    context = reference_context(read_reference(brief['link'])) if brief['link'] else ''
+    if brief['description']:
+        context += '\nTeacher creative brief: ' + brief['description']
+    story, pdf_path = generate_book(
+        theme='Original reading comprehension workbook based on the supplied educational brief.',
+        grade_band=brief['grade_band'], source_context=context, grade_config=brief['grade_config'])
+    register_book(story,pdf_path.name,'On demand')
+    return dict(status='completed',title=story['title'],resource_type='activity_pack',
+                grade_band=brief['grade_band'],pdf_path='/output/'+pdf_path.name,
+                download_url='/output/'+pdf_path.name,
+                **{key:story.get(key) for key in ('page_count','image_review','image_validation','content_checks','generation_seconds')})
+
+
+def request_brief():
+    """Read the authenticated JSON body shared by both generation endpoints."""
+    if not _authorized():
+        return None, (jsonify(error='Unauthorized. Supply a valid X-API-Key header.'),401)
+    if not request.is_json:
+        return None, (jsonify(error='Request body must be JSON.'),415)
     try:
-        grade_config = load_grade_config()
-        grade_band = payload.get("grade_band")
-        if grade_band is None:
-            grade_band = pick_webhook_grade_band(load_state())
-        if not isinstance(grade_band, str) or grade_band not in ACTIVE_GRADE_BANDS or grade_band not in grade_config:
-            return jsonify(
-                {
-                    "error": "Only 3rd-4th and 5th-6th grade bands are enabled.",
-                    "allowed_grade_bands": list(ACTIVE_GRADE_BANDS),
-                }
-            ), 400
-        inspiration = build_webhook_inspiration(link) if link else ''
-        if description:
-            inspiration += '\nTeacher creative brief: ' + description
-        broad_theme = (
-            "An original classroom exercise pack inspired only by the broad educational "
-            "niche words contained in the supplied URL"
-        )
-        story, pdf_path = generate_book(
-            theme=broad_theme,
-            grade_band=grade_band,
-            source_context=inspiration,
-            grade_config=grade_config,
-        )
-        register_book(story, pdf_path.name, "On demand")
-        download_url = url_for(
-            "download_output", filename=pdf_path.name, _external=True
-        )
-        return jsonify(
-            {
-                "status": "completed",
-                "title": story["title"],
-                "resource_type": "activity_pack",
-                "grade_band": grade_band,
-                "pdf_path": f"/output/{pdf_path.name}",
-                "download_url": download_url,
-                "page_count": story.get("page_count"),
-                "image_review": story.get("image_review"),
-                "image_validation": story.get("image_validation"),
-                "content_checks": story.get("content_checks"),
-                "generation_seconds": story.get("generation_seconds"),
-            }
-        )
+        return generation_input(request.get_json(silent=True)), None
+    except ValueError as exc:
+        return None, (jsonify(error=str(exc),allowed_grade_bands=list(ACTIVE_GRADE_BANDS)),400)
+
+
+@app.post('/generate')
+def generate():
+    """Keep the synchronous POST API for existing integrations."""
+    brief, error = request_brief()
+    if error:
+        return error
+    try:
+        result = run_generation(brief)
+        result['download_url'] = request.host_url.rstrip('/') + result['download_url']
+        return jsonify(result)
+    except ReferenceReadError as exc:
+        return jsonify(error='Reference page could not be read.',detail=str(exc)),422
     except Exception as exc:
-        logger.exception("On-demand generation failed")
-        return jsonify(
-            {
-                "error": "Activity-pack generation failed.",
-                "detail": str(exc),
-                "image_review_failures": getattr(exc, 'failures', []),
-            }
-        ), 500
+        logger.exception('On-demand generation failed')
+        return jsonify(error='Activity-pack generation failed.',detail=str(exc),image_review_failures=getattr(exc,'failures',[])),500
+
+
+# Transient job status is kept in memory; only completed books persist in state.json.
+# Railway's documented web command uses one worker with multiple HTTP threads.
+_jobs, _jobs_lock = {}, Lock()
+_job_worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix='web-generation')
+
+
+def perform_job(job_id, brief):
+    """Complete one background request and record its result without exposing secrets."""
+    with _jobs_lock:
+        _jobs[job_id].update(status='running',message='Reading the reference and generating your workbook.' if brief['link'] else 'Generating your workbook from the description.')
+    try:
+        result = run_generation(brief)
+    except Exception as exc:
+        logger.exception('Background workbook generation failed')
+        result = dict(status='failed',error='Reference page could not be read.' if isinstance(exc,ReferenceReadError) else 'Activity-pack generation failed.',detail=str(exc))
+    with _jobs_lock:
+        _jobs[job_id].update(result,updated=time.monotonic())
+
+
+@app.post('/generation-jobs')
+def start_generation_job():
+    """Return immediately and let the browser poll a bounded background queue."""
+    brief, error = request_brief()
+    if error:
+        return error
+    with _jobs_lock:
+        now = time.monotonic()
+        for job_id in list(_jobs):
+            if _jobs[job_id]['status'] in {'completed','failed'} and now-_jobs[job_id]['updated'] > 3600:
+                del _jobs[job_id]
+        if sum(j['status'] in {'queued','running'} for j in _jobs.values()) >= 2:
+            return jsonify(error='Generation is busy. Please wait for the current books to finish.'),429
+        job_id = uuid4().hex
+        _jobs[job_id] = dict(status='queued',message='Your workbook is queued.',updated=now)
+        try:
+            _job_worker.submit(perform_job,job_id,brief)
+        except RuntimeError:
+            del _jobs[job_id]
+            return jsonify(error='Generation worker is unavailable. Retry shortly.'),503
+    return jsonify(status='queued',job_id=job_id,status_url='/generation-jobs/'+job_id),202
+
+
+@app.get('/generation-jobs/<job_id>')
+def generation_job_status(job_id):
+    """Return authenticated job progress or a completed PDF download path."""
+    if not _authorized():
+        return jsonify(error='Unauthorized. Supply a valid X-API-Key header.'),401
+    with _jobs_lock:
+        result = dict(_jobs.get(job_id,{}))
+    if not result:
+        return jsonify(error='Job not found. The service may have restarted; check the book library before retrying.'),404
+    result.pop('updated',None)
+    response = jsonify(result)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 @app.get("/output/<path:filename>")
@@ -147,7 +199,7 @@ def request_too_large(_: Exception) -> tuple[object, int]:
 @app.get("/books")
 def books_page():
     """Show the public book library with download links."""
-    return render_template("books.html", books=list_books())
+    return render_template("books.html", books=list_books(), key_required=bool(os.environ.get("WEBHOOK_API_KEY")))
 
 
 @app.get("/api/books")

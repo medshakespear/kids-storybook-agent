@@ -40,6 +40,7 @@ def generate_book(
     theme: str,
     grade_band: str,
     source_context: str | None = None,
+    book_title: str | None = None,
     grade_config: dict[str, Any] | None = None,
     output_dir: str | Path = OUTPUT_DIR,
 ) -> tuple[dict[str, Any], Path]:
@@ -51,11 +52,13 @@ def generate_book(
     ensure_runtime_directories()
     config = grade_config or load_grade_config()
     started = time.monotonic()
+    title_options = {'book_title':book_title} if book_title is not None else {}
     story = generate_activity_pack(
         theme,
         grade_band,
         config,
         source_context=source_context,
+        **title_options,
     )
     designed = time.monotonic()
     logging.getLogger(__name__).info('Design stage complete: %.1fs', designed - started)
@@ -82,3 +85,4 @@ def generate_book(
     logging.getLogger(__name__).info('PDF complete: %s pages; PDF stage %.1fs; total %.1fs',
                                    story['page_count'], time.monotonic() - illustrated, story['generation_seconds'])
     return story, target
+

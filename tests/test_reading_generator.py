@@ -88,7 +88,9 @@ class ReadingGeneratorTests(unittest.TestCase):
                     return validate({'solutions':[{'number':i,'answer':q['answer'],'reason':'Supported by the passage.','quality_issues':[]} for i,q in enumerate(reading_fixture(band)['questions'],1)]})
                 return validate(reading_fixture(band))
             with self.subTest(band=band),patch('core.reading_generator.ask_json',side_effect=ask),patch('core.reading_generator.text_worker_limit',return_value=1):
-                pack=generate_reading_pack('School gardens',band,self.config)
+                pack=generate_reading_pack('School gardens',band,self.config,book_title='Garden Science')
+                self.assertEqual(pack['title'],'Garden Science')
+                self.assertEqual(pack['cover']['title'],'Garden Science')
                 self.assertEqual(len(pack['pages']),10)
                 self.assertEqual(sum(len(p['images']) for p in [pack['cover']]+pack['pages']),6)
                 self.assertEqual(len(pack['reading_units']),5)
@@ -141,7 +143,8 @@ class ReadingGeneratorTests(unittest.TestCase):
              patch('core.reading_generator.text_worker_limit',return_value=1), \
              patch('core.pipeline.text_provider_names'),patch('core.pipeline.image_provider_name'), \
              patch('core.pipeline.generate_activity_images',side_effect=attach_creative_test_art):
-            pack,path=generate_book(theme='School gardens',grade_band='5th-6th',output_dir=folder)
+            pack,path=generate_book(theme='School gardens',grade_band='5th-6th',output_dir=folder,book_title='Garden Science')
+            self.assertEqual(pack['title'],'Garden Science')
             self.assertTrue(path.read_bytes().startswith(b'%PDF-'))
             self.assertEqual(pack['content_format'],'reading_qcm')
             self.assertEqual(pack['page_count'],12)

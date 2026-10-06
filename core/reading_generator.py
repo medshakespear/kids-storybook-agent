@@ -503,19 +503,27 @@ def render_unit(unit, number, config):
     return reading, question_page
 
 
-def generate_reading_pack(theme, grade_band, grade_config, *, source_context=None):
+def generate_reading_pack(theme, grade_band, grade_config, *, source_context=None, book_title=None):
     """Generate paired readings/QCMs, a branded cover and one final answer sheet."""
     require_active_grade(grade_band)
     config = grade_config[grade_band]
+    if book_title is not None:
+        book_title = bounded(book_title,'Calendar keyword title',52)
     count = config['activity_pages']
     if type(count) is not int or count < 2 or count % 2:
         raise ValueError('Reading format needs an even activity_pages count: one passage and one QCM page per unit')
     topics_prompt = f'''Plan {count//2} DISTINCT original informational readings for {grade_band}.
 Theme: {theme}. Inspiration/context: {source_context or theme}.
+Selected keyword title: {book_title or 'Choose an original short title'}.
+If a keyword title is supplied, use it VERBATIM and center every reading on that keyword's
+context. The product remains reading comprehension: for craft/activity/bulletin-board
+keywords, readings explore those processes and purposes; do not promise hands-on templates
+or a display kit. Compare relevant perspectives, procedures and examples without filler.
 Use the context as inspiration; do not copy any referenced product. The format is READING + QCM ONLY.
 The product is a READING COMPREHENSION WORKBOOK. Its title must describe the complete set of
 readings; do not advertise a weight/math challenge, experiment, game or hands-on project that is not
-actually included. Use a SHORT cover title of 3-7 words, at most 52 characters.
+actually included. When no keyword title was supplied, choose a SHORT cover title of 3-7 words.
+A supplied keyword title is exact and may have fewer words. All titles are at most 52 characters.
 Do not generate a cover description or overview.
 Return title and topics: exactly {count//2} short descriptions with different substantive learning goals.
 Make the theme central to every reading. Plan concrete knowledge children can use, not
@@ -535,13 +543,13 @@ Grades 5-6: more detailed texts, reasoning about evidence, author's purpose, tex
         topics = [bounded(t,'Topic',350) for t in raw['topics']]
         if len(set(t.casefold() for t in topics)) != len(topics):
             raise ValueError('Reading topics must be distinct')
-        return dict(title=bounded(raw.get('title'),'Short cover title',52),topics=topics)
+        return dict(title=book_title or bounded(raw.get('title'),'Short cover title',52),topics=topics)
     plan = ask_json(topics_prompt,validate_plan,'Reading plan',3000,response_schema=schema)
     low, high = config['reading_words']['min'],config['reading_words']['max']
     def make_unit(index):
         """Generate and independently review one reading with its five questions."""
         prompt = f'''Write an ORIGINAL {grade_band} informational reading and five multiple-choice questions.
-Theme: {theme}. Topic: {plan['topics'][index]}. User context: {source_context or theme}.
+Theme: {theme}. Book keyword/title: {plan['title']}. Topic: {plan['topics'][index]}. User context: {source_context or theme}.
 Other unit topics (avoid repetition): {json.dumps(plan['topics'])}
 Passage: {low}-{high} words; aim for {(low+high)//2} words in four balanced paragraphs of about {(low+high)//8} words. Passage words exclude questions and choices. {config['reading_guidance']}
 Write for actual children aged 8-10 (grades 3-4) or 10-12 (grades 5-6), not university students.

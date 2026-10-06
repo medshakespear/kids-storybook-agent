@@ -1,4 +1,4 @@
-"""Choose random events within 30 days or original evergreen classroom activities."""
+"""Choose second-week events, matching keyword titles and original reading topics."""
 
 from __future__ import annotations
 
@@ -51,23 +51,30 @@ def pick_daily_book_specs(
     today: date | None = None,
     rng: random.Random | None = None,
 ) -> list[dict[str, str]]:
-    """Randomly choose events in the next 30 days, with balanced shuffled grades."""
+    """Choose overlapping second-week events and keyword titles with balanced grades."""
 
     if not 1 <= count <= 20:
         raise ValueError("count must be between 1 and 20")
     reference = today or today_in_timezone()
     randomizer = rng or random.SystemRandom()
-    events = find_events_in_window(calendar, today=reference, days=30)
+    window = calendar.get('selection_window', {})
+    start_offset, end_offset = window.get('start_offset_days',7), window.get('end_offset_days',13)
+    events = find_events_in_window(calendar, today=reference, days=end_offset, start_offset=start_offset)
+    # Real observances take precedence. Instructional seasons fill empty holiday weeks.
+    dated = [e for e in events if e.get('category') != 'seasonal_theme']
+    events = dated or events
+    window_start, window_end = (reference+timedelta(days=start_offset)).isoformat(), (reference+timedelta(days=end_offset)).isoformat()
     if not events:
-        topics = ["classroom supply shop", "garden detectives", "animal rescue planning",
-                  "invention workshop", "weather observers", "community kindness lab",
-                  "playground designers", "recycling team", "library treasure hunt",
-                  "space explorers", "pattern museum", "healthy habits investigation"]
-        approaches = ["investigating how it works", "comparing ideas", "causes and effects",
-                      "reading evidence", "vocabulary in context", "explaining real-world changes"]
-        events = [{"event_name": "Everyday classroom skills", "occurs_on": reference.isoformat(),
-                   "theme_angles": [f"{topic}: {approach}" for topic in topics for approach in approaches],
-                   "evergreen": True}]
+        evergreen = calendar.get('evergreen_topics') or [
+            {'keyword':'Community Helpers','topic':'How community workers solve everyday problems.'},
+            {'keyword':'Garden Detectives','topic':'Plant needs and careful observations.'},
+            {'keyword':'Space Explorers','topic':'Space science, evidence and discoveries.'}]
+        approaches = ['real-world explanation','comparison','causes and effects','evidence and inference']
+        events = [{"event_name":"Everyday classroom skills", "occurs_on":window_start,"ends_on":window_end,
+                   "title_keywords":[item['keyword']],
+                   "keyword_topics":{item['keyword']:item['topic']},
+                   "theme_angles":[f"{item['topic']} Explore {approach} through original readings and QCM." for approach in approaches],
+                   "evergreen":True} for item in evergreen]
     bands = []
     while len(bands) < count:
         cycle = list(GRADE_BANDS)
@@ -77,16 +84,22 @@ def pick_daily_book_specs(
     recent = _recent_pairs(state, reference)
     candidates: list[dict[str, str]] = []
     for event in events:
-        for angle in event.get("theme_angles", []):
-            candidates.append(
-                {
-                    "event_name": event["event_name"],
-                    "event_date": event["occurs_on"],
-                    "event_end": event.get("ends_on", event["occurs_on"]),
-                    "selection_mode": "evergreen" if event.get("evergreen") else "upcoming_event",
-                    "theme": angle,
-                }
-            )
+        titles = event.get('title_keywords') or [event['event_name']]
+        if not isinstance(titles,list) or not titles or any(not isinstance(t,str) or not t.strip() or len(t)>52 for t in titles):
+            raise ValueError('Calendar title_keywords must contain nonempty text of at most 52 characters')
+        contexts = event.get('keyword_topics',{})
+        for keyword in dict.fromkeys(titles):
+            for angle in event.get('theme_angles', []):
+                theme = angle
+                if event.get('title_keywords'):
+                    theme = f"{keyword}: {contexts.get(keyword, 'Original readings centered on '+keyword)}. {angle}"
+                candidates.append({
+                    "event_name":event["event_name"], "event_date":event["occurs_on"],
+                    "event_end":event.get("ends_on",event["occurs_on"]),
+                    "selection_mode":"evergreen" if event.get("evergreen") else 'seasonal_theme' if event.get('category')=='seasonal_theme' else "upcoming_event",
+                    "theme":theme,"book_title":keyword,"title_keyword":keyword,
+                    "calendar_note":event.get('note',''),
+                    "selection_window_start":window_start,"selection_window_end":window_end})
     if not candidates:
         raise ValueError("Eligible calendar events contain no theme angles")
     randomizer.shuffle(candidates)
@@ -107,7 +120,9 @@ def pick_daily_book_specs(
         # Sample the event first so events with more angles do not dominate.
         names = sorted({(c['event_name'], c['event_date']) for c in pool})
         selected_event = randomizer.choice(names)
-        choice = randomizer.choice([c for c in pool if (c['event_name'], c['event_date']) == selected_event])
+        event_pool = [c for c in pool if (c['event_name'], c['event_date']) == selected_event]
+        selected_title = randomizer.choice(sorted({c['book_title'] for c in event_pool}))
+        choice = randomizer.choice([c for c in event_pool if c['book_title']==selected_title])
         selection = dict(choice)
         selection["grade_band"] = grade_band
         selections.append(selection)
@@ -150,3 +165,4 @@ def pick_webhook_grade_band(state: dict[str, Any]) -> str:
         if band in last_seen:
             last_seen[band] = max(last_seen[band], item.get("generated_on", ""))
     return min(GRADE_BANDS, key=lambda band: (last_seen[band], GRADE_BANDS.index(band)))
+

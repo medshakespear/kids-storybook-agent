@@ -1,23 +1,27 @@
 {
-  "description": "Actual inclusive event periods. Weekdays Monday=0. Disabled uncertain/local events require verified year-specific dates. No upcoming-event fallback; actual holiday dates, not substitute federal days.",
+  "description": "Daily picker samples events overlapping days 7-13 ahead. Dates are actual inclusive observances, not substitute federal days. Seasonal windows are teaching themes, not holidays. Year-specific religious dates require periodic updates; Ramadan dates may vary by community.",
   "events": [
     {
       "event_name": "New Year's Day",
       "theme_angles": [
-        "Explore New Year's Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original New Year's Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of New Year's Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about New Year's Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 1,
         "day": 1
-      }
+      },
+      "title_keywords": [
+        "New Year"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Martin Luther King Jr. Day",
       "theme_angles": [
-        "Explore Martin Luther King Jr. Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Martin Luther King Jr. Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Martin Luther King Jr. Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Martin Luther King Jr. Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "nth_weekday",
@@ -25,62 +29,94 @@
         "weekday": 0,
         "nth": 3,
         "duration_days": 1
-      }
+      },
+      "title_keywords": [
+        "Martin Luther King Jr. Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Lunar New Year",
       "theme_angles": [
-        "Explore Lunar New Year through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Lunar New Year classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Lunar New Year through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Lunar New Year through evidence, inference, vocabulary and comparison."
       ],
-      "enabled": false,
+      "enabled": true,
       "schedule": {
         "kind": "dates",
-        "years": {}
+        "years": {
+          "2026": [
+            "2026-02-17",
+            "2026-02-17"
+          ],
+          "2027": [
+            "2027-02-06",
+            "2027-02-06"
+          ]
+        }
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "First day in the Chinese lunisolar calendar; traditions and duration vary. Update verified year dates after 2027.",
+      "title_keywords": [
+        "Lunar New Year"
+      ],
+      "source_urls": [
+        "https://www.timeanddate.com/holidays/us/lunar-new-year"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Black History Month",
       "theme_angles": [
-        "Explore Black History Month through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Black History Month classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Black History Month through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Black History Month through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "month",
         "month": 2
-      }
+      },
+      "title_keywords": [
+        "Black History Month"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "National School Counseling Week",
       "theme_angles": [
-        "Explore National School Counseling Week through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original National School Counseling Week classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of National School Counseling Week through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about National School Counseling Week through evidence, inference, vocabulary and comparison."
       ],
       "enabled": false,
       "schedule": {
         "kind": "dates",
         "years": {}
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors.",
+      "title_keywords": [
+        "National School Counseling Week"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Valentine's Day and Friendship",
       "theme_angles": [
-        "Explore Valentine's Day and Friendship through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Valentine's Day and Friendship classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Valentine's Day and Friendship through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Valentine's Day and Friendship through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 2,
         "day": 14
-      }
+      },
+      "title_keywords": [
+        "Valentine's Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Presidents Day",
       "theme_angles": [
-        "Explore Presidents Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Presidents Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Presidents Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Presidents Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "nth_weekday",
@@ -88,108 +124,144 @@
         "weekday": 0,
         "nth": 3,
         "duration_days": 1
-      }
+      },
+      "title_keywords": [
+        "Presidents' Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Read Across America Day",
       "theme_angles": [
-        "Explore Read Across America Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Read Across America Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Read Across America Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Read Across America Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 3,
         "day": 2
-      }
+      },
+      "title_keywords": [
+        "Read Across America Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Women's History Month",
       "theme_angles": [
-        "Explore Women's History Month through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Women's History Month classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Women's History Month through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Women's History Month through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "month",
         "month": 3
-      }
+      },
+      "title_keywords": [
+        "Women's History Month"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Pi Day and Math Week",
       "theme_angles": [
-        "Explore Pi Day and Math Week through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Pi Day and Math Week classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Pi Day and Math Week through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Pi Day and Math Week through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 3,
         "day": 14
-      }
+      },
+      "title_keywords": [
+        "Pi Day and Math Week"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "First Day of Spring",
       "theme_angles": [
-        "Explore First Day of Spring through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original First Day of Spring classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of First Day of Spring through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about First Day of Spring through evidence, inference, vocabulary and comparison."
       ],
       "enabled": false,
       "schedule": {
         "kind": "dates",
         "years": {}
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors.",
+      "title_keywords": [
+        "First Day of Spring"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Autism Acceptance Month",
       "theme_angles": [
-        "Explore Autism Acceptance Month through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Autism Acceptance Month classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Autism Acceptance Month through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Autism Acceptance Month through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "month",
         "month": 4
-      }
+      },
+      "title_keywords": [
+        "Autism Acceptance Month"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "National Poetry Month",
       "theme_angles": [
-        "Explore National Poetry Month through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original National Poetry Month classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of National Poetry Month through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about National Poetry Month through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "month",
         "month": 4
-      }
+      },
+      "title_keywords": [
+        "National Poetry Month"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "National Library Week",
       "theme_angles": [
-        "Explore National Library Week through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original National Library Week classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of National Library Week through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about National Library Week through evidence, inference, vocabulary and comparison."
       ],
       "enabled": false,
       "schedule": {
         "kind": "dates",
         "years": {}
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors.",
+      "title_keywords": [
+        "National Library Week"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Earth Day",
       "theme_angles": [
-        "Explore Earth Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Earth Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Earth Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Earth Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 4,
         "day": 22
-      }
+      },
+      "title_keywords": [
+        "Earth Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Teacher Appreciation Week",
       "theme_angles": [
-        "Explore Teacher Appreciation Week through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Teacher Appreciation Week classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Teacher Appreciation Week through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Teacher Appreciation Week through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "nth_weekday",
@@ -197,148 +269,200 @@
         "weekday": 0,
         "nth": 1,
         "duration_days": 5
-      }
+      },
+      "title_keywords": [
+        "Teacher Appreciation Week"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Asian American, Native Hawaiian, and Pacific Islander Heritage Month",
       "theme_angles": [
-        "Explore Asian American, Native Hawaiian, and Pacific Islander Heritage Month through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Asian American, Native Hawaiian, and Pacific Islander Heritage Month classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Asian American, Native Hawaiian, and Pacific Islander Heritage Month through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Asian American, Native Hawaiian, and Pacific Islander Heritage Month through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "month",
         "month": 5
-      }
+      },
+      "title_keywords": [
+        "AAPI History Month"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Memorial Day",
       "theme_angles": [
-        "Explore Memorial Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Memorial Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Memorial Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Memorial Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "last_weekday",
         "month": 5,
         "weekday": 0
-      }
+      },
+      "title_keywords": [
+        "Memorial Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "World Environment Day",
       "theme_angles": [
-        "Explore World Environment Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original World Environment Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of World Environment Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about World Environment Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 6,
         "day": 5
-      }
+      },
+      "title_keywords": [
+        "World Environment Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Juneteenth",
       "theme_angles": [
-        "Explore Juneteenth through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Juneteenth classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Juneteenth through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Juneteenth through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 6,
         "day": 19
-      }
+      },
+      "title_keywords": [
+        "Juneteenth"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Summer Reading",
       "theme_angles": [
-        "Explore Summer Reading through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Summer Reading classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Summer Reading through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Summer Reading through evidence, inference, vocabulary and comparison."
       ],
       "enabled": false,
       "schedule": {
         "kind": "dates",
         "years": {}
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors.",
+      "title_keywords": [
+        "Summer Reading"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Independence Day",
       "theme_angles": [
-        "Explore Independence Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Independence Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Independence Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Independence Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 7,
         "day": 4
-      }
+      },
+      "title_keywords": [
+        "July 4 / Independence Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "National Park and Recreation Month",
       "theme_angles": [
-        "Explore National Park and Recreation Month through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original National Park and Recreation Month classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of National Park and Recreation Month through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about National Park and Recreation Month through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "month",
         "month": 7
-      }
+      },
+      "title_keywords": [
+        "National Park and Recreation Month"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Summer Safety Week",
       "theme_angles": [
-        "Explore Summer Safety Week through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Summer Safety Week classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Summer Safety Week through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Summer Safety Week through evidence, inference, vocabulary and comparison."
       ],
       "enabled": false,
       "schedule": {
         "kind": "dates",
         "years": {}
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors.",
+      "title_keywords": [
+        "Summer Safety Week"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Back to School",
       "theme_angles": [
-        "Explore Back to School through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Back to School classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Back to School through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Back to School through evidence, inference, vocabulary and comparison."
       ],
-      "enabled": false,
+      "enabled": true,
       "schedule": {
-        "kind": "dates",
-        "years": {}
+        "kind": "range",
+        "month": 8,
+        "day": 1,
+        "end_month": 9,
+        "end_day": 30
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "August-September US classroom planning theme; actual school opening dates vary by district.",
+      "title_keywords": [
+        "Back to School"
+      ],
+      "category": "seasonal_theme",
+      "keyword_topics": {}
     },
     {
       "event_name": "National Friendship Day",
       "theme_angles": [
-        "Explore National Friendship Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original National Friendship Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of National Friendship Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about National Friendship Day through evidence, inference, vocabulary and comparison."
       ],
       "enabled": false,
       "schedule": {
         "kind": "dates",
         "years": {}
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors.",
+      "title_keywords": [
+        "National Friendship Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Classroom Routines Week",
       "theme_angles": [
-        "Explore Classroom Routines Week through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Classroom Routines Week classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Classroom Routines Week through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Classroom Routines Week through evidence, inference, vocabulary and comparison."
       ],
       "enabled": false,
       "schedule": {
         "kind": "dates",
         "years": {}
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors.",
+      "title_keywords": [
+        "Classroom Routines Week"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Labor Day",
       "theme_angles": [
-        "Explore Labor Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Labor Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Labor Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Labor Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "nth_weekday",
@@ -346,25 +470,33 @@
         "weekday": 0,
         "nth": 1,
         "duration_days": 1
-      }
+      },
+      "title_keywords": [
+        "Labor Day"
+      ],
+      "keyword_topics": {}
     },
     {
-      "event_name": "Patriot Day and Community Helpers",
+      "event_name": "Patriot Day",
       "theme_angles": [
-        "Explore Patriot Day and Community Helpers through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Patriot Day and Community Helpers classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Patriot Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Patriot Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 9,
         "day": 11
-      }
+      },
+      "title_keywords": [
+        "Patriot Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Hispanic Heritage Month",
       "theme_angles": [
-        "Explore Hispanic Heritage Month through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Hispanic Heritage Month classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Hispanic Heritage Month through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Hispanic Heritage Month through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "range",
@@ -372,62 +504,82 @@
         "day": 15,
         "end_month": 10,
         "end_day": 15
-      }
+      },
+      "title_keywords": [
+        "Hispanic Heritage Month"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Constitution Day",
       "theme_angles": [
-        "Explore Constitution Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Constitution Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Constitution Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Constitution Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 9,
         "day": 17
-      }
+      },
+      "title_keywords": [
+        "Constitution Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "First Day of Fall",
       "theme_angles": [
-        "Explore First Day of Fall through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original First Day of Fall classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of First Day of Fall through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about First Day of Fall through evidence, inference, vocabulary and comparison."
       ],
       "enabled": false,
       "schedule": {
         "kind": "dates",
         "years": {}
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors.",
+      "title_keywords": [
+        "First Day of Fall"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "National Bullying Prevention Month",
       "theme_angles": [
-        "Explore National Bullying Prevention Month through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original National Bullying Prevention Month classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of National Bullying Prevention Month through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about National Bullying Prevention Month through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "month",
         "month": 10
-      }
+      },
+      "title_keywords": [
+        "Bullying Prevention Month"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Fire Prevention Week",
       "theme_angles": [
-        "Explore Fire Prevention Week through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Fire Prevention Week classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Fire Prevention Week through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Fire Prevention Week through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "week_containing",
         "month": 10,
         "day": 9,
         "week_start": 6
-      }
+      },
+      "title_keywords": [
+        "Fire Prevention Week"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Indigenous Peoples' Day",
       "theme_angles": [
-        "Explore Indigenous Peoples' Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Indigenous Peoples' Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Indigenous Peoples' Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Indigenous Peoples' Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "nth_weekday",
@@ -435,61 +587,93 @@
         "weekday": 0,
         "nth": 2,
         "duration_days": 1
-      }
+      },
+      "title_keywords": [
+        "Indigenous Peoples Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Halloween",
       "theme_angles": [
-        "Explore Halloween through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Halloween classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Halloween through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Halloween through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 10,
         "day": 31
+      },
+      "title_keywords": [
+        "Halloween Activities",
+        "Halloween Craft",
+        "Halloween Bulletin Board"
+      ],
+      "keyword_topics": {
+        "Halloween Activities": "Read about different safe Halloween customs, science and community experiences.",
+        "Halloween Craft": "Read about materials, safe processes, design choices and cultural context of original Halloween crafts; no hands-on craft template is included.",
+        "Halloween Bulletin Board": "Read about the purpose, planning, visual communication and teamwork behind Halloween classroom displays; no bulletin-board kit is included."
       }
     },
     {
       "event_name": "Native American Heritage Month",
       "theme_angles": [
-        "Explore Native American Heritage Month through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Native American Heritage Month classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Native American Heritage Month through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Native American Heritage Month through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "month",
         "month": 11
-      }
+      },
+      "title_keywords": [
+        "Native American Heritage Month"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Election Day and Civic Learning",
       "theme_angles": [
-        "Explore Election Day and Civic Learning through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Election Day and Civic Learning classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Election Day and Civic Learning through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Election Day and Civic Learning through evidence, inference, vocabulary and comparison."
       ],
-      "enabled": false,
+      "enabled": true,
       "schedule": {
-        "kind": "dates",
-        "years": {}
+        "kind": "nth_weekday",
+        "month": 11,
+        "weekday": 0,
+        "nth": 1,
+        "offset_days": 1
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Tuesday after the first Monday in November; civic education, not a claim that every year has a federal general election.",
+      "title_keywords": [
+        "Election Day"
+      ],
+      "source_urls": [
+        "https://www.usa.gov/election-day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Veterans Day",
       "theme_angles": [
-        "Explore Veterans Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Veterans Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Veterans Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Veterans Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 11,
         "day": 11
-      }
+      },
+      "title_keywords": [
+        "Veterans Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Thanksgiving and Gratitude",
       "theme_angles": [
-        "Explore Thanksgiving and Gratitude through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Thanksgiving and Gratitude classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Thanksgiving and Gratitude through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Thanksgiving and Gratitude through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "nth_weekday",
@@ -497,58 +681,588 @@
         "weekday": 3,
         "nth": 4,
         "duration_days": 1
+      },
+      "title_keywords": [
+        "Thanksgiving",
+        "Thanksgiving Activities",
+        "Gratitude"
+      ],
+      "keyword_topics": {
+        "Thanksgiving Activities": "Read about Thanksgiving traditions, history, perspectives and community participation; no activity kit is promised."
       }
     },
     {
       "event_name": "Inclusive Schools Week",
       "theme_angles": [
-        "Explore Inclusive Schools Week through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Inclusive Schools Week classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Inclusive Schools Week through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Inclusive Schools Week through evidence, inference, vocabulary and comparison."
       ],
       "enabled": false,
       "schedule": {
         "kind": "dates",
         "years": {}
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors.",
+      "title_keywords": [
+        "Inclusive Schools Week"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Human Rights Day",
       "theme_angles": [
-        "Explore Human Rights Day through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Human Rights Day classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Human Rights Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Human Rights Day through evidence, inference, vocabulary and comparison."
       ],
       "schedule": {
         "kind": "fixed",
         "month": 12,
         "day": 10
-      }
+      },
+      "title_keywords": [
+        "Human Rights Day"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Winter Traditions",
       "theme_angles": [
-        "Explore Winter Traditions through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Winter Traditions classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Winter Traditions through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Winter Traditions through evidence, inference, vocabulary and comparison."
       ],
       "enabled": false,
       "schedule": {
         "kind": "dates",
         "years": {}
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors.",
+      "title_keywords": [
+        "Winter Traditions"
+      ],
+      "keyword_topics": {}
     },
     {
       "event_name": "Winter Solstice",
       "theme_angles": [
-        "Explore Winter Solstice through original age-appropriate sorting, reasoning and skill practice",
-        "Create an original Winter Solstice classroom challenge with meaningful reading, mathematics and reflection"
+        "Explain the meaning, history or real-world context of Winter Solstice through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Winter Solstice through evidence, inference, vocabulary and comparison."
       ],
       "enabled": false,
       "schedule": {
         "kind": "dates",
         "years": {}
       },
-      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors."
+      "note": "Local or annually announced dates: enter verified inclusive dates by year, then enable. No approximate anchors.",
+      "title_keywords": [
+        "Winter Solstice"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Grandparents Day",
+      "schedule": {
+        "kind": "nth_weekday",
+        "month": 9,
+        "weekday": 0,
+        "nth": 1,
+        "offset_days": 6
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Grandparents Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Grandparents Day through evidence, inference, vocabulary and comparison."
+      ],
+      "source_urls": [
+        "https://www.timeanddate.com/holidays/us/national-grandparents-day"
+      ],
+      "title_keywords": [
+        "Grandparents Day"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Columbus Day",
+      "schedule": {
+        "kind": "nth_weekday",
+        "month": 10,
+        "weekday": 0,
+        "nth": 2,
+        "offset_days": 0
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Columbus Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Columbus Day through evidence, inference, vocabulary and comparison."
+      ],
+      "note": "Distinct from Indigenous Peoples Day; present multiple perspectives and impacts accurately, without stereotypes.",
+      "source_urls": [
+        "https://www.opm.gov/policy-data-oversight/pay-leave/federal-holidays/"
+      ],
+      "title_keywords": [
+        "Columbus Day"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Red Ribbon Week",
+      "schedule": {
+        "kind": "range",
+        "month": 10,
+        "day": 23,
+        "end_month": 10,
+        "end_day": 31
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Red Ribbon Week through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Red Ribbon Week through evidence, inference, vocabulary and comparison."
+      ],
+      "source_urls": [
+        "https://www.redribbon.org/"
+      ],
+      "title_keywords": [
+        "Red Ribbon Week"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Day of the Dead / Dia de los Muertos",
+      "schedule": {
+        "kind": "range",
+        "month": 11,
+        "day": 1,
+        "end_month": 11,
+        "end_day": 2
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Day of the Dead / Dia de los Muertos through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Day of the Dead / Dia de los Muertos through evidence, inference, vocabulary and comparison."
+      ],
+      "note": "Cultural remembrance traditions; not Halloween and not uniform across all communities.",
+      "source_urls": [
+        "https://americanhistory.si.edu/explore/stories/day-dead-smithsonian-its-not-halloween"
+      ],
+      "title_keywords": [
+        "Dia de los Muertos",
+        "Day of the Dead"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Christmas",
+      "schedule": {
+        "kind": "fixed",
+        "month": 12,
+        "day": 25
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Christmas through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Christmas through evidence, inference, vocabulary and comparison."
+      ],
+      "source_urls": [
+        "https://www.opm.gov/policy-data-oversight/pay-leave/federal-holidays/"
+      ],
+      "title_keywords": [
+        "Christmas",
+        "Christmas Activities"
+      ],
+      "keyword_topics": {
+        "Christmas Activities": "Read about Christmas traditions, preparations and different community experiences; no activity kit is promised."
+      }
+    },
+    {
+      "event_name": "Kwanzaa",
+      "schedule": {
+        "kind": "range",
+        "month": 12,
+        "day": 26,
+        "end_month": 1,
+        "end_day": 1
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Kwanzaa through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Kwanzaa through evidence, inference, vocabulary and comparison."
+      ],
+      "source_urls": [
+        "https://nmaahc.si.edu/explore/moments/kwanzaa"
+      ],
+      "title_keywords": [
+        "Kwanzaa"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "April Fools' Day",
+      "schedule": {
+        "kind": "fixed",
+        "month": 4,
+        "day": 1
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of April Fools' Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about April Fools' Day through evidence, inference, vocabulary and comparison."
+      ],
+      "title_keywords": [
+        "April Fools' Day"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Arbor Day",
+      "schedule": {
+        "kind": "last_weekday",
+        "month": 4,
+        "weekday": 4
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Arbor Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Arbor Day through evidence, inference, vocabulary and comparison."
+      ],
+      "source_urls": [
+        "https://www.arborday.org/celebrate/globe"
+      ],
+      "title_keywords": [
+        "Arbor Day"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Cinco de Mayo",
+      "schedule": {
+        "kind": "fixed",
+        "month": 5,
+        "day": 5
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Cinco de Mayo through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Cinco de Mayo through evidence, inference, vocabulary and comparison."
+      ],
+      "note": "Puebla victory commemoration; not Mexican Independence Day.",
+      "title_keywords": [
+        "Cinco de Mayo"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Groundhog Day",
+      "schedule": {
+        "kind": "fixed",
+        "month": 2,
+        "day": 2
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Groundhog Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Groundhog Day through evidence, inference, vocabulary and comparison."
+      ],
+      "title_keywords": [
+        "Groundhog Day"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Father's Day",
+      "schedule": {
+        "kind": "nth_weekday",
+        "month": 6,
+        "weekday": 6,
+        "nth": 3,
+        "offset_days": 0
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Father's Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Father's Day through evidence, inference, vocabulary and comparison."
+      ],
+      "title_keywords": [
+        "Father's Day"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Mother's Day",
+      "schedule": {
+        "kind": "nth_weekday",
+        "month": 5,
+        "weekday": 6,
+        "nth": 2,
+        "offset_days": 0
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Mother's Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Mother's Day through evidence, inference, vocabulary and comparison."
+      ],
+      "title_keywords": [
+        "Mother's Day"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "St. Patrick's Day",
+      "schedule": {
+        "kind": "fixed",
+        "month": 3,
+        "day": 17
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of St. Patrick's Day through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about St. Patrick's Day through evidence, inference, vocabulary and comparison."
+      ],
+      "title_keywords": [
+        "St. Patrick's Day"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Easter",
+      "schedule": {
+        "kind": "easter",
+        "offset_days": 0
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Easter through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Easter through evidence, inference, vocabulary and comparison."
+      ],
+      "note": "Western/Gregorian Easter; Orthodox dates may differ.",
+      "title_keywords": [
+        "Easter"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Mardi Gras",
+      "schedule": {
+        "kind": "easter",
+        "offset_days": -47
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Mardi Gras through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Mardi Gras through evidence, inference, vocabulary and comparison."
+      ],
+      "note": "47 days before Western Easter.",
+      "title_keywords": [
+        "Mardi Gras"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Diwali",
+      "schedule": {
+        "kind": "dates",
+        "years": {
+          "2026": [
+            "2026-11-08",
+            "2026-11-08"
+          ],
+          "2027": [
+            "2027-10-28",
+            "2027-10-28"
+          ]
+        }
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Diwali through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Diwali through evidence, inference, vocabulary and comparison."
+      ],
+      "note": "US planning dates; multi-day observances and local calendars may differ. Update year dates after 2027.",
+      "source_urls": [
+        "https://www.timeanddate.com/holidays/us/diwali"
+      ],
+      "title_keywords": [
+        "Diwali"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Hanukkah / Chanukah",
+      "schedule": {
+        "kind": "dates",
+        "years": {
+          "2026": [
+            "2026-12-04",
+            "2026-12-12"
+          ],
+          "2027": [
+            "2027-12-24",
+            "2028-01-01"
+          ]
+        }
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Hanukkah / Chanukah through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Hanukkah / Chanukah through evidence, inference, vocabulary and comparison."
+      ],
+      "note": "Start at sunset, end at nightfall. Update verified year dates after 2027.",
+      "source_urls": [
+        "https://www.hebcal.com/holidays/2026",
+        "https://www.hebcal.com/holidays/2027"
+      ],
+      "title_keywords": [
+        "Hanukkah",
+        "Chanukah"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Passover",
+      "schedule": {
+        "kind": "dates",
+        "years": {
+          "2026": [
+            "2026-04-01",
+            "2026-04-09"
+          ],
+          "2027": [
+            "2027-04-21",
+            "2027-04-29"
+          ]
+        }
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Passover through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Passover through evidence, inference, vocabulary and comparison."
+      ],
+      "note": "Diaspora observance: sunset through nightfall; Israel observes a shorter period. Update year dates after 2027.",
+      "source_urls": [
+        "https://www.hebcal.com/holidays/2026",
+        "https://www.hebcal.com/holidays/2027"
+      ],
+      "title_keywords": [
+        "Passover"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Ramadan",
+      "schedule": {
+        "kind": "dates",
+        "years": {
+          "2026": [
+            "2026-02-18",
+            "2026-03-19"
+          ],
+          "2027": [
+            "2027-02-08",
+            "2027-03-09"
+          ]
+        }
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Ramadan through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Ramadan through evidence, inference, vocabulary and comparison."
+      ],
+      "note": "US classroom planning window, first fasting day through day before expected Eid. Moon-sighting and community dates may vary; 2027 is provisional. Do not present as a universal exact schedule. Update year dates after 2027.",
+      "date_status": "community_dependent",
+      "source_urls": [
+        "https://www.timeanddate.com/holidays/us/ramadan-begins",
+        "https://www.timeanddate.com/holidays/us/eid-al-fitr"
+      ],
+      "title_keywords": [
+        "Ramadan"
+      ],
+      "keyword_topics": {}
+    },
+    {
+      "event_name": "Fall Learning Themes",
+      "schedule": {
+        "kind": "range",
+        "month": 9,
+        "day": 1,
+        "end_month": 11,
+        "end_day": 30
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Fall Learning Themes through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Fall Learning Themes through evidence, inference, vocabulary and comparison."
+      ],
+      "category": "seasonal_theme",
+      "note": "September-November teaching window; not the astronomical dates of autumn.",
+      "title_keywords": [
+        "Apples",
+        "Fall",
+        "Spiders",
+        "Pumpkins",
+        "Apple Activities",
+        "Fall Activities",
+        "Bats",
+        "Harvest",
+        "Pumpkin Activities",
+        "Autumn"
+      ],
+      "keyword_topics": {
+        "Apple Activities": "Read about observing apples, orchards, life cycles and how people use apples.",
+        "Fall Activities": "Read about real autumn changes and ways communities observe them.",
+        "Pumpkin Activities": "Read about pumpkins, growing processes, harvest and responsible use."
+      }
+    },
+    {
+      "event_name": "Winter Learning Themes",
+      "schedule": {
+        "kind": "range",
+        "month": 12,
+        "day": 1,
+        "end_month": 2,
+        "end_day": 28
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of Winter Learning Themes through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about Winter Learning Themes through evidence, inference, vocabulary and comparison."
+      ],
+      "category": "seasonal_theme",
+      "note": "December-February teaching window; not astronomical season dates.",
+      "title_keywords": [
+        "Winter",
+        "Reindeer",
+        "Gingerbread"
+      ],
+      "keyword_topics": {
+        "Reindeer": "Read accurate natural-history passages about reindeer and distinguish folklore from real animals.",
+        "Gingerbread": "Read about gingerbread ingredients, traditions and processes without unsupported origin claims."
+      }
+    },
+    {
+      "event_name": "December Traditions",
+      "schedule": {
+        "kind": "month",
+        "month": 12
+      },
+      "enabled": true,
+      "theme_angles": [
+        "Explain the meaning, history or real-world context of December Traditions through original age-appropriate reading passages and multiple-choice comprehension.",
+        "Explore different perspectives and concrete examples about December Traditions through evidence, inference, vocabulary and comparison."
+      ],
+      "category": "seasonal_theme",
+      "note": "Comparative cultural reading themes; distinguish real traditions and fictional characters.",
+      "title_keywords": [
+        "Christmas Around the World",
+        "Holidays Around the World",
+        "Santa",
+        "Elves",
+        "Christmas-Chanukah-Kwanzaa"
+      ],
+      "keyword_topics": {
+        "Christmas Around the World": "Compare specific Christmas customs in named communities without stereotypes.",
+        "Holidays Around the World": "Compare named, specific traditions accurately; do not claim everyone in a country celebrates the same holiday.",
+        "Santa": "Read explicitly fictional Santa stories and compare associated traditions, without presenting fantasy as fact.",
+        "Elves": "Read explicitly fictional elf scenarios and examine choices, motives and text evidence.",
+        "Christmas-Chanukah-Kwanzaa": "Compare Christmas, Hanukkah and Kwanzaa respectfully while distinguishing their meanings and calendars."
+      }
     }
   ],
   "version": 2,
@@ -556,5 +1270,31 @@
     "https://www.opm.gov/policy-data-oversight/pay-leave/federal-holidays/",
     "https://hispanicheritagemonth.gov/About",
     "https://www.nfpa.org/events/fire-prevention-week"
+  ],
+  "selection_window": {
+    "start_offset_days": 7,
+    "end_offset_days": 13,
+    "note": "Second seven-day window after the run date; ongoing event periods may overlap it."
+  },
+  "evergreen_topics": [
+    {
+      "keyword": "Community Helpers",
+      "topic": "How different community workers help people and solve everyday problems."
+    },
+    {
+      "keyword": "Addition",
+      "topic": "Read about how people combine quantities, estimate and check totals in everyday life; this is reading comprehension, not a computation worksheet."
+    },
+    {
+      "keyword": "5 Senses",
+      "aliases": [
+        "5 sense"
+      ],
+      "topic": "How the five senses gather information, with accessible examples and no unsafe tasting."
+    },
+    {
+      "keyword": "Monsters",
+      "topic": "Clearly fictional creature scenarios with age-appropriate explanations and reading evidence."
+    }
   ]
 }

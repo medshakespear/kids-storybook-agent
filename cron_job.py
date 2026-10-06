@@ -57,17 +57,21 @@ def main() -> int:
     failures: list[dict[str, str]] = []
 
     print(f"Starting daily run for {today.isoformat()} ({os.getenv('BOOK_TIMEZONE', 'UTC')}): {count} activity packs", flush=True)
+    print(f"Selection window: {specs[0]['selection_window_start']} to {specs[0]['selection_window_end']} (second week ahead)", flush=True)
     for index, spec in enumerate(specs, start=1):
         label = f"{spec['event_name']} / {spec['grade_band']} / {spec['theme']}"
         print(f"  THEME MODE: {spec['selection_mode']}; period {spec['event_date']} to {spec['event_end']}", flush=True)
+        print(f"  KEYWORD TITLE: {spec['book_title']}", flush=True)
         print(f"[{index}/{count}] Generating {label}", flush=True)
         try:
             story, pdf_path = generate_book(
                 theme=f"{spec['event_name']}: {spec['theme']}",
                 grade_band=spec["grade_band"],
                 grade_config=grade_config,
+                book_title=spec["book_title"],
+                source_context=spec["theme"] + (" Calendar context: " + spec["calendar_note"] if spec["calendar_note"] else ""),
             )
-            story.update({key: spec[key] for key in ('event_name', 'event_date', 'event_end', 'selection_mode')})
+            story.update({key: spec[key] for key in ('event_name', 'event_date', 'event_end', 'selection_mode', 'title_keyword', 'selection_window_start', 'selection_window_end')})
             delivered = deliver_book({**story, "theme": spec["theme"]}, pdf_path)
             if delivered:
                 print(f"  DELIVERED: {pdf_path.name}", flush=True)
@@ -85,7 +89,7 @@ def main() -> int:
                 generated_on=today.isoformat(),
             )
             state['generated'][-1].update(resource_type='activity_pack',
-                selection_mode=spec['selection_mode'], event_date=spec['event_date'], event_end=spec['event_end'])
+                selection_mode=spec['selection_mode'], event_date=spec['event_date'], event_end=spec['event_end'],title_keyword=spec['title_keyword'],selection_window_start=spec['selection_window_start'],selection_window_end=spec['selection_window_end'])
             save_state(state, STATE_PATH)
             successes.append(
                 {"title": story["title"], "grade_band": spec["grade_band"], "pdf": str(pdf_path)}

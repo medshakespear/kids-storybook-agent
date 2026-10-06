@@ -61,16 +61,20 @@ text workers are capped by configured credential capacity. Reduce to `1` for
 small provider quotas. Real latency depends on provider response times and
 retries; no fixed generation time is guaranteed.
 
-## Daily selection: random events in the next 30 days
+## Daily selection: the second week ahead and keyword titles
 
 1. Resolve today in `BOOK_TIMEZONE` (default UTC).
-2. Include event periods overlapping today through today + 30 days, inclusive.
-   This includes an ongoing month/week and events starting within the window.
-3. Randomly choose an eligible event, then one of its theme angles, per book.
-   Events with more angles do not receive extra selection weight.
+2. Include event periods overlapping **today + 7 through today + 13 days**, inclusive.
+   For a run on October 6, the window is October 13–19. An ongoing month/week qualifies
+   only if its period overlaps that future window; events ending earlier are excluded.
+3. Randomly choose an eligible event, one of its `title_keywords`, then a theme angle.
+   The selected keyword becomes the exact book/cover title and steers the readings.
+   Events with more keywords/angles do not receive extra selection weight.
 4. Avoid recently used theme/grade pairs where possible and shuffle grade bands
    in balanced groups of the two active bands.
-5. If the entire window has no eligible events, use evergreen reading themes.
+5. Dated holidays/observances take priority. If none overlap, use a matching seasonal
+   teaching theme; if there is none, use `evergreen_topics` such as Community Helpers.
+   Seasons are labeled instructional windows, not invented holiday dates.
 
 Year boundaries and movable holidays are handled by calendar rules.
 Daily count remains `DAILY_BOOK_COUNT` (default 6-8; allowed 1-20).
@@ -80,11 +84,18 @@ Daily count remains `DAILY_BOOK_COUNT` (default 6-8; allowed 1-20).
 - `month`: the whole named month, including leap days.
 - `range`: inclusive month/day through end_month/end_day; supports year rollover.
 - `nth_weekday` and `last_weekday`: Monday=0 through Sunday=6, recalculated each year.
+  `offset_days` supports Grandparents Day (6 days after Labor Day) and Election Day
+  (1 day after the first Monday in November).
+- `easter`: Western/Gregorian Easter, with an optional offset (Mardi Gras = -47 days).
 - `week_containing`: week containing a reference day, e.g. October 9.
 - `dates`: explicit year-specific start/end ISO dates.
 
-Local/annually announced events (back to school, seasonal breaks, solstices,
-Lunar New Year, etc.) are **disabled until verified dates are supplied**.
+Lunar New Year, Diwali, Hanukkah and Passover have sourced year-specific dates for
+2026–2027. Update those tables before later years; missing years are skipped rather than
+guessed. Ramadan uses clearly marked community-dependent planning dates, including a
+provisional 2027 window. Religious observance timing can vary; notes are passed to the text
+generator. Local breaks and solstices remain disabled until verified dates are supplied.
+Back to School is an August–September instructional theme, not a district opening date.
 They are not guessed from old approximate anchors. Example school period:
 
 ```json
@@ -355,3 +366,19 @@ prompt adult reporting without witness/documentation prerequisites. Illustration
 replace text-prone display surfaces with plain surfaces and request closed unmarked books.
 No image reviewer is used; image generators can still violate prompts, so visually inspect
 the final PDF before listing it for sale.
+
+### Editing keyword titles
+
+Each calendar entry has `title_keywords` (a JSON list of title strings, each at most
+52 characters). `keyword_topics` may map individual titles to a more specific reading
+context. For example, Halloween randomly selects Halloween Activities, Halloween Craft
+or Halloween Bulletin Board, and every unit must address that selected context. The
+cover still says Reading Comprehension: these keywords do not introduce a craft template
+or bulletin-board kit. Titles, dates, selected window and keywords are recorded in cron
+logs and successful state/catalog records. Webhook requests keep their existing generated
+titles; the automatic keyword-title rule applies to calendar-driven cron books.
+
+`selection_window` in `calendar.json` defines inclusive start/end offsets (defaults 7/13).
+Dated events, seasonal themes and evergreen subjects are separate. Search-volume/rank
+numbers do not become book titles or affect the random event probability. Synonyms such
+as Hanukkah/Chanukah and Day of the Dead/Dia de los Muertos share one event.

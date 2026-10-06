@@ -57,7 +57,7 @@ class ThemePickerTests(unittest.TestCase):
             self.calendar,
             self.state,
             count=4,
-            today=date(2026, 2, 15),
+            today=date(2026, 2, 5),
             rng=random.Random(7),
         )
         self.assertEqual(len(specs), 4)
@@ -95,7 +95,7 @@ class ThemePickerTests(unittest.TestCase):
         """Different seeds can choose different events without preferring the nearest."""
         calendar = {'events': [
             {'event_name':name, 'schedule':{'kind':'fixed','month':2,'day':day}, 'theme_angles':['Angle '+name]}
-            for name,day in [('Near',1),('Later',15)]
+            for name,day in [('Near',1),('Later',7)]
         ]}
         choices = {pick_daily_book_specs(calendar, self.state, count=1, today=date(2026,1,25), rng=random.Random(seed))[0]['event_name'] for seed in range(20)}
         self.assertEqual(choices, {'Near','Later'})

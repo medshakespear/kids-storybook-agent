@@ -111,7 +111,7 @@ def repair_unit_limits(raw, config, label):
     paragraphs = unit.get('paragraphs')
     if isinstance(paragraphs,list) and 3 <= len(paragraphs) <= 4 and all(isinstance(p,str) and p.strip() for p in paragraphs):
         low, high = config['reading_words']['min'],config['reading_words']['max']
-        if not low <= passage_word_count(paragraphs) <= high:
+        if not low <= passage_word_count(paragraphs) <= high or any(len(p.strip()) > 1300 for p in paragraphs):
             source_questions = unit.get('questions')
             source_questions = source_questions if isinstance(source_questions,list) else []
             quotes = [q['evidence'] for q in source_questions if isinstance(q,dict)
@@ -130,7 +130,7 @@ def repair_unit_limits(raw, config, label):
                 if any(not excerpt_in_passage(q,result) for q in quotes):
                     raise ValueError('Passage length repair must retain every supporting quotation verbatim')
                 return result
-            prompt = ('Repair ONLY the passage length in this retained reading unit. '
+            prompt = ('Repair ONLY the passage length in this retained reading unit. Balance 3-4 paragraphs, each at most 1300 characters. '
                       +passage_length_feedback(paragraphs,config)+' '+config['reading_guidance']+
                       ' Expand with relevant explanations and concrete examples, never filler, invented statistics '
                       'or unverified cultural claims. Preserve facts and topic. Keep these EXISTING evidence quotations '
@@ -177,6 +177,72 @@ def repair_unit_limits(raw, config, label):
         unit = ask_json(prompt,validate_choices,label+' choice-length repair',2000,
                         response_schema=obj({'replacements':obj({ref:text(55) for ref in overlong})}))
     return unit
+
+
+def repair_unit_text(raw, label, *, retained=None):
+    """Repair bounded wording fields without changing passages, choices or answers."""
+    if not isinstance(raw,dict):
+        return raw
+    unit = deepcopy(raw)
+    # Reading identity was already accepted; a review cannot silently rename it.
+    if retained is not None:
+        for key in ('title','image_prompt'):
+            unit[key] = retained[key]
+    questions = unit.get('questions')
+    if not isinstance(questions,list) or len(questions)!=5 or not all(isinstance(q,dict) for q in questions):
+        return unit
+    targets = {}
+    for key,limit in (('title',80),('image_prompt',650)):
+        value = unit.get(key)
+        if not isinstance(value,str) or not value.strip() or len(value.strip()) > limit:
+            targets[key] = limit
+    questions = unit.get('questions')
+    if isinstance(questions,list) and len(questions)==5 and all(isinstance(q,dict) for q in questions):
+        for number,question in enumerate(questions,1):
+            for field,limit in (('prompt',120),('explanation',110)):
+                value = question.get(field)
+                if not isinstance(value,str) or not value.strip() or len(value.strip()) > limit:
+                    targets[f'{number}:{field}'] = limit
+    if not targets:
+        return unit
+    def validate_text(repair):
+        """Accept only the requested field edits with complete, distinct question stems."""
+        replacements = repair.get('replacements') if isinstance(repair,dict) else None
+        if not isinstance(replacements,dict) or set(replacements) != set(targets):
+            raise ValueError('Return precisely the requested wording field IDs')
+        candidate = deepcopy(unit)
+        for ref,limit in targets.items():
+            value = bounded(replacements[ref],ref,limit)
+            if ':' in ref:
+                number,field = ref.split(':')
+                candidate['questions'][int(number)-1][field] = value
+            else:
+                candidate[ref] = value
+        stems = [normalize_excerpt(q['prompt']) for q in candidate.get('questions',[])
+                 if isinstance(q,dict) and isinstance(q.get('prompt'),str)]
+        if len(set(stems)) != len(stems):
+            raise ValueError('Rewritten question prompts must remain distinct')
+        return candidate
+    prompt = ('Repair ONLY these bounded reading wording fields. Maximum character counts: '
+              +json.dumps(targets)+'. Return complete concise wording, aiming below each limit. '
+              'For explanations aim for 60-90 characters: one sentence explaining why the declared answer '
+              'is supported by its passage evidence, not a new answer or lengthy teaching guide. '
+              'For question prompts preserve all quantities, negations, requested reasoning and the correct '
+              'choice; do not simplify the intellectual skill. For title/image prompt retain the same topic '
+              'and visual intent. For missing wording infer it from the retained passage, choices and answer. '
+              'Never truncate text, change the passage, options, answer letters, skills or evidence. '
+              'Return {"replacements":{"field_id":"complete wording"}} with precisely the listed IDs.\n'
+              +json.dumps(unit))
+    return ask_json(prompt,validate_text,label+' wording repair',2500,
+                    response_schema=obj({'replacements':obj({ref:text(limit) for ref,limit in targets.items()})}))
+
+
+def prepare_reading_unit(raw, config, label, *, retained=None):
+    """Apply scoped repairs in dependency order before strict shared validation."""
+    unit = repair_unit_limits(raw,config,label)
+    unit = repair_unit_evidence(unit,label)
+    unit = repair_unit_text(unit,label,retained=retained)
+    return validate_unit(unit,config,retained=retained)
 
 
 def unit_schema():
@@ -239,7 +305,7 @@ def validate_unit(raw, config, *, retained=None):
         question['evidence'] = bounded(question.get('evidence'),'Supporting quotation',180)
         if not excerpt_in_passage(question['evidence'],unit['paragraphs']):
             raise ValueError(f'Question {number}: every answer needs a verbatim supporting quote copied from the passage; do not paraphrase')
-        question['explanation'] = bounded(question.get('explanation'),'Answer explanation',110)
+        question['explanation'] = bounded(question.get('explanation'),f'Question {number} answer explanation',110)
     if len(set(skills)) < 3 or skills.count('detail') > 2 or 'inference' not in skills:
         raise ValueError('Include inference and at least three skills; no more than two literal-detail questions')
     if config['reading_words']['min'] >= 320 and not set(skills) & {'author_purpose','text_structure','comparison'}:
@@ -323,10 +389,10 @@ Use at least three reading skills, including inference; at most two literal-deta
 Ask about the supplied text only; never require inspecting an AI illustration. Avoid ambiguous answers,
 trick questions, all/none of the above, and distractors distinguishable only by length or absurdity.
 Provide a verbatim quote from the passage and a concise explanation for every correct answer.
-Question prompts <=120 characters; choices <=55; explanations <=110; quotes <=180.
+Question prompts <=120 characters; choices <=55 (aim for 35-45); explanations <=110 (aim for 60-90); quotes <=180. Use complete concise sentences.
 Include one relevant original image prompt <=650 chars, no wording or numbers; no guessing exact image counts.
 Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_prompt, questions.'''
-        unit = ask_json(prompt,lambda raw:validate_unit(repair_unit_evidence(repair_unit_limits(raw,config,f'Reading {index+1}'),f'Reading {index+1}'),config),
+        unit = ask_json(prompt,lambda raw:prepare_reading_unit(raw,config,f'Reading {index+1}'),
                         f'Reading {index+1}',6000,response_schema=unit_schema())
         review_prompt = ('Independently solve and proofread these five reading-comprehension questions. '
             'Keep title and image_prompt VERBATIM. Return the complete unit. Correct factual errors in the passage if needed while preserving its topic and grade word range. '
@@ -337,7 +403,7 @@ Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_promp
             +json.dumps(unit))
         def validate_review(raw):
             """Validate review content and retry wording if the fixed page cannot fit."""
-            reviewed = validate_unit(repair_unit_evidence(repair_unit_limits(raw,config,f'Comprehension review {index+1}'),f'Comprehension review {index+1}'),config,retained=unit)
+            reviewed = prepare_reading_unit(raw,config,f'Comprehension review {index+1}',retained=unit)
             try:
                 pair = render_unit(reviewed,index+1,config)
             except ValueError as exc:

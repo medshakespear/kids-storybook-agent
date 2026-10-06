@@ -25,6 +25,10 @@ of only the failed choices; no text is padded or silently truncated. Valid units
 need no extra repair calls. Missing or paraphrased evidence triggers a scoped repair
 of only the affected questions, with the passage frozen. Harmless quote typography
 and whitespace differences are normalized; invented wording remains invalid.
+Long or missing answer explanations and question stems receive one batched wording
+repair, retaining the passage, choices, evidence and correct letters. Titles and
+image briefs use the same scoped character-limit handling. Explanations target
+60–90 characters within the 110-character print limit; nothing is silently cut off.
 Repairs still use bounded provider/validation retries.
 Gemini generates content JSON and performs a second text-only comprehension
 review. Python checks distinct options, answer letters, word counts and supporting

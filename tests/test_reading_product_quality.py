@@ -38,6 +38,18 @@ class ReadingProductQualityTests(unittest.TestCase):
         self.assertEqual(repaired, original)
         self.assertEqual(flagged['questions'], original['questions'])
 
+    def test_absolute_safety_and_unlabeled_town_examples_are_flagged(self):
+        """Catch the concrete editorial defects seen in a generated Halloween pack."""
+        config = load_grade_config()['3rd-4th']
+        for extra in ('This completely eliminates the risk of accidental fires.',
+                      'The town of Oak Creek tested lights that lasted fifty hours.'):
+            unit = reading_fixture()
+            unit['paragraphs'][0] += ' '+extra
+            self.assertTrue(passage_quality_issues(unit, config))
+        labeled = reading_fixture()
+        labeled['paragraphs'][0] += ' Imagine the fictional town of Oak Creek planning a festival.'
+        self.assertEqual(passage_quality_issues(labeled, config), [])
+
     def test_answer_relabeling_preserves_correct_text_and_balances_all_units(self):
         """All choices remain intact and the canonical answer always follows its text."""
         answers = []
@@ -54,11 +66,13 @@ class ReadingProductQualityTests(unittest.TestCase):
 
     def test_art_is_square_and_key_has_one_row_per_question(self):
         """A square scene keeps its composition; key rows come from the same questions."""
-        for band, size in (('3rd-4th', 74), ('5th-6th', 64)):
+        for band, size in (('3rd-4th', 86), ('5th-6th', 76)):
             unit = reading_fixture(band)
             reading, quiz = render_unit(unit, 1, load_grade_config()[band])
             self.assertIn(f'width:{size}mm;height:{size}mm', reading['html'])
             self.assertIn('Read with a purpose', reading['html'])
+            self.assertIn('border-bottom:1mm solid', reading['html'])
+            self.assertIn('background-color:'+load_grade_config()[band]['alternate_wash'],quiz['html'])
             self.assertEqual(len(quiz['answer_items']), 5)
             key = answer_key_markup({'content_format': 'reading_qcm', 'pages': [reading, quiz]})
             self.assertEqual(key.count('<strong>'), 5)

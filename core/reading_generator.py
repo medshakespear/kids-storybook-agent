@@ -257,6 +257,10 @@ def passage_quality_issues(unit, config):
         issues.append('Sentences are too dense for this age; use varied, shorter sentences and concrete examples.')
     if re.search(r'\b(?:researchers? (?:found|proved|frequently cite)|studies (?:show|prove|suggest)|peer-reviewed studies|research (?:shows|proves))\b', passage, re.I):
         issues.append('Remove vague research authority. Explain well-established facts directly; do not invent studies, findings or statistics.')
+    if re.search(r'\b(?:completely|entirely|totally) eliminates? (?:the )?risk', passage, re.I):
+        issues.append('Replace absolute safety promises with a precise statement of which hazard is reduced.')
+    if re.search(r'\b(?:town|village|city) of [A-Z][a-z]+', passage) and not re.search(r'\b(?:fictional|imaginary|imagine)\b', passage, re.I):
+        issues.append('Identify an invented town/event example explicitly as fictional; remove unsupported real-world performance statistics.')
     return issues
 
 
@@ -281,7 +285,7 @@ def repair_unit_quality(raw, config, label):
             raise ValueError(passage_length_feedback(paragraphs, config))
         return revised
     prompt = ('Rewrite ONLY the passage for elementary students. Preserve its substantive topic and '
-              'facts needed by the five questions; keep supporting quotes where possible. Replace academic '
+              'supported facts needed by the five questions; keep supporting quotes where possible. Remove unsupported assertions even if a question currently depends on them: the following evidence repair will realign affected questions. Explicitly label invented examples as fictional. Replace academic '
               'jargon with clear language and define essential terms through examples. Do not add filler, '
               'invented research, statistics or new claims. Aim for sentences of 10-18 words, with varied '
               'lengths. Return {"paragraphs":[...]} in three or four paragraphs. Word range: '
@@ -387,27 +391,27 @@ def render_unit(unit, number, config):
     """Render illustrated readings and spacious QCM pages with a shared answer model."""
     esc = html.escape
     font = config['student_font_pt']
+    secondary = config.get('secondary', '#E9A83B')
     accent, wash = config['accent'], config['wash']
-    heading = f'font-size:17pt;line-height:1.12;color:{accent};margin:0 0 3mm'
-    plain = f'font-size:{font}pt;line-height:1.2;margin:0 0 2mm'
+    heading = f'font-size:17pt;line-height:1.12;color:{accent};margin:0 0 3mm;padding:2mm 0;border-bottom:1mm solid {secondary}'
+    plain = f'font-size:{font}pt;line-height:1.24;margin:0 0 3mm'
     title = unit['title']
     body = f'<p style="{plain};color:{accent};font-weight:bold">READING {number} • INFORMATIONAL TEXT</p>'
     body += f'<h1 style="{heading}">{esc(title)}</h1>'
     body += f'<p style="{plain}">Name: __________________________  Date: ______________</p>'
     # A square illustration retains its entire composition, without a thin banner
     # letterboxing it into a tiny central thumbnail or cropping important details.
-    art_size = 74 if font >= 12 else 64
-    skills = list(dict.fromkeys(q['skill'].replace('_',' ') for q in unit['questions']))
+    art_size = 86 if font >= 12 else 76
     body += (f'<table style="width:180mm;margin:0 0 3mm"><tbody><tr>'
              f'<td style="width:{art_size}mm;padding:0 5mm 0 0">'
              f'<img data-asset="reading_{number}" style="width:{art_size}mm;height:{art_size}mm"/></td>'
-             f'<td style="padding:3mm;background-color:{wash};vertical-align:middle">'
+             f'<td style="padding:3mm;background-color:{wash};border-top:1mm solid {secondary};vertical-align:middle">'
              f'<p style="{plain};color:{accent};font-weight:bold">Read with a purpose</p>'
              f'<p style="{plain}">Notice the key ideas and the details that explain them.</p>'
-             f'<p style="{plain}">Reading skills: {esc(", ".join(skills))}.</p>'
+             f'<p style="{plain}">Pause after each paragraph. Ask yourself: what did I learn?</p>'
              f'<p style="{plain}">Return to the passage when choosing your answers.</p>'
              '</td></tr></tbody></table>')
-    body += ''.join(f'<p style="{plain}">{esc(paragraph)}</p>' for paragraph in unit['paragraphs'])
+    body += ''.join(f'<p style="{plain}"><strong style="color:{accent}">{index}.</strong> {esc(paragraph)}</p>' for index,paragraph in enumerate(unit['paragraphs'],1))
     body += f'<p style="{plain};color:{accent}">Continue to the five questions on the next page.</p>'
     # Art has a full square footprint; the legacy worksheet quota is inappropriate
     # for a 420-word reading. Its physical size is fixed and tested instead.
@@ -419,7 +423,7 @@ def render_unit(unit, number, config):
     quiz += f'<p style="{plain}">Name: __________________________  Date: ______________</p>'
     quiz += f'<p style="{plain}">Circle one answer for each question. Use details from Reading {number}.</p>'
     for index, question in enumerate(unit['questions'],1):
-        quiz += f'<section style="margin:0 0 3mm;padding:2.5mm;background-color:{wash};border-left:1mm solid {accent}">'
+        quiz += f'<section style="margin:0 0 3mm;padding:2.5mm;background-color:{wash if index % 2 else config.get("alternate_wash", "#FFF6E5")};border-left:1mm solid {accent if index % 2 else secondary}">'
         quiz += f'<p style="{plain};font-weight:bold;margin:0 0 1.5mm">{index}. {esc(question["prompt"])}</p>'
         for letter in LETTERS:
             quiz += (f'<p style="font-size:{font}pt;line-height:1.2;margin:0 0 1mm">'
@@ -444,6 +448,9 @@ def generate_reading_pack(theme, grade_band, grade_config, *, source_context=Non
     topics_prompt = f'''Plan {count//2} DISTINCT original informational readings for {grade_band}.
 Theme: {theme}. Inspiration/context: {source_context or theme}.
 Use the context as inspiration; do not copy any referenced product. The format is READING + QCM ONLY.
+The product is a READING COMPREHENSION WORKBOOK. Its title must describe the complete set of
+readings; do not advertise a weight/math challenge, experiment, game or hands-on project that is not
+actually included. Its overview must describe reading skills, not claim students will do experiments.
 Return title, overview, and topics: exactly {count//2} short descriptions with different substantive learning goals.
 Make the theme central to every reading. Plan concrete knowledge children can use, not
 abstract articles about how researchers or authors work. Choose five genuinely different angles:
@@ -486,10 +493,17 @@ Ask about the supplied text only; never require inspecting an AI illustration. A
 trick questions, all/none of the above, and distractors distinguishable only by length or absurdity.
 Wrong choices must be plausible misunderstandings of this SAME passage, parallel in grammar and
 roughly similar in length. Avoid silly unrelated choices and giveaway absolutes. Do not simply
-repeat the exact answer sentence as the correct option. Inference requires connecting details.
+repeat the exact answer sentence as the correct option. Inference requires connecting at least two details to reach an unstated conclusion. Do not label a
+sentence explicitly stated in the passage as inference. Wrong options should relate to the topic and
+reflect a specific misunderstanding, rather than magic, silly actions, unrelated objects or absolutes.
+Do not invent a historical cause just to make a cause/effect question. Distinguish supported history
+from folklore and avoid presenting legends as evidence of ancient practices. Avoid sweeping safety
+claims such as "completely eliminates risk". Examples with invented towns, events or data MUST be
+explicitly identified in the passage as fictional. Never state invented battery lifetimes or costs as
+universal facts. Avoid contrived fractions or measurements with unspecified quantities.
 Provide a verbatim quote from the passage and a concise explanation for every correct answer.
 Question prompts <=120 characters; choices <=55 (aim for 35-45); explanations <=110 (aim for 60-90); quotes <=180. Use complete concise sentences.
-Include one relevant original image prompt <=650 chars, no wording or numbers; no guessing exact image counts.
+Include one relevant original image prompt <=650 chars: show a large clear focal subject with purposeful contextual details, vivid coordinated colors and a polished textbook illustration composition, no wording or numbers; no guessing exact image counts.
 Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_prompt, questions.'''
         unit = ask_json(prompt,lambda raw:prepare_reading_unit(raw,config,f'Reading {index+1}'),
                         f'Reading {index+1}',6000,response_schema=unit_schema())
@@ -498,7 +512,7 @@ Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_promp
             'Repair questions, options, answer letters, quotes or explanations if needed. '
             'Each question must have precisely one supported answer, plausible but incorrect distractors, '
             'correct answer-letter alignment and valid evidence. Solve WITHOUT reading the provided answer first, then compare. Reject a second defensible choice and replace absurd or obviously unrelated distractors with plausible text-based misconceptions. Check factual accuracy and define essential vocabulary. Read the passage as an actual elementary child, not an academic researcher: rewrite dense jargon, remove vague research claims, and retain concrete useful knowledge. '
-            'Preserve the grade-appropriate skill mix and all five questions. This is text review only, not image review.\n'
+            'Use a skeptical editorial review: challenge every historical cause, numerical claim, absolute safety statement and environmental generalization. Remove any claim you cannot confidently support instead of making its falsehood the basis of a question. Label invented examples explicitly as fictional. Check grammar, units and logical quantities. An inference answer must NOT already be explicitly stated. Distractors must be plausible errors in understanding this same topic; rewrite silly or unrelated choices. Preserve the grade-appropriate skill mix and all five questions. This is text review only, not image review.\n'
             +json.dumps(unit))
         def validate_review(raw):
             """Validate review content and retry wording if the fixed page cannot fit."""
@@ -519,8 +533,8 @@ Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_promp
     pages = [page for index,(unit,_) in enumerate(generated) for page in render_unit(unit,index+1,config)]
     cover = dict(title=plan['title'],images=[dict(id='cover',prompt=f'Original editorial illustration about {theme}: {plan["overview"]}. No text or numbers.')],
         html=f'<h1 style="font-size:30pt;color:{config["accent"]};margin:0 0 5mm">{html.escape(plan["title"])}</h1>'
-             f'<p style="font-size:16pt">Grades {html.escape(grade_band.replace("th", "").replace("rd", "").replace("-", "–"))} | Reading Comprehension</p>'
-             f'<img data-asset="cover" style="width:175mm;height:100mm"/>'
+             f'<p style="font-size:16pt;background-color:{config["wash"]};padding:3mm;border-left:2mm solid {config["secondary"]}">Grades {html.escape(grade_band.replace("th", "").replace("rd", "").replace("-", "–"))} | Reading Comprehension</p>'
+             f'<img data-asset="cover" style="width:175mm;height:110mm;margin:2mm 0 4mm"/>'
              f'<p style="font-size:12pt">{html.escape(plan["overview"])}</p>'
              f'<p style="font-size:12pt">{count//2} readings | {count//2*5} multiple-choice questions | Answer key included</p>')
     pack = dict(title=plan['title'],overview=plan['overview'],theme=theme,grade_band=grade_band,

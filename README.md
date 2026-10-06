@@ -313,3 +313,11 @@ sentence density and vague unsupported research claims before evidence checks. T
 checks, not certified reading-level scores or external fact checking. No AI image reviewer is used.
 Before selling, review facts, question ambiguity, illustrations, and the final PDF yourself;
 model review and local print checks cannot guarantee instructional accuracy or sales.
+
+Workbook styling uses blue/gold accents, alternating question panels, numbered reading paragraphs,
+and uncropped square illustrations (86mm for grades 3–4; 76mm for grades 5–6). To leave room for
+larger illustrations and clearer paragraph spacing, passages use 220–280 words or 320–380 words
+respectively. Product titles should describe the reading comprehension actually included. The text
+review explicitly checks inference versus literal recall, plausible distractors, fictional example
+labels, historical explanations, and overly absolute safety claims. Local repair catches selected
+risky patterns; it does not replace factual verification by a person.

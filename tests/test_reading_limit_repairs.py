@@ -60,7 +60,7 @@ class ReadingLimitRepairTests(unittest.TestCase):
         draft=reading_fixture('5th-6th');draft['paragraphs']=reading_fixture()['paragraphs']
         def ask(prompt,validate,*args,**kwargs):
             """Verify corrective feedback and evidence retention before accepting content."""
-            with self.assertRaisesRegex(ValueError,'Target 370 words'):
+            with self.assertRaisesRegex(ValueError,'Target 350 words'):
                 validate({'paragraphs':draft['paragraphs']})
             invalid=deepcopy(reading_fixture('5th-6th')['paragraphs'])
             invalid[0]=invalid[0].replace('Good planning begins with watching carefully rather than guessing.','Reliable planning relies on careful observation of the site.')
@@ -113,3 +113,4 @@ class ReadingLimitRepairTests(unittest.TestCase):
                 unit=reading_fixture(band)
                 self.assertEqual(repair_unit_limits(unit,self.config[band],'Reading'),unit)
             api.assert_not_called()
+

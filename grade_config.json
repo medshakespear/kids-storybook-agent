@@ -97,8 +97,8 @@
     "student_font_pt": 12,
     "color_level": 1,
     "accent": "#3D7587",
-    "secondary": "#E9A83B",
-    "wash": "#EEF4F5",
+    "secondary": "#C87724",
+    "wash": "#EAF4F7",
     "max_operand": 100,
     "max_result": 1000,
     "operations": [
@@ -121,9 +121,10 @@
     "purposeful_activity_layout": true,
     "reading_words": {
       "min": 220,
-      "max": 300
+      "max": 280
     },
-    "reading_guidance": "Write for ages 8-10: concrete explanations and relatable examples, mostly short sentences, clear transitions, and a few essential terms defined naturally. Require text-supported inference without adult academic jargon."
+    "reading_guidance": "Write for ages 8-10: concrete explanations and relatable examples, mostly short sentences, clear transitions, and a few essential terms defined naturally. Require text-supported inference without adult academic jargon.",
+    "alternate_wash": "#FFF2DF"
   },
   "5th-6th": {
     "page_count": {
@@ -143,8 +144,8 @@
     "student_font_pt": 11,
     "color_level": 0,
     "accent": "#334A66",
-    "secondary": "#778594",
-    "wash": "#F1F3F5",
+    "secondary": "#A57736",
+    "wash": "#EDF2F8",
     "max_operand": 1000,
     "max_result": 10000,
     "operations": [
@@ -167,8 +168,9 @@
     "purposeful_activity_layout": true,
     "reading_words": {
       "min": 320,
-      "max": 420
+      "max": 380
     },
-    "reading_guidance": "Write for ages 10-12: explain meaningful real-world ideas with concrete examples, varied readable sentences, and essential vocabulary defined in context. Challenge reasoning through inference, comparison and text structure rather than dense academic language."
+    "reading_guidance": "Write for ages 10-12: explain meaningful real-world ideas with concrete examples, varied readable sentences, and essential vocabulary defined in context. Challenge reasoning through inference, comparison and text structure rather than dense academic language.",
+    "alternate_wash": "#FAF3E8"
   }
 }

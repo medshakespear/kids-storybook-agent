@@ -1,5 +1,5 @@
 {
-  "description": "Daily picker samples events overlapping days 7-13 ahead. Dates are actual inclusive observances, not substitute federal days. Seasonal windows are teaching themes, not holidays. Year-specific religious dates require periodic updates; Ramadan dates may vary by community.",
+  "description": "Daily picker samples events overlapping days 7-37 ahead. Dates are actual inclusive observances, not substitute federal days. Seasonal windows are teaching themes, not holidays. Year-specific religious dates require periodic updates; Ramadan dates may vary by community.",
   "events": [
     {
       "event_name": "New Year's Day",
@@ -1273,8 +1273,8 @@
   ],
   "selection_window": {
     "start_offset_days": 7,
-    "end_offset_days": 13,
-    "note": "Second seven-day window after the run date; ongoing event periods may overlap it."
+    "end_offset_days": 37,
+    "note": "Inclusive days 7-37 ahead; ignore the first week. Ongoing event periods may overlap this window."
   },
   "evergreen_topics": [
     {

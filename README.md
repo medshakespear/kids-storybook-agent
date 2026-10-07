@@ -61,11 +61,11 @@ text workers are capped by configured credential capacity. Reduce to `1` for
 small provider quotas. Real latency depends on provider response times and
 retries; no fixed generation time is guaranteed.
 
-## Daily selection: the second week ahead and keyword titles
+## Daily selection: 7–37 days ahead and keyword titles
 
 1. Resolve today in `BOOK_TIMEZONE` (default UTC).
-2. Include event periods overlapping **today + 7 through today + 13 days**, inclusive.
-   For a run on October 6, the window is October 13–19. An ongoing month/week qualifies
+2. Include event periods overlapping **today + 7 through today + 37 days**, inclusive.
+   For a run on October 7, the window is October 14–November 13. An ongoing month/week qualifies
    only if its period overlaps that future window; events ending earlier are excluded.
 3. Randomly choose an eligible event, one of its `title_keywords`, then a theme angle.
    The selected keyword becomes the exact book/cover title and steers the readings.
@@ -247,7 +247,7 @@ users; manual website configuration above is the recommended path.
 - `GET /` or `/books`: activity library and generation form (also shows old PDFs).
 - `GET /api/books`: public JSON catalog.
 - `GET /output/<filename>.pdf`: download.
-- `POST /generate`: generate ONE original pack from `description`, `link`, or both.
+- `POST /generate`: generate ONE original pack from `description`, `link`, or both; alternatively supply `event` alone.
   Reads public page text for the topic/learning goal without copying the reference product.
   Omitted grade uses history rotation.
 - `POST /generation-jobs`: same input, returns HTTP 202 with a `job_id` and `status_url`.
@@ -269,7 +269,7 @@ For a reading-topic brief, no link is required:
 ### Generate from the website
 
 1. Open your Railway web service's public URL (the same page as `/books`).
-2. Select **From a link** and paste a public product/page URL, or select **From a description** and explain your topic and learning goals.
+2. Select **From a link** and paste a public product/page URL, or select **From a description** and explain your topic and learning goals. Select **From an event** to choose any enabled calendar event without supplying a link or description.
 3. Choose **Grades 3–4** or **Grades 5–6**.
 4. If `WEBHOOK_API_KEY` is configured, enter it in **Generation access key**. It is sent in the request header and is not stored in the browser or embedded in the page.
 5. Click **Generate workbook**. Keep the page open while it polls progress, then click **Download PDF**. The completed book is also saved in the library.
@@ -414,7 +414,18 @@ or bulletin-board kit. Titles, dates, selected window and keywords are recorded 
 logs and successful state/catalog records. Webhook requests keep their existing generated
 titles; the automatic keyword-title rule applies to calendar-driven cron books.
 
-`selection_window` in `calendar.json` defines inclusive start/end offsets (defaults 7/13).
+`selection_window` in `calendar.json` defines inclusive start/end offsets (defaults 7/37).
 Dated events, seasonal themes and evergreen subjects are separate. Search-volume/rank
 numbers do not become book titles or affect the random event probability. Synonyms such
 as Hanukkah/Chanukah and Day of the Dead/Dia de los Muertos share one event.
+
+Manual event API example: `{"event":"Halloween","grade_band":"3rd-4th"}`.
+The same body works with `POST /generate` and `POST /generation-jobs`. Event mode
+rejects a simultaneous link/description and offers all enabled calendar entries,
+regardless of the cron window. Disabled entries are not offered. A matching title
+keyword and angle are selected within the chosen event.
+
+Daily batches now choose **one event** overlapping days **7–37 ahead**, inclusive,
+and generate the configured number of books for that event across the active grade
+bands. Titles and angles can vary within it. Days 0–6 are excluded; an ongoing
+month qualifies if its period overlaps the future window.

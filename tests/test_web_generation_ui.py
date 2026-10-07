@@ -131,6 +131,34 @@ class WebGenerationTests(unittest.TestCase):
                 self.assertEqual(self.client.post('/generation-jobs',json={'description':'test'}).status_code,202)
             self.assertEqual(self.client.post('/generation-jobs',json={'description':'test'}).status_code,429)
 
+    def test_event_only_generation_uses_matching_title_without_browsing(self):
+        """Manual calendar selection works in both bands, without a link or brief."""
+        for band in ('3rd-4th','5th-6th'):
+            with self.subTest(band=band),patch.object(web,'_authorized',return_value=True),patch.object(web,'read_reference') as read,patch.object(web,'generate_book',return_value=({'title':'Halloween Activities'},Path('event.pdf'))) as generate,patch.object(web,'register_book') as register:
+                response=self.client.post('/generate',json={'event':'Halloween','grade_band':band})
+                self.assertEqual(response.status_code,200)
+                read.assert_not_called()
+                request=generate.call_args.kwargs
+                self.assertIn(request['book_title'],['Halloween Activities','Halloween Craft','Halloween Bulletin Board'])
+                self.assertIn('Halloween',request['source_context'])
+                self.assertEqual(request['grade_band'],band)
+                self.assertEqual(register.call_args.args[0]['selection_mode'],'manual_event')
+
+    def test_event_validation_and_dropdown(self):
+        """Only enabled named events can be chosen, with no competing input."""
+        with patch.object(web,'_authorized',return_value=True),patch.object(web,'generate_book') as generate,patch.object(web,'list_books',return_value=[]):
+            page=self.client.get('/').data
+            self.assertIn(b'From an event',page)
+            self.assertIn(b'value="Halloween"',page)
+            self.assertNotIn(b'value="National Library Week"',page)
+            for payload in ({'event':'Unknown'}, {'event':'National Library Week'}, {'event':False}, {'event':'Halloween','description':'A topic'}, {'event':'Halloween','link':'https://example.com/'}):
+                self.assertEqual(self.client.post('/generation-jobs',json=payload).status_code,400)
+            generate.assert_not_called()
+            with patch.object(web._job_worker,'submit') as submit:
+                response=self.client.post('/generation-jobs',json={'event':'Halloween','grade_band':'3rd-4th'})
+                self.assertEqual(response.status_code,202)
+                self.assertEqual(submit.call_args.args[2]['event']['event_name'],'Halloween')
+
     def test_reference_failure_never_starts_ai_generation(self):
         """A blocked page instructs the teacher to paste a description instead."""
         with patch.object(web,'_authorized',return_value=True),patch.object(web,'read_reference',side_effect=ReferenceReadError('Paste a description instead.')),patch.object(web,'generate_book') as generate:

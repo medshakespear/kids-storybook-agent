@@ -1,4 +1,4 @@
-"""Choose second-week events, matching keyword titles and original reading topics."""
+"""Choose days-7–37 events, matching keyword titles and original reading topics."""
 
 from __future__ import annotations
 
@@ -49,14 +49,14 @@ def pick_daily_book_specs(
     today: date | None = None,
     rng: random.Random | None = None,
 ) -> list[dict[str, str]]:
-    """Choose overlapping second-week events and keyword titles with balanced grades."""
+    """Choose overlapping days-7–37 events and keyword titles with balanced grades."""
 
     if not 1 <= count <= 20:
         raise ValueError("count must be between 1 and 20")
     reference = today or today_in_timezone()
     randomizer = rng or random.SystemRandom()
     window = calendar.get('selection_window', {})
-    start_offset, end_offset = window.get('start_offset_days',7), window.get('end_offset_days',13)
+    start_offset, end_offset = window.get('start_offset_days',7), window.get('end_offset_days',37)
     events = find_events_in_window(calendar, today=reference, days=end_offset, start_offset=start_offset)
     # Real observances take precedence. Instructional seasons fill empty holiday weeks.
     dated = [e for e in events if e.get('category') != 'seasonal_theme']
@@ -101,6 +101,12 @@ def pick_daily_book_specs(
     if not candidates:
         raise ValueError("Eligible calendar events contain no theme angles")
     randomizer.shuffle(candidates)
+
+    # One event per daily batch; grade bands, keyword titles and angles can vary.
+    fresh = [item for item in candidates if any((item['theme'], band) not in recent for band in bands)]
+    event_names = sorted({(item['event_name'], item['event_date']) for item in (fresh or candidates)})
+    batch_event = randomizer.choice(event_names)
+    candidates = [item for item in candidates if (item['event_name'], item['event_date']) == batch_event]
 
     selections: list[dict[str, str]] = []
     used_in_batch: set[tuple[str, str]] = set()

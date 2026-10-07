@@ -13,11 +13,12 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 from uuid import uuid4
 import time
+import random
 
 from flask import Flask, jsonify, request, send_from_directory, url_for, render_template
 
 from core.book_library import list_books, register_book, receive_pdf
-from core.paths import OUTPUT_DIR, ensure_runtime_directories
+from core.paths import OUTPUT_DIR, CALENDAR_PATH, ensure_runtime_directories
 from core.grade_policy import ACTIVE_GRADE_BANDS
 from core.pipeline import generate_book, load_grade_config
 from core.state_manager import load_state
@@ -46,6 +47,13 @@ def health() -> tuple[dict[str, str], int]:
     return {"status": "ok"}, 200
 
 
+def generator_events():
+    """List enabled calendar themes for manual selection, independent of cron dates."""
+    with Path(CALENDAR_PATH).open(encoding='utf-8') as handle:
+        calendar = json.load(handle)
+    return sorted([event for event in calendar['events'] if event.get('enabled',True) and event.get('theme_angles')],key=lambda event:event['event_name'])
+
+
 def generation_input(payload):
     """Validate a generation brief before starting network or AI work."""
     if not isinstance(payload, dict):
@@ -67,15 +75,26 @@ def generation_input(payload):
             valid = False
         if not valid:
             raise ValueError('link must be a valid public http or https URL.')
-    if not link and not description:
-        raise ValueError('Provide a description or a reference link.')
+    event_name = payload.get('event', '')
+    if not isinstance(event_name,str) or len(event_name)>200:
+        raise ValueError('event must be a calendar event name.')
+    event_name = event_name.strip()
+    event = None
+    if event_name:
+        if link or description:
+            raise ValueError('Choose an event only when no description or link is supplied.')
+        event = next((item for item in generator_events() if item['event_name']==event_name),None)
+        if event is None:
+            raise ValueError('Choose an enabled event from the calendar.')
+    if not link and not description and event is None:
+        raise ValueError('Provide a description, a reference link, or a calendar event.')
     grade_config = load_grade_config()
     band = payload.get('grade_band')
     if band is None:
         band = pick_webhook_grade_band(load_state())
     if not isinstance(band,str) or band not in ACTIVE_GRADE_BANDS or band not in grade_config:
         raise ValueError('Only 3rd-4th and 5th-6th grade bands are enabled.')
-    return dict(link=link, description=description, grade_band=band, grade_config=grade_config)
+    return dict(link=link, description=description, grade_band=band, grade_config=grade_config, event=event)
 
 
 def run_generation(brief):
@@ -83,9 +102,22 @@ def run_generation(brief):
     context = reference_context(read_reference(brief['link'])) if brief['link'] else ''
     if brief['description']:
         context += '\nTeacher creative brief: ' + brief['description']
+    theme = 'Original reading comprehension workbook based on the supplied educational brief.'
+    title_options = {}
+    event = brief.get('event')
+    if event:
+        chooser = random.SystemRandom()
+        keyword = chooser.choice(event.get('title_keywords') or [event['event_name']])
+        theme = keyword + ': ' + chooser.choice(event['theme_angles'])
+        context = 'Selected calendar event: ' + event['event_name'] + '\nTitle keyword: ' + keyword
+        context += '\n' + event.get('keyword_topics',{}).get(keyword,'') + '\n' + event.get('note','')
+        title_options['book_title'] = keyword
     story, pdf_path = generate_book(
-        theme='Original reading comprehension workbook based on the supplied educational brief.',
-        grade_band=brief['grade_band'], source_context=context, grade_config=brief['grade_config'])
+        theme=theme, grade_band=brief['grade_band'], source_context=context,
+        grade_config=brief['grade_config'], **title_options)
+    if event:
+        story['event_name'] = event['event_name']
+        story['selection_mode'] = 'manual_event' 
     register_book(story,pdf_path.name,'On demand')
     return dict(status='completed',title=story['title'],resource_type='activity_pack',
                 grade_band=brief['grade_band'],pdf_path='/output/'+pdf_path.name,
@@ -131,7 +163,7 @@ _job_worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix='web-generati
 def perform_job(job_id, brief):
     """Complete one background request and record its result without exposing secrets."""
     with _jobs_lock:
-        _jobs[job_id].update(status='running',message='Reading the reference and generating your workbook.' if brief['link'] else 'Generating your workbook from the description.')
+        _jobs[job_id].update(status='running',message='Reading the reference and generating your workbook.' if brief['link'] else 'Generating your workbook from the selected event.' if brief.get('event') else 'Generating your workbook from the description.')
     try:
         result = run_generation(brief)
     except Exception as exc:
@@ -199,7 +231,7 @@ def request_too_large(_: Exception) -> tuple[object, int]:
 @app.get("/books")
 def books_page():
     """Show the public book library with download links."""
-    return render_template("books.html", books=list_books(), key_required=bool(os.environ.get("WEBHOOK_API_KEY")))
+    return render_template("books.html", books=list_books(), key_required=bool(os.environ.get("WEBHOOK_API_KEY")), events=generator_events())
 
 
 @app.get("/api/books")

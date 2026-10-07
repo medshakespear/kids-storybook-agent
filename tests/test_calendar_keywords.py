@@ -21,22 +21,32 @@ class CalendarKeywordTests(unittest.TestCase):
         self.calendar=json.loads(Path('calendar.json').read_text())
         self.state={'generated':[]}
 
-    def test_second_week_boundaries_and_overlapping_periods(self):
-        """Exclude the first week/day14 while including day7/day13 and active months."""
+    def test_days_7_to_37_boundaries_and_overlapping_periods(self):
+        """Exclude days 0-6 and 38; include 7 and 37, including year rollover."""
         today=date(2026,12,25)
-        events=[{'event_name':str(n),'schedule':{'kind':'fixed','month':(today+timedelta(days=n)).month,'day':(today+timedelta(days=n)).day},'theme_angles':['Read']} for n in (0,6,7,13,14)]
+        events=[{'event_name':str(n),'schedule':{'kind':'fixed','month':(today+timedelta(days=n)).month,'day':(today+timedelta(days=n)).day},'theme_angles':['Read']} for n in (0,6,7,37,38)]
         events += [{'event_name':'Ongoing','schedule':{'kind':'range','month':12,'day':20,'end_month':1,'end_day':5},'theme_angles':['Read']},
                    {'event_name':'Ended','schedule':{'kind':'range','month':12,'day':20,'end_month':12,'end_day':31},'theme_angles':['Read']}]
-        found=find_events_in_window({'events':events},today=today,start_offset=7,days=13)
-        self.assertEqual({e['event_name'] for e in found},{'7','13','Ongoing'})
+        found=find_events_in_window({'events':events},today=today,start_offset=7,days=37)
+        self.assertEqual({e['event_name'] for e in found},{'7','37','Ongoing'})
         specs=pick_daily_book_specs({'events':events},self.state,count=8,today=today,rng=random.Random(2))
-        self.assertTrue(all(s['event_name'] in {'7','13','Ongoing'} for s in specs))
-        self.assertTrue(all(s['selection_window_start']=='2027-01-01' and s['selection_window_end']=='2027-01-07' for s in specs))
+        self.assertTrue(all(s['event_name'] in {'7','37','Ongoing'} for s in specs))
+        self.assertTrue(all(s['selection_window_start']=='2027-01-01' and s['selection_window_end']=='2027-01-31' for s in specs))
 
-    def test_today_calendar_excludes_early_and_late_october_events(self):
-        """On October6 only observances overlapping October13-19 qualify."""
-        choices={pick_daily_book_specs(self.calendar,self.state,count=1,today=date(2026,10,6),rng=random.Random(n))[0]['event_name'] for n in range(40)}
-        self.assertEqual(choices,{'Hispanic Heritage Month','National Bullying Prevention Month'})
+    def test_today_calendar_uses_longer_window(self):
+        """October7 includes Halloween and early November but excludes October12."""
+        events=find_events_in_window(self.calendar,today=date(2026,10,7),start_offset=7,days=37)
+        names={e['event_name'] for e in events if e.get('category')!='seasonal_theme'}
+        self.assertIn('Halloween',names)
+        self.assertIn('Veterans Day',names)
+        self.assertIn('Diwali',names)
+        self.assertNotIn("Indigenous Peoples' Day",names)
+        self.assertNotIn('Fire Prevention Week',names)
+        for n in range(20):
+            specs=pick_daily_book_specs(self.calendar,self.state,count=8,today=date(2026,10,7),rng=random.Random(n))
+            self.assertEqual(len({s['event_name'] for s in specs}),1)
+            self.assertTrue(all(s['event_name'] in names for s in specs))
+            self.assertEqual({s['grade_band'] for s in specs},{'3rd-4th','5th-6th'})
 
     def test_all_screenshot_holidays_are_enabled(self):
         """The missing pictured tags now have resolvable 2026 periods."""
@@ -92,11 +102,11 @@ class CalendarKeywordTests(unittest.TestCase):
         with patch.object(cron_job,'validate_providers'),patch.object(cron_job,'fetch_library_state',return_value=None),patch.object(cron_job,'load_state',return_value=state),patch.object(cron_job,'_daily_count',return_value=1),patch.object(cron_job,'today_in_timezone',return_value=date(2026,10,6)),patch.object(cron_job,'generate_book',side_effect=generate),patch.object(cron_job,'deliver_book',return_value=True),patch.object(cron_job,'save_state'),patch.object(cron_job,'commit_state_to_github',return_value=(True,'Saved')),redirect_stdout(io.StringIO()):
             self.assertEqual(cron_job.main(),0)
         record=state['generated'][0]
-        self.assertIn(captured['book_title'],{'Bullying Prevention Month','Hispanic Heritage Month'})
+        self.assertTrue(any(captured['book_title'] in event['title_keywords'] for event in self.calendar['events']))
         self.assertIn(captured['book_title'],captured['source_context'])
         self.assertEqual(record['title'],captured['book_title'])
         self.assertEqual(record['selection_window_start'],'2026-10-13')
-        self.assertEqual(record['selection_window_end'],'2026-10-19')
+        self.assertEqual(record['selection_window_end'],'2026-11-12')
 
 
 if __name__=='__main__':

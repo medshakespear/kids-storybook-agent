@@ -32,8 +32,12 @@ candidate does not reject a valid later alternative. No text is padded or silent
 need no extra repair calls. Missing or paraphrased evidence triggers a scoped repair
 of only the affected questions, with the passage frozen. Harmless quote typography
 and whitespace differences are normalized; invented wording remains invalid.
-Evidence repairs offer an enum of exact, bounded source excerpts so Gemini can
-select existing wording instead of paraphrasing or exceeding 180 characters.
+Evidence repairs offer numbered exact, bounded source excerpts. Gemini returns a
+small integer `evidence_index`; Python inserts the source quote. Long excerpt enums
+are no longer duplicated in each question's schema. An evidence request rejected
+with HTTP 400 gets one JSON-object-mode retry with the same content validators;
+another rejection stops with the actual error. This fallback is limited to evidence
+repairs, and does not treat every HTTP 400 as a temporary outage.
 Long or missing answer explanations and question stems receive one batched wording
 repair, retaining the passage, choices, evidence and correct letters. Titles and
 image briefs use the same scoped character-limit handling. Explanations target
@@ -416,6 +420,14 @@ remain intact for diagnostics and question repairs; they do not invalidate an ot
 valid solve or replace the existing validated, print-sized explanation. Balanced letter relabeling
 then moves each correct option together with its key letter. This is model-based semantic
 review, not a guarantee of correctness or an external factual verification service.
+
+Literal recall mislabeled as inference, implausible distractors, skill mismatches and
+missing valid choices trigger a fresh scoped question immediately. Rejected stems
+cannot be reused for inference/skill/distractor defects. If bounded answer verification
+still fails, one fresh reading and question set on the same planned topic is allowed.
+Other completed units remain intact. This fresh unit receives the same content,
+layout and independent answer checks. A second semantic failure stops publication;
+provider outages do not trigger this unit replacement.
 
 Reading workbooks now explicitly use the activity-art prompt path instead of the recurring
 storybook-character style. Cover art is based on a reviewed reading scene rather than the

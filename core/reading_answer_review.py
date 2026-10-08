@@ -11,6 +11,10 @@ from core.activity_generator import ActivityGenerationError
 from core.response_schemas import array, enum, integer, obj, text
 
 
+class AnswerVerificationError(ActivityGenerationError):
+    """Semantic defects persist after bounded question repair, before publication."""
+
+
 def choice_identity(value):
     """Compare recycled choices without punctuation, casing or Unicode differences."""
     return ' '.join(re.findall(r'\w+',unicodedata.normalize('NFKC',value).casefold()))
@@ -56,7 +60,7 @@ def verify_question_answers(unit, config, label, *, ask):
             found[number] = dict(answer=solution['answer'], reason=reason,quality_issues=issues)
         return found
 
-    ambiguous_numbers, rejected = set(), {}
+    ambiguous_numbers, rebuild_numbers, stem_rebuild_numbers, rejected = set(), set(), set(), {}
     for attempt in range(6):
         # The proposed key, explanations and supporting quotations are deliberately
         # absent. Otherwise a reviewer can rationalize an unrelated selected choice.
@@ -91,14 +95,16 @@ def verify_question_answers(unit, config, label, *, ask):
                     current['questions'][number-1]['explanation'] = result['reason']
             return validate_unit(current,config)
         ambiguous_numbers.update(n for n,result in faults.items() if result['answer']=='AMBIGUOUS')
+        rebuild_numbers.update(n for n,result in faults.items() if result['quality_issues'] or result['answer'] in ('AMBIGUOUS','NONE'))
+        stem_rebuild_numbers.update(n for n,result in faults.items() if result['quality_issues'] or result['answer']=='AMBIGUOUS')
         for number in faults:
             rejected.setdefault(number,[]).append(deepcopy(current['questions'][number-1]))
         max_reviews = 6 if ambiguous_numbers else 4
-        fresh = attempt >= 2 or any(n in ambiguous_numbers for n in faults)
+        fresh = attempt >= 2 or any(n in rebuild_numbers for n in faults)
         details = '; '.join(f"Q{n}: expected {current['questions'][n-1]['answer']}, reviewer {r['answer']}, issues {r['quality_issues']}: {r['reason']}" for n,r in sorted(faults.items()))
         LOGGER.warning('%s: answer-check defects (pass %s/%s): %s',label,attempt+1,max_reviews,details)
         if attempt+1 >= max_reviews:
-            raise ActivityGenerationError(f'{label}: answer verification still fails after {max_reviews-1} bounded repair/replacement attempts; {details}; PDF not published')
+            raise AnswerVerificationError(f'{label}: answer verification still fails after {max_reviews-1} bounded repair/replacement attempts; {details}; PDF not published')
         retained = deepcopy(current)
 
         def validate_repairs(raw):
@@ -126,12 +132,12 @@ def verify_question_answers(unit, config, label, *, ask):
                 question = candidate['questions'][number-1]
                 if question['skill'] != retained['questions'][number-1]['skill']:
                     raise ValueError('Keep each repaired question reading skill unchanged')
-                if fresh and number in ambiguous_numbers:
+                if fresh and number in stem_rebuild_numbers:
                     history = rejected[number]
                     if choice_identity(question['prompt']) in {choice_identity(q['prompt']) for q in history}:
-                        raise ValueError('Ambiguous-question replacement must use a new question stem, not the rejected stem')
+                        raise ValueError('Question replacement must use a new question stem, not the rejected stem')
                     banned = {choice_identity(option) for q in history for option in q['options'].values()}
-                    if any(choice_identity(option) in banned for option in question['options'].values()):
+                    if number in ambiguous_numbers and any(choice_identity(option) in banned for option in question['options'].values()):
                         raise ValueError('Ambiguous-question replacement must rewrite ALL four choices; do not recycle rejected options')
             return candidate
 
@@ -154,9 +160,11 @@ def verify_question_answers(unit, config, label, *, ask):
             source = {k:v for k,v in retained.items() if k!='questions'}
             source['accepted_questions']=[{'number':n,'question':q} for n,q in enumerate(retained['questions'],1) if n not in faults]
             source['replacement_requirements']=[{'number':n,'skill':retained['questions'][n-1]['skill'],'defect':result,
-                **({'rejected_stems':[q['prompt'] for q in rejected[n]],'rejected_options':[option for q in rejected[n] for option in q['options'].values()]} if n in ambiguous_numbers else {})} for n,result in sorted(faults.items())]
+                **({'rejected_stems':[q['prompt'] for q in rejected[n]],'rejected_options':[option for q in rejected[n] for option in q['options'].values()]} if n in rebuild_numbers else {})} for n,result in sorted(faults.items())]
             prompt = ('Write BRAND-NEW questions to replace ONLY the listed failing numbers. '
-                      'Do not paraphrase the old question or repeat its flawed reasoning. For ambiguous questions, '
+                      'Do not paraphrase the old question or repeat its flawed reasoning. Literal inference, unsupported answers, '
+                      'skill mismatch and implausible distractors require a genuinely NEW task, not another key edit. '
+                      'A definition or a directly stated passage fact can never be the inference question. For ambiguous questions, '
                       'use a DIFFERENT aspect of the frozen passage and rewrite ALL FOUR choices; none may repeat '
                       'a rejected stem or choice. Keep accepted questions unchanged. Every replacement must have exactly one supported '
                       'A-D answer and plausible but incorrect distractors. Check EACH choice against the exact question: '

@@ -3,6 +3,7 @@ from copy import deepcopy
 import html
 import re
 import json
+import logging
 import random
 import unicodedata
 
@@ -12,10 +13,11 @@ from core.grade_policy import require_active_grade
 from core.providers import text_worker_limit
 from core.response_schemas import array, enum, integer, obj, text
 from core.runtime import int_setting, ordered_parallel
-from core.reading_answer_review import verify_question_answers
+from core.reading_answer_review import verify_question_answers, AnswerVerificationError
 
 SKILLS = ('main_idea', 'detail', 'inference', 'vocabulary', 'cause_effect', 'text_structure', 'author_purpose', 'comparison')
 LETTERS = ('A', 'B', 'C', 'D')
+LOGGER = logging.getLogger(__name__)
 
 
 def bounded(value, name, limit):
@@ -97,6 +99,12 @@ def repair_unit_evidence(raw, label):
         for ref,question in replacements.items():
             if not isinstance(question,dict):
                 raise ValueError('Each replacement question must be a JSON object')
+            question = deepcopy(question)
+            if 'evidence_index' in question:
+                index = question.pop('evidence_index')
+                if type(index) is not int or not 1 <= index <= len(bank):
+                    raise ValueError(f'Question {ref}: evidence_index must select an existing numbered excerpt')
+                question['evidence'] = bank[index-1]
             evidence = bounded(question.get('evidence'),f'Question {ref} evidence',180)
             if not excerpt_in_passage(evidence,unit['paragraphs']):
                 raise ValueError(f'Question {ref}: copy a contiguous excerpt that actually occurs in the retained passage; do not paraphrase')
@@ -108,7 +116,10 @@ def repair_unit_evidence(raw, label):
     question_schema = unit_schema()['properties']['questions']['items']
     bank = passage_excerpt_bank(unit['paragraphs'])
     if bank:
-        question_schema['properties']['evidence'] = enum(bank)
+        question_schema['properties'].pop('evidence')
+        question_schema['required'].remove('evidence')
+        question_schema['properties']['evidence_index'] = integer(1,len(bank))
+        question_schema['required'].append('evidence_index')
     prompt = ('Repair ONLY these reading questions: '+', '.join(failed)+'. Their evidence is missing, '
               'paraphrased, too long or not present in the passage. Keep the passage, title, image prompt and '
               'all other questions unchanged. Independently solve each affected question from the retained passage. '
@@ -119,8 +130,8 @@ def repair_unit_evidence(raw, label):
               'supported. If no choice is defensibly correct, repair that affected question/choices instead '
               'of inserting new claims into the passage or selecting an unrelated quote. Keep one correct '
               'answer, skill mix and character limits. Return {"questions":{"number":{complete question}}} '
-              'for precisely the listed numbers. Select evidence VERBATIM from this source excerpt bank when available: '
-              +json.dumps(bank)+'. Do not paraphrase bank entries. If a question has no supported answer, '
+              'for precisely the listed numbers. When the bank is nonempty, return evidence_index (the integer excerpt number) instead of evidence text. Python copies the exact source quote. Numbered source excerpts: '
+              +json.dumps({str(i):quote for i,quote in enumerate(bank,1)})+'. Do not paraphrase bank entries. If a question has no supported answer, '
               'rewrite that affected question around an appropriate source excerpt. Independent comprehension review follows.\n'+json.dumps(unit))
     schemas = {}
     for ref in failed:
@@ -129,7 +140,7 @@ def repair_unit_evidence(raw, label):
         if original_skill in SKILLS:
             schemas[ref]['properties']['skill'] = enum([original_skill])
     return ask_json(prompt,validate_evidence,label+' evidence repair',3000,
-                    response_schema=obj({'questions':obj(schemas)}))
+                    response_schema=obj({'questions':obj(schemas)}),allow_schema_fallback=True)
 
 
 def passage_word_count(paragraphs):
@@ -704,7 +715,7 @@ Grades 5-6: more detailed texts, reasoning about evidence, author's purpose, tex
         return dict(title=book_title or bounded(raw.get('title'),'Short cover title',52),topics=topics)
     plan = ask_json(topics_prompt,validate_plan,'Reading plan',3000,response_schema=schema)
     low, high = config['reading_words']['min'],config['reading_words']['max']
-    def make_unit(index):
+    def make_unit(index, replacement=False):
         """Generate and independently review one reading with its five questions."""
         prompt = f'''Write an ORIGINAL {grade_band} informational reading and five multiple-choice questions.
 Theme: {theme}. Book keyword/title: {plan['title']}. Topic: {plan['topics'][index]}. User context: {source_context or theme}.
@@ -742,6 +753,12 @@ Question prompts <=120 characters; choices <=55 (aim for 35-45); explanations <=
 Include one relevant original image prompt <=650 chars: show a large clear focal subject with purposeful contextual details, vivid coordinated colors and a polished textbook illustration composition, no wording or numbers; no guessing exact image counts.
 For cultural illustrations prefer specific relevant objects, environments or contemporary learning scenes; avoid generic historical costumes, feather headdresses and pan-cultural mascots. Never include lettering. Prefer outdoors, natural settings or plain undecorated walls. Do not include posters, banners, signs, chalkboards, whiteboards, screens or open printed books; use closed unmarked books if needed.
 Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_prompt, questions.'''
+        if replacement:
+            prompt += ('\nThis unit replaces a set that failed independent answer checks. Write a genuinely NEW '
+                       'passage and five NEW questions on the SAME planned topic. Include a concrete, clearly '
+                       'fictional example with at least two details supporting an unstated inference. Do not '
+                       'ask for an explicitly defined term as inference. Distractors must be plausible '
+                       'misunderstandings of these specific details, with exactly one supported answer.')
         unit = ask_json(prompt,lambda raw:prepare_reading_unit(raw,config,f'Reading {index+1}'),
                         f'Reading {index+1}',6000,response_schema=unit_schema())
         review_prompt = ('Independently solve and proofread these five reading-comprehension questions. '
@@ -762,7 +779,13 @@ Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_promp
             return reviewed, pair
         reviewed, _ = ask_json(review_prompt,validate_review,
             f'Comprehension review {index+1}',6000,response_schema=unit_schema())
-        verified = verify_question_answers(reviewed,config,f'Reading {index+1}',ask=ask_json)
+        try:
+            verified = verify_question_answers(reviewed,config,f'Reading {index+1}',ask=ask_json)
+        except AnswerVerificationError:
+            if replacement:
+                raise
+            LOGGER.warning('Reading %s: scoped answer replacements exhausted; generating one fresh unit on the same planned topic',index+1)
+            return make_unit(index,replacement=True)
         return verified, render_unit(verified,index+1,config)
     workers = text_worker_limit(int_setting('DESIGN_WORKERS',3,1,4))
     generated = ordered_parallel(make_unit,range(count//2),workers)

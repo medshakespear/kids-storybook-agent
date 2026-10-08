@@ -372,7 +372,7 @@ def merge_exercise_repair(original: dict, correction: dict) -> dict:
     return result
 
 
-def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_schema: dict | None = None) -> dict:
+def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_schema: dict | None = None, allow_schema_fallback: bool = False) -> dict:
     """Retry validation defects separately from transient provider transport failures."""
     answer_limit = 180
     if response_schema:
@@ -416,6 +416,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
         api, model = text_client(provider)
         try:
             validation_attempt = 0
+            schema_fallback_used = False
             transport_failures = 0
             transport_deadline = time.monotonic() + transport_budget
             while validation_attempt < max_validation_attempts:
@@ -458,7 +459,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         schema = obj({'html':text(18000), 'exercise':obj({'captions':array(
                             obj({'id':text(24),'text':text(120)}),0,14)})},['html'])
                     response_format = ({'type':'json_schema','json_schema':{
-                        'name':'activity_response','schema':schema}} if schema is not None and provider=='gemini'
+                        'name':'activity_response','schema':schema}} if schema is not None and provider=='gemini' and not schema_fallback_used
                         else {'type':'json_object'})
                     if provider == 'gemini':
                         if time.monotonic() >= transport_deadline:
@@ -1039,6 +1040,11 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     failure = safe_api_error(provider, exc, model=model)
                     errors.append(f'{label}: {failure}')
                     LOGGER.warning('%s', errors[-1])
+                    if (allow_schema_fallback and provider=='gemini' and response_schema is not None
+                            and failure.status_code==400 and not schema_fallback_used):
+                        schema_fallback_used = True
+                        LOGGER.warning('%s: structured request rejected; retrying once with JSON-object mode and the same Python validators',label)
+                        continue
                     if not failure.retryable:
                         break
 

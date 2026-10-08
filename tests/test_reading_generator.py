@@ -201,6 +201,51 @@ class ReadingGeneratorTests(unittest.TestCase):
             self.assertEqual(pack['content_checks']['questions'],25)
             self.assertNotIn('path',pack['pages'][0]['images'][0])
 
+    def test_exhausted_answers_replace_only_failed_unit_once(self):
+        """A fresh same-topic unit recovers semantic failure while keeping the five-pair pack."""
+        from core.reading_answer_review import AnswerVerificationError
+        labels=[]
+        def ask(prompt,validate,label,*args,**kwargs):
+            """Supply reviewed content while recording bounded unit regeneration."""
+            labels.append(label)
+            if label=='Reading plan':
+                return validate(dict(title='Garden Investigations',topics=[f'Garden topic {i}' for i in range(5)]))
+            if label=='Reading 1' and labels.count('Reading 1')==2:
+                self.assertIn('genuinely NEW',prompt)
+                self.assertIn('Garden topic 0',prompt)
+            return validate(reading_fixture())
+        checks=[]
+        def verify(unit,config,label,**kwargs):
+            """Fail only the first unit's first full semantic verification."""
+            checks.append(label)
+            if checks==['Reading 1']:
+                raise AnswerVerificationError('Literal inference remains after bounded repair')
+            return unit
+        with patch('core.reading_generator.ask_json',side_effect=ask),patch('core.reading_generator.text_worker_limit',return_value=1),patch('core.reading_generator.verify_question_answers',side_effect=verify):
+            pack=generate_reading_pack('School gardens','3rd-4th',self.config)
+        self.assertEqual(labels.count('Reading 1'),2)
+        self.assertTrue(all(labels.count(f'Reading {i}')==1 for i in range(2,6)))
+        self.assertEqual(len(pack['reading_units']),5)
+        self.assertEqual(len(pack['pages']),10)
+
+    def test_unit_replacement_is_bounded_and_not_used_for_provider_outage(self):
+        """A second bad unit stays blocked; outages never trigger semantic regeneration."""
+        from core.activity_generator import ActivityGenerationError
+        from core.reading_answer_review import AnswerVerificationError
+        for error,expected in ((AnswerVerificationError('Bad inference'),2),(ActivityGenerationError('Gemini unavailable'),1)):
+            labels=[]
+            def ask(prompt,validate,label,*args,**kwargs):
+                """Return one valid fixture through real layout validation."""
+                labels.append(label)
+                if label=='Reading plan':
+                    return validate(dict(title='Garden Investigations',topics=[f'Garden topic {i}' for i in range(5)]))
+                return validate(reading_fixture())
+            with self.subTest(error=type(error).__name__),patch('core.reading_generator.ask_json',side_effect=ask),patch('core.reading_generator.text_worker_limit',return_value=1),patch('core.reading_generator.verify_question_answers',side_effect=error):
+                with self.assertRaises(ActivityGenerationError):
+                    generate_reading_pack('Gardens','3rd-4th',self.config)
+            self.assertEqual(labels.count('Reading 1'),expected)
+            self.assertNotIn('Reading 2',labels)
+
     def test_disabled_grades_never_call_ai(self):
         """Only grades 3–6 are available in the production engine."""
         with patch('core.reading_generator.ask_json') as ask:

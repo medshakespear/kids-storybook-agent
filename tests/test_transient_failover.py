@@ -171,6 +171,29 @@ class TransientFailoverTests(unittest.TestCase):
         self.assertNotIn('completion transport time budget',str(caught.exception))
         self.sleep.assert_not_called()
 
+    def test_opted_in_schema_400_falls_back_once_with_python_validation(self):
+        """A rejected structured evidence call can use plain JSON without skipping checks."""
+        self.handler=lambda request:httpx.Response(400,json={}) if len(self.seen)==1 else httpx.Response(200,json=completion())
+        validations=[]
+        def validate(value):
+            """Record that ordinary application validation still runs on fallback content."""
+            validations.append(value)
+            return value
+        result=ask_json('Evidence repair',validate,'Reading 3 evidence repair',response_schema={'type':'object','properties':{'ok':{'type':'boolean'}}},allow_schema_fallback=True)
+        self.assertTrue(result['ok'])
+        self.assertEqual(len(validations),1)
+        self.assertEqual([body['response_format']['type'] for _,body in self.seen],['json_schema','json_object'])
+        self.assertEqual(self.seen[0][1]['messages'],self.seen[1][1]['messages'])
+        self.sleep.assert_not_called()
+
+    def test_schema_400_fallback_is_not_an_unbounded_retry(self):
+        """Two rejected formats terminate with the real provider error."""
+        self.handler=lambda request:httpx.Response(400,json={})
+        with self.assertRaisesRegex(ActivityGenerationError,'HTTP 400'):
+            ask_json('Evidence repair',lambda value:value,'Evidence repair',response_schema={'type':'object'},allow_schema_fallback=True)
+        self.assertEqual(len(self.seen),2)
+        self.sleep.assert_not_called()
+
 
 if __name__=='__main__':
     unittest.main()

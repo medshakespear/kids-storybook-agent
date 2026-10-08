@@ -90,12 +90,21 @@ class ReadingEvidenceRepairTests(unittest.TestCase):
             bad['questions'][0]['evidence']='x'*181
             def ask(prompt,validate,label,*args,**kwargs):
                 """Select an exact offered source quotation in the production schema."""
-                bank=kwargs['response_schema']['properties']['questions']['properties']['1']['properties']['evidence']['enum']
+                from core.reading_generator import passage_excerpt_bank
+                bank=passage_excerpt_bank(valid['paragraphs'])
+                properties=kwargs['response_schema']['properties']['questions']['properties']['1']['properties']
+                self.assertNotIn('evidence',properties)
+                self.assertEqual(properties['evidence_index']['maximum'],len(bank))
                 self.assertTrue(bank)
                 self.assertTrue(all(len(q)<=180 and excerpt_in_passage(q,valid['paragraphs']) for q in bank))
                 self.assertIn(valid['questions'][0]['evidence'],bank)
-                self.assertIn('Select evidence VERBATIM',prompt)
-                return validate({'questions':{'1':valid['questions'][0]}})
+                self.assertIn('return evidence_index',prompt)
+                question=deepcopy(valid['questions'][0]);question.pop('evidence')
+                for index in (0,True,len(bank)+1):
+                    question['evidence_index']=index
+                    with self.assertRaises(ValueError):validate({'questions':{'1':question}})
+                question['evidence_index']=bank.index(valid['questions'][0]['evidence'])+1
+                return validate({'questions':{'1':question}})
             with self.subTest(band=band),patch('core.reading_generator.ask_json',side_effect=ask):
                 self.assertEqual(repair_unit_evidence(bad,'Reading 1'),valid)
             long=' '.join(['Students record environmental observations and discuss their conclusions carefully']*10)+'.'

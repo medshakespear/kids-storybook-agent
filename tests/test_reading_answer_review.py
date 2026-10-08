@@ -72,17 +72,19 @@ class ReadingAnswerReviewTests(unittest.TestCase):
         def ask(prompt,validate,label,*args,**kwargs):
             """Return a mislabeled but otherwise correct vocabulary question."""
             calls.append(label)
-            if label.endswith('answer repair'):
+            if label.endswith(('answer repair','fresh question replacement')):
                 allowed=kwargs['response_schema']['properties']['repairs']['items']['properties']['question']['properties']['skill']['enum']
                 self.assertEqual(allowed,['vocabulary'])
                 question=deepcopy(self.unit['questions'][2]);question['skill']='detail'
+                question['prompt']='How does revise relate to the students’ plans?'
                 return validate({'repairs':[{'number':3,'question':question}]})
             self.assertIn('skill_mismatch',prompt)
             result=self.solutions(self.unit)
             if len(calls)==1:
                 result['solutions'][2]['quality_issues']=['skill_mismatch']
             return validate(result)
-        self.assertEqual(verify_question_answers(self.unit,self.config,'Reading',ask=ask),self.unit)
+        expected=deepcopy(self.unit);expected['questions'][2]['prompt']='How does revise relate to the students’ plans?'
+        self.assertEqual(verify_question_answers(self.unit,self.config,'Reading',ask=ask),expected)
         self.assertEqual(len(calls),3)
 
     def test_quality_fault_is_repaired_even_when_selected_answer_is_correct(self):
@@ -92,13 +94,16 @@ class ReadingAnswerReviewTests(unittest.TestCase):
             """Flag quality once, then verify the scoped repair independently."""
             calls.append(label)
             if label.endswith(('answer repair','fresh question replacement')):
-                self.assertIn('inference must require',prompt)
-                return validate({'repairs':[{'number':3,'question':deepcopy(self.unit['questions'][2])}]})
+                self.assertIn('inference combines at least two details',prompt)
+                question=deepcopy(self.unit['questions'][2])
+                question['prompt']='How does revise relate to the students’ plans?'
+                return validate({'repairs':[{'number':3,'question':question}]})
             result=self.solutions(self.unit)
             if len(calls)==1:
                 result['solutions'][2]['quality_issues']=['literal_inference','implausible_distractors']
             return validate(result)
-        self.assertEqual(verify_question_answers(self.unit,self.config,'Reading',ask=ask),self.unit)
+        expected=deepcopy(self.unit);expected['questions'][2]['prompt']='How does revise relate to the students’ plans?'
+        self.assertEqual(verify_question_answers(self.unit,self.config,'Reading',ask=ask),expected)
         self.assertEqual(len(calls),3)
 
     def test_repair_uses_scoped_choice_and_explanation_length_helpers(self):
@@ -113,7 +118,7 @@ class ReadingAnswerReviewTests(unittest.TestCase):
         def ask(prompt,validate,label,*args,**kwargs):
             """Return an otherwise correct repair with the reported long fields."""
             calls.append(label)
-            if label.endswith('answer repair'):
+            if label.endswith(('answer repair','fresh question replacement')):
                 question=deepcopy(self.unit['questions'][1])
                 question['options']['A']+=' Extra explanations make this option unnecessarily long.'
                 question['explanation']+=' This explanation repeats a long description of the reading instead of providing a concise answer. '*2
@@ -138,7 +143,7 @@ class ReadingAnswerReviewTests(unittest.TestCase):
                 self.assertEqual([q['number'] for q in payload['accepted_questions']],[1,3,4,5])
                 self.assertNotIn('questions',payload)
                 return validate({'repairs':[{'number':2,'question':replacement}]})
-            if label.endswith('answer repair'):
+            if label.endswith(('answer repair','fresh question replacement')):
                 return validate({'repairs':[{'number':2,'question':deepcopy(self.unit['questions'][1])}]})
             return validate(self.solutions(self.unit,broken=len(calls)<7))
         with self.assertLogs('core.reading_answer_review',level='WARNING') as logs:
@@ -185,7 +190,7 @@ class ReadingAnswerReviewTests(unittest.TestCase):
         def ask(prompt, validate, label, *args, **kwargs):
             """Verify the full diagnostic reaches the scoped repair request."""
             calls.append(label)
-            if label.endswith('answer repair'):
+            if label.endswith(('answer repair','fresh question replacement')):
                 self.assertIn(reason.strip(),prompt)
                 return validate({'repairs':[{'number':2,'question':deepcopy(self.unit['questions'][1])}]})
             result = self.solutions(self.unit,broken=len(calls)==1)

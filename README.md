@@ -19,7 +19,12 @@ picture-counting puzzles, sorting worksheets, or unrelated arithmetic tasks.
 
 Passages have 3–4 paragraphs. Each question set covers at least three reading
 skills, including inference, with no more than two literal-detail questions.
-Short or overlong passages receive a scoped passage rewrite with a measured word
+Short passages receive an additions-only repair: Python retains the original
+paragraphs and requests only the measured number of new words. Additions extend
+selected paragraph endings or form a fourth concluding paragraph. The model cannot
+delete evidence or rewrite existing facts during expansion. Retries report the
+original count, added count and complete required addition range. Overlong passages
+still receive a scoped passage rewrite with a measured word
 target and retained evidence quotations. Overlong choices receive a batched rewrite
 of only the failed choices; no text is padded or silently truncated. Valid units
 need no extra repair calls. Missing or paraphrased evidence triggers a scoped repair

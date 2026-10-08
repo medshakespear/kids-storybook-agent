@@ -8,6 +8,17 @@ from core.reading_generator import repair_unit_limits, validate_unit, passage_wo
 from tests.test_reading_generator import reading_fixture
 
 
+def additions_between(before,after):
+    """Represent a test expansion as tails appended to retained paragraphs."""
+    result=[]
+    for number,paragraph in enumerate(after,1):
+        prefix=before[number-1] if number<=len(before) else ''
+        assert paragraph.startswith(prefix)
+        tail=paragraph[len(prefix):].strip()
+        if tail: result.append(dict(paragraph_number=number,text=tail))
+    return {'additions':result}
+
+
 class ReadingLimitRepairTests(unittest.TestCase):
     """Preserve the exercise while repairing only the failed content family."""
 
@@ -23,10 +34,10 @@ class ReadingLimitRepairTests(unittest.TestCase):
             before=deepcopy(draft)
             def ask(prompt,validate,label,*args,**kwargs):
                 """Exercise the actual scoped validator on a valid expansion."""
-                self.assertIn('Repair ONLY the passage length',prompt)
-                self.assertIn('add about',prompt)
-                self.assertEqual(set(kwargs['response_schema']['properties']),{'paragraphs'})
-                return validate({'paragraphs':reading_fixture(band)['paragraphs']})
+                self.assertIn('Expand ONLY this short reading',prompt)
+                self.assertIn('NEW words in total',prompt)
+                self.assertEqual(set(kwargs['response_schema']['properties']),{'additions'})
+                return validate(additions_between(before['paragraphs'],reading_fixture(band)['paragraphs']))
             with self.subTest(band=band),patch('core.reading_generator.ask_json',side_effect=ask) as api:
                 repaired=repair_unit_limits(draft,self.config[band],'Reading 1')
                 validate_unit(repaired,self.config[band])
@@ -60,13 +71,13 @@ class ReadingLimitRepairTests(unittest.TestCase):
         draft=reading_fixture('5th-6th');draft['paragraphs']=reading_fixture()['paragraphs']
         def ask(prompt,validate,*args,**kwargs):
             """Verify corrective feedback and evidence retention before accepting content."""
-            with self.assertRaisesRegex(ValueError,'Target 350 words'):
-                validate({'paragraphs':draft['paragraphs']})
+            with self.assertRaisesRegex(ValueError,'COMPLETE replacement additions'):
+                validate({'additions':[{'paragraph_number':4,'text':'One relevant explanation.'}]})
             invalid=deepcopy(reading_fixture('5th-6th')['paragraphs'])
             invalid[0]=invalid[0].replace('Good planning begins with watching carefully rather than guessing.','Reliable planning relies on careful observation of the site.')
-            with self.assertRaisesRegex(ValueError,'supporting quotation'):
+            with self.assertRaisesRegex(ValueError,'not replacement paragraphs'):
                 validate({'paragraphs':invalid})
-            return validate({'paragraphs':reading_fixture('5th-6th')['paragraphs']})
+            return validate(additions_between(draft['paragraphs'],reading_fixture('5th-6th')['paragraphs']))
         with patch('core.reading_generator.ask_json',side_effect=ask):
             result=repair_unit_limits(draft,self.config['5th-6th'],'Reading 1')
         self.assertGreaterEqual(passage_word_count(result['paragraphs']),320)
@@ -93,7 +104,7 @@ class ReadingLimitRepairTests(unittest.TestCase):
         draft['paragraphs']=[' '.join(p.split()[:n]) for p,n in zip(valid['paragraphs'],(60,100,127))]
         draft['questions'][0]['options']['A']='Gardens only need sunlight and no other conditions are worth observing.'
         short=[' '.join(p.split()[:n]) for p,n in zip(valid['paragraphs'],(65,110,131))]
-        replies=[{'paragraphs':short},{'paragraphs':valid['paragraphs']},
+        replies=[additions_between(draft['paragraphs'],short),additions_between(draft['paragraphs'],valid['paragraphs']),
                  {'replacements':{'1:A':'x'*56}}, {'replacements':{'1:A':'Gardens only need sunlight.'}}]
         api=Mock()
         api.chat.completions.create.side_effect=[SimpleNamespace(choices=[SimpleNamespace(
@@ -105,6 +116,65 @@ class ReadingLimitRepairTests(unittest.TestCase):
         validate_unit(result,self.config['5th-6th'])
         self.assertEqual(api.chat.completions.create.call_count,4)
         self.assertEqual(result,valid)
+
+    def test_reported_shortages_expand_without_rewriting_evidence(self):
+        """Observed 186/197/219/306/319-word drafts retain their complete source text."""
+        extension = ('Students can discuss their observations with a partner before making a decision. '
+                     'A partner may notice something different and help the class consider another explanation. '
+                     'Together, they can choose a useful next observation rather than rushing to a conclusion. '
+                     'This discussion helps everyone connect evidence with careful planning.')
+        for band,counts in (('3rd-4th',(186,197,219)),('5th-6th',(306,319))):
+            for count in counts:
+                draft=reading_fixture(band)
+                while passage_word_count(draft['paragraphs'])>count:
+                    draft['paragraphs'][1]=' '.join(draft['paragraphs'][1].split()[:-1])
+                retained=deepcopy(draft)
+                def ask(prompt,validate,label,*args,**kwargs):
+                    """Reject under-expansion and source rewrites, then merge a valid addition."""
+                    self.assertIn(f'has {count} words',prompt)
+                    small={'additions':[{'paragraph_number':4,'text':'Observe carefully.'}]}
+                    if count+2 < self.config[band]['reading_words']['min']:
+                        with self.assertRaisesRegex(ValueError,'COMPLETE replacement additions'):
+                            validate(small)
+                    else:
+                        self.assertEqual(passage_word_count(validate(small)),count+2)
+                    with self.assertRaisesRegex(ValueError,'not replacement paragraphs'):
+                        validate({'paragraphs':reading_fixture(band)['paragraphs']})
+                    with self.assertRaisesRegex(ValueError,'copied or repeated'):
+                        validate({'additions':[{'paragraph_number':4,'text':draft['paragraphs'][0]}]})
+                    return validate({'additions':[{'paragraph_number':4,'text':extension}]})
+                with self.subTest(band=band,count=count),patch('core.reading_generator.ask_json',side_effect=ask):
+                    repaired=repair_unit_limits(draft,self.config[band],'Reading 1')
+                    self.assertEqual(draft,retained)
+                    self.assertEqual(repaired['paragraphs'][:3],draft['paragraphs'])
+                    self.assertEqual(repaired['questions'],draft['questions'])
+                    validate_unit(repaired,self.config[band])
+
+    def test_four_paragraph_expansion_checks_ids_capacity_and_repetition(self):
+        """Append to existing paragraph tails without changing prior wording."""
+        draft=reading_fixture();draft['paragraphs']=[' '.join(p.split()[:35]) for p in draft['paragraphs']]
+        draft['paragraphs'].append('Careful planning helps a class investigate the conditions in a garden.')
+        extension=('Students record what they observe and compare their notes over several days. '
+                   'This gives them a clearer picture of changes in the garden and helps them decide '
+                   'which conditions they should investigate next. Partners can discuss different observations '
+                   'and explain how each one relates to the question being investigated. They can then '
+                   'choose a useful observation and record their reasoning for the class.')
+        def ask(prompt,validate,*args,**kwargs):
+            """Reject malformed additions without allowing edits to retained text."""
+            for additions in ([{'paragraph_number':5,'text':extension}],
+                              [{'paragraph_number':True,'text':extension}],
+                              [{'paragraph_number':1,'text':extension}]*2,
+                              [{'paragraph_number':1,'text':extension},{'paragraph_number':2,'text':extension}],
+                              [{'paragraph_number':1,'text':'x'*1300}]):
+                with self.assertRaises(ValueError):validate({'additions':additions})
+            return validate({'additions':[{'paragraph_number':4,'text':extension+' '+extension.replace('Students','Partners',1)}]})
+        # This exercises the merge contract; evidence not present in the shortened
+        # source remains the subsequent evidence-repair stage's responsibility.
+        with patch('core.reading_generator.ask_json',side_effect=ask):
+            repaired=repair_unit_limits(draft,self.config['3rd-4th'],'Reading 1')
+        self.assertEqual(repaired['paragraphs'][:3],draft['paragraphs'][:3])
+        self.assertTrue(repaired['paragraphs'][3].startswith(draft['paragraphs'][3]+' '))
+        self.assertEqual(len(repaired['paragraphs']),4)
 
     def test_valid_draft_does_not_spend_repair_calls(self):
         """The normal path keeps its existing request count."""

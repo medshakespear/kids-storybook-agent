@@ -10,7 +10,7 @@ from core.creative_generator import ask_json
 from core.creative_layout import check_page, preflight_pack
 from core.grade_policy import require_active_grade
 from core.providers import text_worker_limit
-from core.response_schemas import array, enum, obj, text
+from core.response_schemas import array, enum, integer, obj, text
 from core.runtime import int_setting, ordered_parallel
 from core.reading_answer_review import verify_question_answers
 
@@ -105,6 +105,79 @@ def passage_length_feedback(paragraphs, config):
             'Count passage words only; questions and choices do not count. Preserve supporting quotations.')
 
 
+def expand_short_passage(unit, config, label):
+    """Append scoped explanations without giving the model ownership of retained text."""
+    original = list(unit['paragraphs'])
+    count = passage_word_count(original)
+    low, high = config['reading_words']['min'], config['reading_words']['max']
+    minimum, maximum = low-count, high-count
+    target = (low+high)//2-count
+    last_number = 4 if len(original)==3 else len(original)
+    questions = unit.get('questions')
+    questions = questions if isinstance(questions,list) else []
+    quotes = [q['evidence'] for q in questions if isinstance(q,dict)
+              and isinstance(q.get('evidence'),str) and q['evidence'].strip()
+              and excerpt_in_passage(q['evidence'],original)]
+
+    def validate_additions(raw):
+        """Merge additions once and measure the complete passage with the shared counter."""
+        additions = raw.get('additions') if isinstance(raw,dict) else None
+        if not isinstance(additions,list) or not 1 <= len(additions) <= last_number:
+            raise ValueError('Return 1-4 numbered additions, not replacement paragraphs')
+        paragraphs, seen = list(original), set()
+        new_text = []
+        for addition in additions:
+            number = addition.get('paragraph_number') if isinstance(addition,dict) else None
+            if type(number) is not int or not 1 <= number <= last_number or number in seen:
+                raise ValueError('Addition paragraph numbers must be distinct available paragraph numbers')
+            seen.add(number)
+            wording = bounded(addition.get('text'),'Passage addition',1300)
+            identity = normalize_excerpt(wording)
+            if identity in normalize_excerpt(' '.join(original)) or any(identity == normalize_excerpt(t) for t in new_text):
+                raise ValueError('Add relevant new explanations, not copied or repeated passage text')
+            new_text.append(wording)
+            if number > len(original):
+                # A fourth concluding paragraph can be authored without rewriting
+                # any of the existing three or dropping an evidence quotation.
+                if len(paragraphs)==len(original):
+                    paragraphs.append(wording)
+            else:
+                paragraphs[number-1] = original[number-1].rstrip()+' '+wording
+        if any(len(p.strip())>1300 for p in paragraphs):
+            raise ValueError('An expanded paragraph exceeds 1300 characters; distribute additions across other paragraphs')
+        if any(not excerpt_in_passage(quote,paragraphs) for quote in quotes):
+            raise ValueError('An addition split a supporting quotation across paragraphs; append elsewhere or use a new fourth paragraph')
+        total = passage_word_count(paragraphs)
+        if not low <= total <= high:
+            added = passage_word_count(new_text)
+            raise ValueError(f'Frozen passage has {count} words; additions contain {added}; total {total}. '
+                             f'Return COMPLETE replacement additions totaling {minimum}-{maximum} words '
+                             f'(aim for {target}), not just the incremental difference. Do not rewrite existing paragraphs.')
+        return paragraphs
+
+    capacities = {str(i):1300-len(p.rstrip())-1 for i,p in enumerate(original,1)}
+    if len(original)==3:
+        capacities['4'] = 1300
+    prompt = ('Expand ONLY this short reading by returning additions, never rewritten paragraphs. '
+              f'The frozen passage has {count} words. Write {minimum}-{maximum} NEW words in total '
+              f'across all additions; aim for {target}. Count additions only. '
+              'Return {"additions":[{"paragraph_number":1,"text":"new explanation"}]}. '
+              'Each text is appended to the END of its selected original paragraph. '
+              'Paragraph 4 may be a new concluding paragraph only when the source has three paragraphs. '
+              'Prefer a new fourth paragraph or shorter existing paragraphs; avoid making the opening paragraph longer unless necessary. '
+              'Use each selected number once. Do not copy original wording or repeat additions. '
+              'Supply the COMPLETE additions on retries, not only the remaining difference. '
+              'Develop relevant explanations or concrete examples that follow naturally from the existing '
+              'paragraphs. Preserve topic and facts, avoid filler, invented statistics and unverified cultural '
+              'claims. Never insert facts to justify an unsupported answer. '+config['reading_guidance']+
+              ' Python retains every existing word, supporting quotation, question and answer unchanged. '
+              f'Available additional characters per paragraph: {json.dumps(capacities)}. '
+              'Retained reading (context only):\n'+json.dumps(unit))
+    schema = obj({'additions':array(obj({'paragraph_number':integer(1,last_number),
+                                       'text':text(1300)}),1,last_number)})
+    return ask_json(prompt,validate_additions,label+' passage-length repair',2000,response_schema=schema)
+
+
 def repair_unit_limits(raw, config, label):
     """Repair only passage length and overlong choices, retaining the rest of a draft."""
     if not isinstance(raw, dict):
@@ -139,8 +212,11 @@ def repair_unit_limits(raw, config, label):
                       f'verbatim: {json.dumps(quotes)}. Never invent facts to justify an unsupported answer. '
                       'Do not change questions, answers, title or image prompt. Return {"paragraphs":[...]}.\n'
                       +json.dumps(unit))
-            unit['paragraphs'] = ask_json(prompt,validate_passage,label+' passage-length repair',3000,
-                                         response_schema=obj({'paragraphs':array(text(1300),3,4)}))
+            if passage_word_count(paragraphs) < low and all(len(p.strip())<=1300 for p in paragraphs):
+                unit['paragraphs'] = expand_short_passage(unit,config,label)
+            else:
+                unit['paragraphs'] = ask_json(prompt,validate_passage,label+' passage-length repair',3000,
+                                             response_schema=obj({'paragraphs':array(text(1300),3,4)}))
     questions = unit.get('questions')
     if not isinstance(questions,list):
         return unit

@@ -467,16 +467,17 @@ def render_unit(unit, number, config):
     # A square illustration retains its entire composition, without a thin banner
     # letterboxing it into a tiny central thumbnail or cropping important details.
     art_size = 86 if font >= 12 else 76
-    body += (f'<table style="width:180mm;margin:0 0 3mm"><tbody><tr>'
-             f'<td style="width:{art_size}mm;padding:0 5mm 0 0">'
+    # Pair the opening paragraph with the square art instead of spending its
+    # neighboring column on generic study tips. This frees passage space without
+    # shrinking illustrations, cutting content or reducing the student font.
+    body += (f'<table style="width:180mm;border-spacing:0;margin:0 0 2mm"><tbody><tr>'
+             f'<td style="width:{art_size+5}mm;padding:0 5mm 0 0">'
              f'<img data-asset="reading_{number}" style="width:{art_size}mm;height:{art_size}mm"/></td>'
-             f'<td style="padding:3mm;background-color:{wash};border-top:1mm solid {secondary};vertical-align:middle">'
-             f'<p style="{plain};color:{accent};font-weight:bold">Read with a purpose</p>'
-             f'<p style="{plain}">Notice the key ideas and the details that explain them.</p>'
-             f'<p style="{plain}">Pause after each paragraph. Ask yourself: what did I learn?</p>'
-             f'<p style="{plain}">Return to the passage when choosing your answers.</p>'
+             f'<td style="padding:2mm;background-color:{wash};border-top:1mm solid {secondary};vertical-align:top">'
+             f'<p style="{plain};color:{accent};font-weight:bold;margin:0 0 2mm">Read with a purpose</p>'
+             f'<p style="{plain};margin:0"><strong style="color:{accent}">1.</strong> {esc(unit["paragraphs"][0])}</p>'
              '</td></tr></tbody></table>')
-    body += ''.join(f'<p style="{plain}"><strong style="color:{accent}">{index}.</strong> {esc(paragraph)}</p>' for index,paragraph in enumerate(unit['paragraphs'],1))
+    body += ''.join(f'<p style="{plain}"><strong style="color:{accent}">{index}.</strong> {esc(paragraph)}</p>' for index,paragraph in enumerate(unit['paragraphs'][1:],2))
     body += f'<p style="{plain};color:{accent}">Continue to the five questions on the next page.</p>'
     # Art has a full square footprint; the legacy worksheet quota is inappropriate
     # for a 420-word reading. Its physical size is fixed and tested instead.
@@ -498,8 +499,35 @@ def render_unit(unit, number, config):
         answers=' '.join(f'{i}. {q["answer"]}: {q["explanation"]}' for i,q in enumerate(unit['questions'],1)),
         answer_items=[dict(number=i,answer=q['answer'],explanation=q['explanation']) for i,q in enumerate(unit['questions'],1)],
         quality_profile=dict(minimum_text_pt=font,visual_area_mm2=0))
-    check_page(reading,font)
-    check_page(question_page,font)
+    try:
+        check_page(reading,font)
+    except ValueError as exc:
+        raise ValueError(f'Reading passage page: {exc}') from exc
+    try:
+        check_page(question_page,font)
+    except ValueError as exc:
+        if not str(exc).startswith('Design overflow:'):
+            raise
+        # Long prompts/choices can wrap beyond the generous default card height.
+        # Recompose choices into two rows, preserving their A-D reading order and
+        # every word. Never repair fit by changing answers or reducing font size.
+        compact = quiz[:quiz.index('<section')]
+        for index, question in enumerate(unit['questions'],1):
+            compact += f'<section style="margin:0 0 2mm;padding:2mm;background-color:{wash if index % 2 else alternate};border-left:1mm solid {accent if index % 2 else secondary}">'
+            compact += f'<p style="{plain};font-weight:bold;margin:0 0 1.5mm">{index}. {esc(question["prompt"])}</p>'
+            compact += '<table style="width:100%;border-spacing:0;table-layout:fixed"><tbody>'
+            for row in ('AB','CD'):
+                compact += '<tr>'
+                for letter in row:
+                    compact += (f'<td style="width:50%;padding:0 2mm 1mm 0"><p style="font-size:{font}pt;line-height:1.2;margin:0">'
+                                f'<strong>({letter})</strong> {esc(question["options"][letter])}</p></td>')
+                compact += '</tr>'
+            compact += '</tbody></table></section>'
+        question_page['html'] = compact
+        try:
+            check_page(question_page,font)
+        except ValueError as fallback_error:
+            raise ValueError(f'QCM question page: {fallback_error}') from fallback_error
     return reading, question_page
 
 

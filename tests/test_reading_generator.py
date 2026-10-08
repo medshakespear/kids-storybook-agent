@@ -1,5 +1,6 @@
 """Exercise production reading/QCM contracts and actual A4 composition without APIs."""
 from copy import deepcopy
+import html
 import unittest
 import tempfile
 from unittest.mock import patch
@@ -126,6 +127,55 @@ class ReadingGeneratorTests(unittest.TestCase):
             unit['title']=('Investigating the relationships between evidence and school garden conditions ' *2)[:80]
             with self.subTest(band=band):
                 render_unit(unit,1,self.config[band])
+
+    def test_word_limit_with_longer_vocabulary_keeps_art_and_all_text(self):
+        """Accepted passages with longer words fit both grades without content cuts."""
+        from core.creative_layout import document_markup, fragment
+        from core.reading_generator import passage_word_count
+        sentence = ('Observations reveal environmental conditions affecting vegetation development, '
+                    'including temperature, illumination, precipitation, and surrounding infrastructure.')
+        for band, size in (('3rd-4th',86),('5th-6th',76)):
+            unit = reading_fixture(band)
+            words = ' '.join(unit['paragraphs']).split()
+            extra = self.config[band]['reading_words']['max']-len(words)
+            words += (sentence.split()*100)[:extra]
+            unit['paragraphs'] = [' '.join(words[i*len(words)//4:(i+1)*len(words)//4]) for i in range(4)]
+            retained = deepcopy(unit)
+            with self.subTest(band=band):
+                validate_unit(unit,self.config[band])
+                self.assertEqual(passage_word_count(unit['paragraphs']),self.config[band]['reading_words']['max'])
+                reading,quiz = render_unit(unit,4,self.config[band])
+                self.assertEqual(unit,retained)
+                self.assertIn(f'width:{size}mm;height:{size}mm',reading['html'])
+                for paragraph in unit['paragraphs']:
+                    self.assertIn(paragraph,html.unescape(reading['html']))
+                for page in (reading,quiz):
+                    doc = HTML(string=document_markup([fragment(page,True)],self.config[band]['student_font_pt']),url_fetcher=data_only_fetcher).render()
+                    check_document(doc,1)
+                    text_boxes = [b for b in doc.pages[0]._page_box.descendants() if getattr(b,'text','').strip()]
+                    self.assertTrue(text_boxes)
+                    self.assertTrue(all(b.style['font_size'] >= self.config[band]['student_font_pt']*96/72-.01 for b in text_boxes))
+
+    def test_qcm_recomposition_retains_questions_options_and_key(self):
+        """Measured fallback preserves the complete QCM and its canonical answer model."""
+        from core.creative_layout import check_page as real_check_page
+        for band in ('3rd-4th','5th-6th'):
+            unit = reading_fixture(band)
+            calls = []
+            def check(page,font):
+                """Exercise recovery after a default QCM overflow, then measure its result."""
+                calls.append(page['page_type'])
+                if page['page_type']=='qcm' and calls.count('qcm')==1:
+                    raise ValueError('Design overflow: expected 1 pages, got 2')
+                return real_check_page(page,font)
+            with self.subTest(band=band),patch('core.reading_generator.check_page',side_effect=check):
+                reading,quiz = render_unit(unit,4,self.config[band])
+                self.assertEqual(calls,['reading','qcm','qcm'])
+                for number,question in enumerate(unit['questions'],1):
+                    self.assertIn(question['prompt'],html.unescape(quiz['html']))
+                    for choice in question['options'].values():
+                        self.assertIn(choice,html.unescape(quiz['html']))
+                    self.assertEqual(quiz['answer_items'][number-1]['answer'],question['answer'])
 
     def test_production_pipeline_embeds_art_and_publishes_complete_pdf(self):
         """Use the real new production route with mocked text and local artwork."""

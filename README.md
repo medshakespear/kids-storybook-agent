@@ -357,7 +357,13 @@ model review and local print checks cannot guarantee instructional accuracy or s
 Workbook styling uses blue/gold accents, alternating question panels, numbered reading paragraphs,
 and uncropped square illustrations (86mm for grades 3–4; 76mm for grades 5–6). To leave room for
 larger illustrations and clearer paragraph spacing, passages use 220–280 words or 320–380 words
-respectively. Product titles should describe the reading comprehension actually included. The text
+for grades 3–4 or 5–6 respectively. The opening paragraph sits beside the full square
+illustration; remaining paragraphs use the full page width. Generic reading tips no
+longer consume the illustration's adjacent column. If a QCM page overflows, Python
+tries a two-row A–D choice layout before requesting content repair, preserving every
+question, option, answer and minimum student font size. Fit errors identify whether
+the reading or question page failed.
+Product titles should describe the reading comprehension actually included. The text
 review explicitly checks inference versus literal recall, plausible distractors, fictional example
 labels, historical explanations, and overly absolute safety claims. Local repair catches selected
 risky patterns; it does not replace factual verification by a person.

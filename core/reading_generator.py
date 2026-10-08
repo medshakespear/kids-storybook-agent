@@ -46,6 +46,35 @@ def excerpt_in_passage(excerpt, paragraphs):
     return re.search(start+re.escape(quote)+end,normalize_excerpt(' '.join(paragraphs))) is not None
 
 
+def passage_excerpt_bank(paragraphs):
+    """Offer source-owned evidence candidates; never paraphrase or invent quotations."""
+    import textwrap
+    excerpts = []
+    for paragraph in paragraphs:
+        sentences = re.findall(r'[^.!?]+(?:[.!?]+|$)',paragraph)
+        for sentence in sentences:
+            # Long sentences get contiguous word-boundary windows, with overlap
+            # so a relevant clause near a window boundary remains selectable.
+            sentence = sentence.strip()
+            if len(sentence)<=180:
+                candidates=[sentence]
+            else:
+                chunks=textwrap.wrap(sentence,width=170,break_long_words=False,break_on_hyphens=False)
+                candidates=list(chunks)
+                words=sentence.split()
+                for start in range(0,len(words),10):
+                    candidate=[]
+                    for word in words[start:]:
+                        if len(' '.join(candidate+[word]))>180:break
+                        candidate.append(word)
+                    candidates.append(' '.join(candidate))
+            for candidate in candidates:
+                if (20<=len(candidate)<=180 and passage_word_count([candidate])>=4
+                        and excerpt_in_passage(candidate,paragraphs) and candidate not in excerpts):
+                    excerpts.append(candidate)
+    return excerpts
+
+
 def repair_unit_evidence(raw, label):
     """Repair only unsupported question/evidence pairs while freezing the passage."""
     if not isinstance(raw,dict) or not isinstance(raw.get('paragraphs'),list) or not 3 <= len(raw['paragraphs']) <= 4 or not all(isinstance(p,str) and p.strip() for p in raw['paragraphs']):
@@ -72,8 +101,14 @@ def repair_unit_evidence(raw, label):
             if not excerpt_in_passage(evidence,unit['paragraphs']):
                 raise ValueError(f'Question {ref}: copy a contiguous excerpt that actually occurs in the retained passage; do not paraphrase')
             candidate['questions'][int(ref)-1] = deepcopy(question)
+            original_skill = unit['questions'][int(ref)-1].get('skill')
+            if original_skill in SKILLS:
+                candidate['questions'][int(ref)-1]['skill'] = original_skill
         return candidate
     question_schema = unit_schema()['properties']['questions']['items']
+    bank = passage_excerpt_bank(unit['paragraphs'])
+    if bank:
+        question_schema['properties']['evidence'] = enum(bank)
     prompt = ('Repair ONLY these reading questions: '+', '.join(failed)+'. Their evidence is missing, '
               'paraphrased, too long or not present in the passage. Keep the passage, title, image prompt and '
               'all other questions unchanged. Independently solve each affected question from the retained passage. '
@@ -84,9 +119,17 @@ def repair_unit_evidence(raw, label):
               'supported. If no choice is defensibly correct, repair that affected question/choices instead '
               'of inserting new claims into the passage or selecting an unrelated quote. Keep one correct '
               'answer, skill mix and character limits. Return {"questions":{"number":{complete question}}} '
-              'for precisely the listed numbers. Independent comprehension review follows.\n'+json.dumps(unit))
+              'for precisely the listed numbers. Select evidence VERBATIM from this source excerpt bank when available: '
+              +json.dumps(bank)+'. Do not paraphrase bank entries. If a question has no supported answer, '
+              'rewrite that affected question around an appropriate source excerpt. Independent comprehension review follows.\n'+json.dumps(unit))
+    schemas = {}
+    for ref in failed:
+        schemas[ref] = deepcopy(question_schema)
+        original_skill = failed[ref].get('skill')
+        if original_skill in SKILLS:
+            schemas[ref]['properties']['skill'] = enum([original_skill])
     return ask_json(prompt,validate_evidence,label+' evidence repair',3000,
-                    response_schema=obj({'questions':obj({ref:question_schema for ref in failed})}))
+                    response_schema=obj({'questions':obj(schemas)}))
 
 
 def passage_word_count(paragraphs):
@@ -233,11 +276,21 @@ def repair_unit_limits(raw, config, label):
             replacements = raw_repair.get('replacements') if isinstance(raw_repair,dict) else None
             if not isinstance(replacements,dict) or set(replacements) != set(overlong):
                 raise ValueError('Return exactly the requested replacement choice IDs')
-            replacements = {ref:bounded(value,f'Choice {ref}',55) for ref,value in replacements.items()}
             candidate = deepcopy(unit)
             for ref,value in replacements.items():
                 number,letter = ref.split(':')
-                candidate['questions'][int(number)-1]['options'][letter] = value
+                question = candidate['questions'][int(number)-1]
+                alternatives = value if isinstance(value,list) else [value]
+                if not 1 <= len(alternatives) <= 3:
+                    raise ValueError(f'Choice {ref}: return 2-3 concise alternatives')
+                other_choices = {' '.join(str(v).casefold().split()) for key,v in question['options'].items() if key!=letter}
+                accepted = next((v.strip() for v in alternatives if isinstance(v,str) and v.strip()
+                                 and len(v.strip())<=55 and ' '.join(v.casefold().split()) not in other_choices),None)
+                if accepted is None:
+                    lengths = [len(v.strip()) if isinstance(v,str) else None for v in alternatives]
+                    raise ValueError(f'Choice {ref}: no distinct nonempty alternative fits 55 characters; '
+                                     f'received character counts {lengths}. Return complete replacements, aim for 25-35 characters.')
+                question['options'][letter] = accepted
             for question in candidate['questions']:
                 if isinstance(question,dict) and isinstance(question.get('options'),dict):
                     values = [' '.join(str(v).casefold().split()) for v in question['options'].values()]
@@ -247,13 +300,14 @@ def repair_unit_limits(raw, config, label):
         lengths = {ref:len(value.strip()) for ref,value in overlong.items()}
         prompt = ('Rewrite ONLY these overlong multiple-choice options as concise complete choices. '
                   f'Current character counts: {json.dumps(lengths)}. Each replacement must be 1-55 characters; '
-                  'aim for 35-45 characters. Preserve meaning, negations, quantities, answer-letter correctness '
+                  'Return 2-3 alternatives per ID in preference order; aim for 25-35 characters, including spaces. '
+                  'One alternative should be especially compact. Preserve meaning, negations, quantities, answer-letter correctness '
                   'and plausible distractors. Never truncate a sentence or swap letters. Keep all other fields '
-                  'and choices unchanged. Return {"replacements":{"question:letter":"short choice"}} '
+                  'and choices unchanged. Return {"replacements":{"question:letter":["short choice","compact choice"]}} '
                   'with exactly the listed IDs. The independent comprehension review follows this repair.\n'
                   +json.dumps(unit))
         unit = ask_json(prompt,validate_choices,label+' choice-length repair',2000,
-                        response_schema=obj({'replacements':obj({ref:text(55) for ref in overlong})}))
+                        response_schema=obj({'replacements':obj({ref:array(text(55),2,3) for ref in overlong})}))
     return unit
 
 

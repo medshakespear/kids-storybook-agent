@@ -82,6 +82,27 @@ class ReadingEvidenceRepairTests(unittest.TestCase):
         self.assertEqual(result,valid)
         self.assertEqual(api.chat.completions.create.call_count,2)
 
+    def test_evidence_repair_schema_offers_only_real_bounded_excerpts(self):
+        """A constrained evidence bank prevents paraphrases and overlong quote outputs."""
+        from core.reading_generator import passage_excerpt_bank
+        for band in ('3rd-4th','5th-6th'):
+            valid=reading_fixture(band);bad=deepcopy(valid)
+            bad['questions'][0]['evidence']='x'*181
+            def ask(prompt,validate,label,*args,**kwargs):
+                """Select an exact offered source quotation in the production schema."""
+                bank=kwargs['response_schema']['properties']['questions']['properties']['1']['properties']['evidence']['enum']
+                self.assertTrue(bank)
+                self.assertTrue(all(len(q)<=180 and excerpt_in_passage(q,valid['paragraphs']) for q in bank))
+                self.assertIn(valid['questions'][0]['evidence'],bank)
+                self.assertIn('Select evidence VERBATIM',prompt)
+                return validate({'questions':{'1':valid['questions'][0]}})
+            with self.subTest(band=band),patch('core.reading_generator.ask_json',side_effect=ask):
+                self.assertEqual(repair_unit_evidence(bad,'Reading 1'),valid)
+            long=' '.join(['Students record environmental observations and discuss their conclusions carefully']*10)+'.'
+            bank=passage_excerpt_bank([long])
+            self.assertTrue(bank)
+            self.assertTrue(all(len(q)<=180 and excerpt_in_passage(q,[long]) for q in bank))
+
     def test_valid_reading_and_malformed_units_need_no_evidence_call(self):
         """Avoid extra provider spending on valid or structurally invalid drafts."""
         with patch('core.reading_generator.ask_json') as api:

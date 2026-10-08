@@ -26,10 +26,14 @@ delete evidence or rewrite existing facts during expansion. Retries report the
 original count, added count and complete required addition range. Overlong passages
 still receive a scoped passage rewrite with a measured word
 target and retained evidence quotations. Overlong choices receive a batched rewrite
-of only the failed choices; no text is padded or silently truncated. Valid units
+of only the failed choices, requesting 2–3 concise alternatives per choice. Python
+selects a distinct alternative that fits the 55-character limit; an overlong first
+candidate does not reject a valid later alternative. No text is padded or silently truncated. Valid units
 need no extra repair calls. Missing or paraphrased evidence triggers a scoped repair
 of only the affected questions, with the passage frozen. Harmless quote typography
 and whitespace differences are normalized; invented wording remains invalid.
+Evidence repairs offer an enum of exact, bounded source excerpts so Gemini can
+select existing wording instead of paraphrasing or exceeding 180 characters.
 Long or missing answer explanations and question stems receive one batched wording
 repair, retaining the passage, choices, evidence and correct letters. Titles and
 image briefs use the same scoped character-limit handling. Explanations target
@@ -392,7 +396,11 @@ After all passage/choice repairs and editorial review, a separate text-only solv
 just the passage, printed question prompts and A–D choices. It cannot see the proposed
 answer key, evidence quotations or explanations. It can report no valid option or multiple
 valid options. Detected mismatches trigger repairs of only the affected numbered questions;
-the passage and other questions remain frozen. Ordinary mismatches allow two repair rounds
+the passage and other questions remain frozen.
+The blind solve also checks whether the actual task assesses its declared reading
+skill. Repairs retain the original skill as a curriculum objective, including when
+a returned label drifts; the repaired task must still pass this independent check.
+Ordinary mismatches allow two repair rounds
 followed by one fresh replacement (four blind solves total). An ambiguous question instead
 triggers an immediate full rewrite of its stem and all four choices, preserving its reading
 skill. Rejected stems and choices cannot be recycled with casing or punctuation changes.

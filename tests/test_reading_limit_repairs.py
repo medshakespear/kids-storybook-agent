@@ -176,6 +176,21 @@ class ReadingLimitRepairTests(unittest.TestCase):
         self.assertTrue(repaired['paragraphs'][3].startswith(draft['paragraphs'][3]+' '))
         self.assertEqual(len(repaired['paragraphs']),4)
 
+    def test_choice_alternatives_recover_overlength_and_duplicate_candidates(self):
+        """One invalid candidate cannot exhaust a repair when a valid alternative exists."""
+        for band in ('3rd-4th','5th-6th'):
+            valid=reading_fixture(band);draft=deepcopy(valid)
+            draft['questions'][0]['options']['A']='Gardens only need sunlight and no other conditions are worth observing.'
+            def ask(prompt,validate,label,*args,**kwargs):
+                """Pick the first valid distinct option while preserving all other fields."""
+                self.assertEqual(kwargs['response_schema']['properties']['replacements']['properties']['1:A']['type'],'array')
+                with self.assertRaisesRegex(ValueError,'character counts'):
+                    validate({'replacements':{'1:A':['x'*56,'y'*60]}})
+                return validate({'replacements':{'1:A':['x'*56,valid['questions'][0]['options']['B'],valid['questions'][0]['options']['A']]}})
+            with self.subTest(band=band),patch('core.reading_generator.ask_json',side_effect=ask) as api:
+                self.assertEqual(repair_unit_limits(draft,self.config[band],'Reading 1'),valid)
+                api.assert_called_once()
+
     def test_valid_draft_does_not_spend_repair_calls(self):
         """The normal path keeps its existing request count."""
         with patch('core.reading_generator.ask_json') as api:

@@ -66,6 +66,25 @@ class ReadingAnswerReviewTests(unittest.TestCase):
             verify_question_answers(self.unit,self.config,'Reading',ask=ask)
         self.assertEqual(len(calls),7)
 
+    def test_skill_metadata_drift_keeps_objective_and_requires_new_blind_solve(self):
+        """A repair's accidental relabeling does not discard an otherwise valid task."""
+        calls=[]
+        def ask(prompt,validate,label,*args,**kwargs):
+            """Return a mislabeled but otherwise correct vocabulary question."""
+            calls.append(label)
+            if label.endswith('answer repair'):
+                allowed=kwargs['response_schema']['properties']['repairs']['items']['properties']['question']['properties']['skill']['enum']
+                self.assertEqual(allowed,['vocabulary'])
+                question=deepcopy(self.unit['questions'][2]);question['skill']='detail'
+                return validate({'repairs':[{'number':3,'question':question}]})
+            self.assertIn('skill_mismatch',prompt)
+            result=self.solutions(self.unit)
+            if len(calls)==1:
+                result['solutions'][2]['quality_issues']=['skill_mismatch']
+            return validate(result)
+        self.assertEqual(verify_question_answers(self.unit,self.config,'Reading',ask=ask),self.unit)
+        self.assertEqual(len(calls),3)
+
     def test_quality_fault_is_repaired_even_when_selected_answer_is_correct(self):
         """A correct letter does not excuse literal inference or absurd distractors."""
         calls=[]

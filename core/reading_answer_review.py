@@ -27,7 +27,7 @@ def verify_question_answers(unit, config, label, *, ask):
     solution_schema = obj({'solutions': array(obj({
         'number': integer(1, 5), 'answer': enum(['A','B','C','D','NONE','AMBIGUOUS']),
         'reason': text(1000, 'Passage-based explanation; prefer at most 110 characters.'),
-        'quality_issues': array(enum(['literal_inference','implausible_distractors']),0,2)
+        'quality_issues': array(enum(['literal_inference','implausible_distractors','skill_mismatch']),0,3)
     }), 5, 5)})
 
     def validate_solutions(raw):
@@ -45,7 +45,7 @@ def verify_question_answers(unit, config, label, *, ask):
             if solution.get('answer') not in ('A','B','C','D','NONE','AMBIGUOUS'):
                 raise ValueError('Select A-D, NONE or AMBIGUOUS')
             issues = solution.get('quality_issues')
-            if not isinstance(issues,list) or any(i not in ('literal_inference','implausible_distractors') for i in issues):
+            if not isinstance(issues,list) or any(i not in ('literal_inference','implausible_distractors','skill_mismatch') for i in issues):
                 raise ValueError('Return quality_issues as a list of supported defect labels, or []')
             reason = solution.get('reason')
             if not isinstance(reason, str) or not reason.strip():
@@ -72,7 +72,9 @@ def verify_question_answers(unit, config, label, *, ask):
                   'wrong choices are unrelated, absurd, obvious giveaways or cannot plausibly reflect a misunderstanding of this passage. '
                   'Judge real defects, not stylistic preferences. A short but sensible same-topic misunderstanding '
                   'is a valid distractor. literal_inference applies ONLY when skill is inference. '
-                  'Return quality_issues [] when neither defect exists; otherwise use those exact labels. '
+                  'skill_mismatch means the printed task does not assess its declared skill (for example, a detail question tagged author_purpose). '
+                  'Assess the actual requested student action, not just the skill label. '
+                  'Return quality_issues [] when no defect exists; otherwise use those exact labels. '
                   'When flagging a defect, explain its specific cause in reason. '
                   'Return solutions with number, quality_issues, '
                   'answer and a brief reason of at most 110 characters (aim for 60-90). Do not invent missing options.\n'+json.dumps(blind))
@@ -110,7 +112,13 @@ def verify_question_answers(unit, config, label, *, ask):
                 if type(number) is not int or number not in faults or number in seen:
                     raise ValueError('Unknown or duplicate repaired question number')
                 seen.add(number)
-                candidate['questions'][number-1] = deepcopy(repair.get('question'))
+                question = deepcopy(repair.get('question'))
+                if not isinstance(question,dict):
+                    raise ValueError('Each repaired question must be an object')
+                # The reading objective belongs to the retained specification.
+                # Blind verification below checks the actual task against it.
+                question['skill'] = retained['questions'][number-1]['skill']
+                candidate['questions'][number-1] = question
             candidate = prepare_reading_unit(candidate,config,label+' repaired questions',retained=retained)
             if candidate['paragraphs'] != retained['paragraphs'] or any(candidate['questions'][i]!=q for i,q in enumerate(retained['questions']) if i+1 not in faults):
                 raise ValueError('Question repair must preserve passage and every unaffected question')
@@ -127,13 +135,16 @@ def verify_question_answers(unit, config, label, *, ask):
                         raise ValueError('Ambiguous-question replacement must rewrite ALL four choices; do not recycle rejected options')
             return candidate
 
+        question_schema = unit_schema()['properties']['questions']['items']
+        question_schema['properties']['skill'] = enum(list(dict.fromkeys(retained['questions'][n-1]['skill'] for n in faults)))
         repair_schema = obj({'repairs':array(obj({'number':integer(1,5),
-                             'question':unit_schema()['properties']['questions']['items']}),len(faults),len(faults))})
+                             'question':question_schema}),len(faults),len(faults))})
         prompt = ('Repair ONLY these faulty comprehension questions: '+json.dumps(faults)+'. '
                   'Return repairs [{number,question}] containing complete question objects. Keep the '
                   'passage, title, illustration and every unaffected question unchanged. A selected '
                   'option must actually answer its own prompt and agree with its explanation. When '
                   'no correct choice exists, replace the faulty choice, not just the answer letter. '
+                  'Keep the original reading skill of EACH repaired question; change its task to assess that skill, never relabel it. '
                   'Repair flagged quality defects even if the answer letter was correct: inference must require a supported unstated conclusion; use plausible same-topic misunderstandings as distractors. Retain the grade skill mix. Copy real passage evidence. '
                   'Do not insert claims into the passage to justify a bad option.\n'+json.dumps(retained))
         repair_label = label+' answer repair'

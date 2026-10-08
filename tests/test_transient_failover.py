@@ -79,7 +79,7 @@ class TransientFailoverTests(unittest.TestCase):
     def test_long_retry_after_does_not_exceed_completion_budget(self):
         """Do not sleep beyond the shared deadline or retry a blocked credential."""
         self.handler=lambda request:httpx.Response(503,headers={'Retry-After':'120'},json={})
-        with self.assertRaisesRegex(ActivityGenerationError,'time budget exhausted'):
+        with patch.dict(os.environ,{'GEMINI_TRANSPORT_BUDGET_SECONDS':'120'}), self.assertRaisesRegex(ActivityGenerationError,'time budget exhausted'):
             self.generate()
         self.assertEqual(len(self.seen),4)
         self.sleep.assert_not_called()
@@ -130,10 +130,45 @@ class TransientFailoverTests(unittest.TestCase):
             self.advance(min(40,max(0,220-self.now)))
             raise httpx.ReadTimeout('private',request=request)
         self.handler=handler
-        with self.assertRaisesRegex(ActivityGenerationError,'time budget exhausted'):
+        with patch.dict(os.environ,{'GEMINI_TRANSPORT_BUDGET_SECONDS':'120'}), self.assertRaisesRegex(ActivityGenerationError,'time budget exhausted'):
             self.generate()
         self.assertEqual(len(self.seen),3)
         self.assertLessEqual(self.now,220)
+        self.sleep.assert_not_called()
+
+    def test_default_budget_reaches_fourth_key_after_slow_timeouts(self):
+        """Three slow requests cannot starve a healthy fourth configured key."""
+        timeouts=[]
+        def handler(request):
+            """Consume real configured per-request timeouts before the fourth success."""
+            timeout=request.extensions['timeout']['read']
+            timeouts.append(timeout)
+            if len(self.seen)<4:
+                self.advance(timeout)
+                raise httpx.ReadTimeout('private',request=request)
+            self.advance(15)
+            return httpx.Response(200,json=completion())
+        self.handler=handler
+        self.assertTrue(self.generate()['ok'])
+        self.assertEqual([key for key,_ in self.seen],[f'Bearer fake-text-secret-{i}' for i in (1,2,3,4)])
+        self.assertEqual(timeouts,[60,60,60,60])
+        self.assertEqual(self.now,295)
+        self.sleep.assert_not_called()
+
+    def test_nested_repair_failure_keeps_cause_without_parent_retry(self):
+        """Nested repair errors are not mislabeled HTTP outages or repeated drafts."""
+        self.handler=lambda request:httpx.Response(200,json=completion())
+        error=ActivityGenerationError('Reading 5 evidence repair: gemini: request retry time budget exhausted; retry later.')
+        def validate(value):
+            """Simulate a slow, separately bounded scoped content repair failing."""
+            self.advance(250)
+            raise error
+        with self.assertRaises(ActivityGenerationError) as caught:
+            ask_json('Retain the completed draft',validate,'Reading 5')
+        self.assertIs(caught.exception,error)
+        self.assertEqual(len(self.seen),1)
+        self.assertNotIn('request failed (ActivityGenerationError)',str(caught.exception))
+        self.assertNotIn('completion transport time budget',str(caught.exception))
         self.sleep.assert_not_called()
 
 

@@ -182,12 +182,18 @@ pool immediately tries the next available credential with the unchanged request.
 Each pool round visits each slot once; temporary outages use short cooldowns,
 while a supplied `Retry-After` is honored. The outer JSON call allows at most
 `GEMINI_TRANSPORT_ATTEMPTS` pool rounds (default **3**) and shares a
-`GEMINI_TRANSPORT_BUDGET_SECONDS` deadline (default **120 seconds**) across them.
+`GEMINI_TRANSPORT_BUDGET_SECONDS` deadline (default **240 seconds**) across them.
 A new pool round does not restart that deadline. `GEMINI_CALL_BUDGET_SECONDS`
-(default 120) and `GEMINI_REQUEST_TIMEOUT_SECONDS` (default 40) further bound an
+(default 240) and `GEMINI_REQUEST_TIMEOUT_SECONDS` (default 60) further bound an
 individual facade/HTTP request. Existing Railway variables override these defaults.
+The defaults leave time for four 60-second credential attempts; successful requests
+finish immediately. If these variables are already set in Railway, update them to
+240, 240 and 60 respectively to use the longer limits.
 A successful HTTP response with invalid content starts a separate bounded content
 repair budget; a provider outage does not consume a content-validation attempt.
+Scoped repair failures retain their own stage and error. They are not reclassified
+as a parent HTTP failure that regenerates the original passage and adds misleading
+parent deadline errors. Provider-wide outages and exhausted quotas can still stop a run.
 Cloudflare retains its bounded network/5xx retries. No new variables are required.
 
 `API_KEY_COOLDOWN_SECONDS` defaults to **60** (allowed 1-86400). A longer provider

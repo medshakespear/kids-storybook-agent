@@ -410,7 +410,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     # The credential pool handles HTTP failover; the outer loop shares a deadline
     # so multiple pool rounds cannot restart the budget indefinitely.
     max_transport_failures = int_setting('GEMINI_TRANSPORT_ATTEMPTS', 3, 1, 12)
-    transport_budget = int_setting('GEMINI_TRANSPORT_BUDGET_SECONDS',120,30,600)
+    transport_budget = int_setting('GEMINI_TRANSPORT_BUDGET_SECONDS',240,30,600)
 
     for provider in text_provider_names():
         api, model = text_client(provider)
@@ -1029,6 +1029,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     else:
                         messages.append({'role': 'user', 'content': repair})
                     time.sleep(min(2 ** max(validation_attempt - 1, 0) + random.random(), 10))
+                except ActivityGenerationError:
+                    # Validators can make scoped AI calls (evidence, passage
+                    # length, wording). Their own exhausted budgets must retain
+                    # the actual label/cause, not become an outer HTTP retry that
+                    # discards this completed draft and consumes a stale deadline.
+                    raise
                 except Exception as exc:
                     failure = safe_api_error(provider, exc, model=model)
                     errors.append(f'{label}: {failure}')

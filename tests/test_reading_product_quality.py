@@ -91,6 +91,59 @@ class ReadingProductQualityTests(unittest.TestCase):
             unit=reading_fixture();unit['paragraphs'][0]+=' '+extra
             self.assertTrue(passage_quality_issues(unit,config))
 
+    def test_safe_optional_documentation_is_not_a_reporting_prerequisite(self):
+        """Numbered safe plans and explicit prohibitions do not force another rewrite."""
+        config = load_grade_config()['3rd-4th']
+        for extra in (
+            'Bullying can happen again. Use a three-step plan. Step one tell a trusted adult promptly. '
+            'Step two take notes only if safe. Notes are optional after seeking help.',
+            'Bullying can happen again. Never collect evidence before reporting. Tell an adult promptly.',
+        ):
+            unit = reading_fixture()
+            unit['paragraphs'][0] += ' '+extra
+            self.assertEqual(passage_quality_issues(unit, config), [])
+        unsafe = reading_fixture()
+        unsafe['paragraphs'][0] += (' Bullying can happen again. First collect evidence before reporting. '
+                                  'You can also tell an adult.')
+        self.assertTrue(passage_quality_issues(unsafe, config))
+
+    def test_short_accessible_rewrite_expands_without_another_rewrite(self):
+        """Both bands retain the corrected wording while a separate addition restores length."""
+        for band in ('3rd-4th', '5th-6th'):
+            with self.subTest(band=band):
+                original = reading_fixture(band)
+                flagged = deepcopy(original)
+                flagged['paragraphs'][0] += ' Researchers found that gardens improve every school.'
+                short = [' '.join(p.split()[:62]) for p in reading_fixture()['paragraphs']]
+                def ask(prompt, validate, *args, **kwargs):
+                    """Return a substantive short rewrite through the real validator."""
+                    return validate({'paragraphs': short})
+                with patch('core.reading_generator.ask_json', side_effect=ask) as request, \
+                     patch('core.reading_generator.expand_short_passage', return_value=original['paragraphs']) as expand:
+                    repaired = repair_unit_quality(flagged, load_grade_config()[band], 'Reading 3')
+                self.assertEqual(request.call_count, 1)
+                expand.assert_called_once()
+                retained = expand.call_args.args[0]
+                self.assertEqual(retained['questions'], flagged['questions'])
+                self.assertEqual(repaired['paragraphs'], original['paragraphs'])
+                self.assertEqual(flagged['paragraphs'][0], original['paragraphs'][0]+' Researchers found that gardens improve every school.')
+
+    def test_accessibility_expansion_cannot_reintroduce_unsafe_advice(self):
+        """The final expanded text is checked again before evidence or PDF generation."""
+        from core.activity_generator import ActivityGenerationError
+        original = reading_fixture()
+        original['paragraphs'][0] += ' Researchers found that gardens improve every school.'
+        short = [' '.join(p.split()[:62]) for p in reading_fixture()['paragraphs']]
+        unsafe = reading_fixture()['paragraphs']
+        unsafe[0] += ' Bullying can happen again. First collect evidence before reporting.'
+        def ask(prompt, validate, *args, **kwargs):
+            """Run the scoped validator for the safe intermediate draft."""
+            return validate({'paragraphs': short})
+        with patch('core.reading_generator.ask_json', side_effect=ask), \
+             patch('core.reading_generator.expand_short_passage', return_value=unsafe):
+            with self.assertRaisesRegex(ActivityGenerationError, 'accessibility expansion'):
+                repair_unit_quality(original, load_grade_config()['3rd-4th'], 'Reading 3')
+
     def test_reading_pairs_have_distinct_coordinated_colors(self):
         """Five units vary their accent while upper-grade fills remain restrained."""
         config = load_grade_config()['3rd-4th']

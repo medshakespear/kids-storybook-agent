@@ -369,7 +369,11 @@ a shuffled balanced schedule; the shared content object keeps the question pages
 Generation and independent text review now ask for concrete age-accessible writing, explained
 vocabulary, and plausible passage-based distractors. A targeted passage rewrite catches extreme
 sentence density and vague unsupported research claims before evidence checks. These are heuristic
-checks, not certified reading-level scores or external fact checking. No AI image reviewer is used.
+checks, not certified reading-level scores or external fact checking. Short accessibility rewrites
+are expanded with additions to the corrected text rather than rewritten again; the complete passage
+must still meet its grade word range. Bullying guidance distinguishes unsafe evidence-first reporting
+from optional documentation after adult help, and expansion is checked for the same issues.
+No AI image reviewer is used.
 Before selling, review facts, question ambiguity, illustrations, and the final PDF yourself;
 model review and local print checks cannot guarantee instructional accuracy or sales.
 

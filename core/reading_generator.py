@@ -7,6 +7,7 @@ import logging
 import random
 import unicodedata
 
+from core.activity_generator import ActivityGenerationError
 from core.creative_generator import ask_json
 from core.creative_layout import check_page, preflight_pack
 from core.grade_policy import require_active_grade
@@ -159,7 +160,7 @@ def passage_length_feedback(paragraphs, config):
             'Count passage words only; questions and choices do not count. Preserve supporting quotations.')
 
 
-def expand_short_passage(unit, config, label):
+def expand_short_passage(unit, config, label, *, check_quality=False):
     """Append scoped explanations without giving the model ownership of retained text."""
     original = list(unit['paragraphs'])
     count = passage_word_count(original)
@@ -207,6 +208,11 @@ def expand_short_passage(unit, config, label):
             raise ValueError(f'Frozen passage has {count} words; additions contain {added}; total {total}. '
                              f'Return COMPLETE replacement additions totaling {minimum}-{maximum} words '
                              f'(aim for {target}), not just the incremental difference. Do not rewrite existing paragraphs.')
+        if check_quality:
+            candidate = dict(unit, paragraphs=paragraphs)
+            issues = passage_quality_issues(candidate, config)
+            if issues:
+                raise ValueError('; '.join(issues))
         return paragraphs
 
     capacities = {str(i):1300-len(p.rstrip())-1 for i,p in enumerate(original,1)}
@@ -223,7 +229,9 @@ def expand_short_passage(unit, config, label):
               'Supply the COMPLETE additions on retries, not only the remaining difference. '
               'Develop relevant explanations or concrete examples that follow naturally from the existing '
               'paragraphs. Preserve topic and facts, avoid filler, invented statistics and unverified cultural '
-              'claims. Never insert facts to justify an unsupported answer. '+config['reading_guidance']+
+              'claims. Never insert facts to justify an unsupported answer. For bullying topics, seek trusted adult help promptly; '
+              'witnesses, notes or evidence are never prerequisites for reporting. Documentation is optional, '
+              'after seeking help and only when safe. '+config['reading_guidance']+
               ' Python retains every existing word, supporting quotation, question and answer unchanged. '
               f'Available additional characters per paragraph: {json.dumps(capacities)}. '
               'Retained reading (context only):\n'+json.dumps(unit))
@@ -381,6 +389,28 @@ def repair_unit_text(raw, label, *, retained=None):
 
 
 
+def reporting_prerequisite_issue(passage):
+    """Distinguish evidence-first reporting advice from safe optional documentation."""
+    documentation = r'(?:find(?:ing)? (?:a )?witness|collect(?:ing)? evidence|(?:write|writing|take|taking) notes|gather(?:ing)? evidence)'
+    # Explicit unsafe ordering remains an issue even if another sentence offers help.
+    unsafe = (rf'(?:first|before (?:reporting|seeking help|telling an adult))[^.!?]{{0,70}}{documentation}',
+              rf'{documentation}[^.!?]{{0,70}}before (?:reporting|seeking help|telling an adult)',
+              rf'(?:must|need to|have to)[^.!?]{{0,30}}{documentation}')
+    sentences = re.split(r'(?<=[.!?])\s+', passage)
+    for sentence in sentences:
+        # A prohibition describes the unsafe ordering in order to reject it.
+        if re.search(r'\b(?:never|not required|do not|don.t need|no need)\b', sentence, re.I):
+            continue
+        if any(re.search(pattern, sentence, re.I) for pattern in unsafe):
+            return True
+    numbered = re.search(r'(?:four|three|\d)[ -]step|step (?:one|two|three|1|2|3)', passage, re.I)
+    if not numbered or not re.search(r'witness|evidence|notes|write', passage, re.I):
+        return False
+    adult_first = re.search(r'step (?:one|1)[^.!?]{0,100}(?:tell|seek|ask|talk|report)[^.!?]{0,70}(?:adult|teacher|help)', passage, re.I)
+    optional_after = re.search(r'optional[^.!?]{0,100}after (?:seeking help|telling an adult|reporting)', passage, re.I)
+    return not (adult_first and optional_after)
+
+
 def passage_quality_issues(unit, config):
     """Flag extreme sentence density and unsupported appeals to research authority.
 
@@ -406,7 +436,7 @@ def passage_quality_issues(unit, config):
     if re.search(r'\bbully(?:ing|ies)\b', passage, re.I):
         if re.search(r'(?:must|has to|needs to).*?repeat|happen.*?repeatedly', passage, re.I) and not re.search(r'potential|could happen again|may happen again', passage, re.I):
             issues.append('Bullying involves a power imbalance and repeated behavior OR the potential to repeat; do not require completed repetition.')
-        if re.search(r'(?:four|three|\d)[ -]step|step (?:one|two|three|1|2|3)', passage, re.I) and re.search(r'witness|evidence|notes|write', passage, re.I):
+        if reporting_prerequisite_issue(passage):
             issues.append('Seek trusted adult help promptly. Never make finding a witness, collecting evidence or writing notes a prerequisite for reporting. Optional documentation comes after seeking help and only when safe.')
     return issues
 
@@ -428,8 +458,11 @@ def repair_unit_quality(raw, config, label):
         revised['paragraphs'] = [bounded(p, 'Paragraph', 1300) for p in paragraphs]
         if passage_quality_issues(revised, config):
             raise ValueError('; '.join(passage_quality_issues(revised, config)))
-        if not config['reading_words']['min'] <= passage_word_count(paragraphs) <= config['reading_words']['max']:
+        count = passage_word_count(paragraphs)
+        if count < 100 or count > config['reading_words']['max']:
             raise ValueError(passage_length_feedback(paragraphs, config))
+        # A substantive safe rewrite can be expanded separately without giving
+        # another rewrite permission to undo its corrections.
         return revised
     prompt = ('Rewrite ONLY the passage for elementary students. Preserve its substantive topic and '
               'supported facts needed by the five questions; keep supporting quotes where possible. Remove unsupported assertions even if a question currently depends on them: the following evidence repair will realign affected questions. Explicitly label invented examples as fictional. Replace academic '
@@ -438,8 +471,14 @@ def repair_unit_quality(raw, config, label):
               'lengths. Return {"paragraphs":[...]} in three or four paragraphs. Word range: '
               f"{config['reading_words']['min']}-{config['reading_words']['max']}. Problems: "
               + ' '.join(issues) + '\n' + json.dumps(raw))
-    return ask_json(prompt, validate_passage, label+' accessibility repair', 3500,
-                    response_schema=obj({'paragraphs':array(text(1300),3,4)}))
+    revised = ask_json(prompt, validate_passage, label+' accessibility repair', 3500,
+                       response_schema=obj({'paragraphs':array(text(1300),3,4)}))
+    if passage_word_count(revised['paragraphs']) < config['reading_words']['min']:
+        revised['paragraphs'] = expand_short_passage(revised, config, label+' accessibility', check_quality=True)
+    remaining = passage_quality_issues(revised, config)
+    if remaining:
+        raise ActivityGenerationError(label+' accessibility expansion: '+'; '.join(remaining))
+    return revised
 
 
 def balance_answer_positions(unit, reading_index, positions=None):

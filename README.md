@@ -375,10 +375,14 @@ After all passage/choice repairs and editorial review, a separate text-only solv
 just the passage, printed question prompts and A–D choices. It cannot see the proposed
 answer key, evidence quotations or explanations. It can report no valid option or multiple
 valid options. Detected mismatches trigger repairs of only the affected numbered questions;
-the passage and other questions remain frozen. Repaired questions are solved again, with
-at most two repair rounds followed by one fresh replacement of any still-failing
-questions. The replacement sees the passage and accepted questions, not the old faulty
-question objects. It must pass another blind solve. Unresolved defects still stop PDF
+the passage and other questions remain frozen. Ordinary mismatches allow two repair rounds
+followed by one fresh replacement (four blind solves total). An ambiguous question instead
+triggers an immediate full rewrite of its stem and all four choices, preserving its reading
+skill. Rejected stems and choices cannot be recycled with casing or punctuation changes.
+If ambiguity is detected, recovery allows at most six blind solves and five bounded
+repair/replacement attempts. Extra calls occur only for this recovery path. The replacement
+sees the frozen passage, accepted questions and rejected wording, rather than complete faulty
+question objects. Every replacement must pass another blind solve. Unresolved defects still stop PDF
 publication before image spending. Question repair uses the same scoped choice-length,
 evidence and explanation-wording helpers as initial generation. The log reports the
 expected/reviewer letters, quality flags and specific review reason for each failed question.

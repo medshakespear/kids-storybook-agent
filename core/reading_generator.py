@@ -567,7 +567,11 @@ Ask about the supplied text only; never require inspecting an AI illustration. A
 trick questions, all/none of the above, and distractors distinguishable only by length or absurdity.
 Wrong choices must be plausible misunderstandings of this SAME passage, parallel in grammar and
 roughly similar in length. Avoid silly unrelated choices and giveaway absolutes. Do not simply
-repeat the exact answer sentence as the correct option. Inference requires connecting at least two details to reach an unstated conclusion. Do not label a
+repeat the exact answer sentence as the correct option. Write one supported answer first, then
+three specific misconceptions. Test EACH choice against the exact question: no two choices may
+express the same answer in different words, and a true passage fact is not a distractor if it also
+answers the question. Replace the whole question and all four choices when their meanings overlap.
+Inference requires connecting at least two details to reach an unstated conclusion. Do not label a
 sentence explicitly stated in the passage as inference. Wrong options should relate to the topic and
 reflect a specific misunderstanding, rather than magic, silly actions, unrelated objects or absolutes.
 Do not invent a historical cause just to make a cause/effect question. Distinguish supported history
@@ -586,7 +590,7 @@ Return content JSON only, never HTML/CSS. Fields: title, paragraphs, image_promp
             'Keep title and image_prompt VERBATIM. Return the complete unit. Correct factual errors in the passage if needed while preserving its topic and grade word range. '
             'Repair questions, options, answer letters, quotes or explanations if needed. '
             'Each question must have precisely one supported answer, plausible but incorrect distractors, '
-            'correct answer-letter alignment and valid evidence. Solve WITHOUT reading the provided answer first, then compare. Reject a second defensible choice and replace absurd or obviously unrelated distractors with plausible text-based misconceptions. Check factual accuracy and define essential vocabulary. Read the passage as an actual elementary child, not an academic researcher: rewrite dense jargon, remove vague research claims, and retain concrete useful knowledge. '
+            'correct answer-letter alignment and valid evidence. Solve WITHOUT reading the provided answer first, then compare. Check EACH choice against the exact prompt, including synonymous options and true facts that also answer it. If two choices are defensible, replace the entire question and ALL four options while retaining its reading skill; do not merely change the key letter or one word. Reject a second defensible choice and replace absurd or obviously unrelated distractors with plausible text-based misconceptions. Check factual accuracy and define essential vocabulary. Read the passage as an actual elementary child, not an academic researcher: rewrite dense jargon, remove vague research claims, and retain concrete useful knowledge. '
             'Use a skeptical editorial review: challenge every historical cause, numerical claim, absolute safety statement and environmental generalization. Remove any claim you cannot confidently support instead of making its falsehood the basis of a question. Label invented examples explicitly as fictional. Check grammar, units and logical quantities. An inference answer must NOT already be explicitly stated. Distractors must be plausible errors in understanding this same topic; rewrite silly or unrelated choices. Preserve the grade-appropriate skill mix and all five questions. This is text review only, not image review.\n'
             +json.dumps(unit))
         def validate_review(raw):

@@ -188,6 +188,116 @@ class ReadingAnswerReviewTests(unittest.TestCase):
             return validate(self.solutions(self.unit))
         verify_question_answers(self.unit,self.config,'Reading',ask=ask)
 
+    def ambiguity_fixture(self, band):
+        """Model the reported two-equivalent-options defect in an inference question."""
+        unit=reading_fixture(band)
+        unit['questions'][3].update(answer='B', options={
+            'A':'Investigate the growing conditions.',
+            'B':'Check the conditions where it grows.',
+            'C':'Use the same watering plan everywhere.',
+            'D':'Never record slow growth.'})
+        return unit
+
+    def ambiguity_replacement(self, unit, version=0):
+        """Provide a full distinct replacement with real retained passage evidence."""
+        question=deepcopy(unit['questions'][3])
+        question.update(prompt='Why might students reconsider a gardening plan'+(' '+str(version) if version else '')+'?',
+                        options={'A':'Use new observations to revise a plan.',
+                                 'B':'Choose a site using only appearances.',
+                                 'C':'Keep the first plan regardless of evidence.',
+                                 'D':'Apply one watering rule to every site.'},
+                        answer='A', evidence='students ask questions, collect evidence, and revise their plans.',
+                        explanation='New observations can give students reasons to revise a plan.')
+        if version:
+            question['options']={letter:value+' '+str(version) for letter,value in question['options'].items()}
+        return question
+
+    def test_ambiguity_immediately_replaces_full_question_for_both_grades(self):
+        """AMBIGUOUS plus literal inference rewrites all four options, then blind-solves."""
+        for band in ('3rd-4th','5th-6th'):
+            with self.subTest(band=band):
+                unit=self.ambiguity_fixture(band)
+                before=deepcopy(unit)
+                replacement=self.ambiguity_replacement(unit)
+                accepted=deepcopy(unit)
+                accepted['questions'][3]=replacement
+                calls=[]
+                def ask(prompt,validate,label,*args,**kwargs):
+                    """Force the production rewrite validator through the reported failure."""
+                    calls.append(label)
+                    if label.endswith('fresh question replacement'):
+                        payload=json.loads(prompt.split('\n')[-1])
+                        requirement=payload['replacement_requirements'][0]
+                        self.assertEqual(requirement['number'],4)
+                        self.assertEqual(requirement['skill'],'inference')
+                        self.assertIn(unit['questions'][3]['options']['A'],requirement['rejected_options'])
+                        self.assertIn('Check EACH choice',prompt)
+                        unchanged=deepcopy(replacement)
+                        unchanged['prompt']=unit['questions'][3]['prompt']
+                        with self.assertRaisesRegex(ValueError,'new question stem'):
+                            validate({'repairs':[{'number':4,'question':unchanged}]})
+                        recycled=deepcopy(replacement)
+                        recycled['options']['B']='CHECK THE CONDITIONS WHERE IT GROWS!'
+                        with self.assertRaisesRegex(ValueError,'ALL four choices'):
+                            validate({'repairs':[{'number':4,'question':recycled}]})
+                        return validate({'repairs':[{'number':4,'question':replacement}]})
+                    result=self.solutions(accepted)
+                    if len(calls)==1:
+                        result['solutions'][3].update(answer='AMBIGUOUS',quality_issues=['literal_inference'],reason='Both A and B say to check the conditions.')
+                    return validate(result)
+                result=verify_question_answers(unit,load_grade_config()[band],'Reading',ask=ask)
+                self.assertEqual(result,accepted)
+                self.assertEqual(unit,before)
+                self.assertEqual(len(calls),3)
+                self.assertNotIn('Reading answer repair',calls)
+
+    def test_ambiguity_gets_extra_bounded_fresh_recovery(self):
+        """A fourth blind-review failure can recover instead of discarding the workbook."""
+        unit=self.ambiguity_fixture('3rd-4th')
+        calls=[]
+        replacements=[]
+        def ask(prompt,validate,label,*args,**kwargs):
+            """Fail four solves, then accept a new fully rewritten question."""
+            calls.append(label)
+            if label.endswith('fresh question replacement'):
+                question=self.ambiguity_replacement(unit,len(replacements)+1)
+                replacements.append(question)
+                return validate({'repairs':[{'number':4,'question':question}]})
+            current=deepcopy(unit)
+            if replacements:
+                current['questions'][3]=replacements[-1]
+            result=self.solutions(current)
+            if len(replacements)<4:
+                result['solutions'][3].update(answer='AMBIGUOUS',reason='Two choices remain defensible.')
+            return validate(result)
+        result=verify_question_answers(unit,self.config,'Reading',ask=ask)
+        self.assertEqual(len(calls),9)
+        self.assertEqual(len(replacements),4)
+        self.assertEqual(result['questions'][3],replacements[-1])
+        self.assertEqual(result['paragraphs'],unit['paragraphs'])
+        for index in (0,1,2,4):
+            self.assertEqual(result['questions'][index],unit['questions'][index])
+
+    def test_persistent_ambiguity_is_still_blocked(self):
+        """Six failed blind solves cannot publish an ambiguous PDF."""
+        unit=self.ambiguity_fixture('3rd-4th')
+        replacements=[]
+        calls=[]
+        def ask(prompt,validate,label,*args,**kwargs):
+            """Repeated bad semantic judgments remain bounded despite fresh rewrites."""
+            calls.append(label)
+            if label.endswith('fresh question replacement'):
+                question=self.ambiguity_replacement(unit,len(replacements)+1)
+                replacements.append(question)
+                return validate({'repairs':[{'number':4,'question':question}]})
+            result=self.solutions(unit)
+            result['solutions'][3].update(answer='AMBIGUOUS',reason='Both choices are supported.')
+            return validate(result)
+        with self.assertRaisesRegex(ActivityGenerationError,'5 bounded.*PDF not published'):
+            verify_question_answers(unit,self.config,'Reading',ask=ask)
+        self.assertEqual(len(calls),11)
+        self.assertEqual(len(replacements),5)
+
     def test_cover_uses_scene_not_title_and_activity_image_path(self):
         """Prevent the title entering image prompts or the recurring story-cast style."""
         plan={'title':'Voices of Native Nations Reading Workbook','overview':'Read original texts.',

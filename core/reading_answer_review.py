@@ -2,11 +2,18 @@
 from copy import deepcopy
 import json
 import logging
+import re
+import unicodedata
 
 LOGGER = logging.getLogger(__name__)
 
 from core.activity_generator import ActivityGenerationError
 from core.response_schemas import array, enum, integer, obj, text
+
+
+def choice_identity(value):
+    """Compare recycled choices without punctuation, casing or Unicode differences."""
+    return ' '.join(re.findall(r'\w+',unicodedata.normalize('NFKC',value).casefold()))
 
 
 def verify_question_answers(unit, config, label, *, ask):
@@ -49,7 +56,8 @@ def verify_question_answers(unit, config, label, *, ask):
             found[number] = dict(answer=solution['answer'], reason=reason,quality_issues=issues)
         return found
 
-    for attempt in range(4):
+    ambiguous_numbers, rejected = set(), {}
+    for attempt in range(6):
         # The proposed key, explanations and supporting quotations are deliberately
         # absent. Otherwise a reviewer can rationalize an unrelated selected choice.
         blind = {'paragraphs': current['paragraphs'], 'questions': [
@@ -80,10 +88,15 @@ def verify_question_answers(unit, config, label, *, ask):
                 if len(result['reason']) <= 110:
                     current['questions'][number-1]['explanation'] = result['reason']
             return validate_unit(current,config)
+        ambiguous_numbers.update(n for n,result in faults.items() if result['answer']=='AMBIGUOUS')
+        for number in faults:
+            rejected.setdefault(number,[]).append(deepcopy(current['questions'][number-1]))
+        max_reviews = 6 if ambiguous_numbers else 4
+        fresh = attempt >= 2 or any(n in ambiguous_numbers for n in faults)
         details = '; '.join(f"Q{n}: expected {current['questions'][n-1]['answer']}, reviewer {r['answer']}, issues {r['quality_issues']}: {r['reason']}" for n,r in sorted(faults.items()))
-        LOGGER.warning('%s: answer-check defects (pass %s/4): %s',label,attempt+1,details)
-        if attempt == 3:
-            raise ActivityGenerationError(f'{label}: answer verification still fails after two repairs and one fresh replacement; {details}; PDF not published')
+        LOGGER.warning('%s: answer-check defects (pass %s/%s): %s',label,attempt+1,max_reviews,details)
+        if attempt+1 >= max_reviews:
+            raise ActivityGenerationError(f'{label}: answer verification still fails after {max_reviews-1} bounded repair/replacement attempts; {details}; PDF not published')
         retained = deepcopy(current)
 
         def validate_repairs(raw):
@@ -101,6 +114,17 @@ def verify_question_answers(unit, config, label, *, ask):
             candidate = prepare_reading_unit(candidate,config,label+' repaired questions',retained=retained)
             if candidate['paragraphs'] != retained['paragraphs'] or any(candidate['questions'][i]!=q for i,q in enumerate(retained['questions']) if i+1 not in faults):
                 raise ValueError('Question repair must preserve passage and every unaffected question')
+            for number in faults:
+                question = candidate['questions'][number-1]
+                if question['skill'] != retained['questions'][number-1]['skill']:
+                    raise ValueError('Keep each repaired question reading skill unchanged')
+                if fresh and number in ambiguous_numbers:
+                    history = rejected[number]
+                    if choice_identity(question['prompt']) in {choice_identity(q['prompt']) for q in history}:
+                        raise ValueError('Ambiguous-question replacement must use a new question stem, not the rejected stem')
+                    banned = {choice_identity(option) for q in history for option in q['options'].values()}
+                    if any(choice_identity(option) in banned for option in question['options'].values()):
+                        raise ValueError('Ambiguous-question replacement must rewrite ALL four choices; do not recycle rejected options')
             return candidate
 
         repair_schema = obj({'repairs':array(obj({'number':integer(1,5),
@@ -113,18 +137,21 @@ def verify_question_answers(unit, config, label, *, ask):
                   'Repair flagged quality defects even if the answer letter was correct: inference must require a supported unstated conclusion; use plausible same-topic misunderstandings as distractors. Retain the grade skill mix. Copy real passage evidence. '
                   'Do not insert claims into the passage to justify a bad option.\n'+json.dumps(retained))
         repair_label = label+' answer repair'
-        if attempt == 2:
+        if fresh:
             # Do not keep editing an anchored bad question. Supply the passage and
             # accepted questions only, and require a genuinely new scoped question.
             source = {k:v for k,v in retained.items() if k!='questions'}
             source['accepted_questions']=[{'number':n,'question':q} for n,q in enumerate(retained['questions'],1) if n not in faults]
-            source['replacement_requirements']=[{'number':n,'skill':retained['questions'][n-1]['skill'],'defect':result} for n,result in sorted(faults.items())]
+            source['replacement_requirements']=[{'number':n,'skill':retained['questions'][n-1]['skill'],'defect':result,
+                **({'rejected_stems':[q['prompt'] for q in rejected[n]],'rejected_options':[option for q in rejected[n] for option in q['options'].values()]} if n in ambiguous_numbers else {})} for n,result in sorted(faults.items())]
             prompt = ('Write BRAND-NEW questions to replace ONLY the listed failing numbers. '
-                      'Do not paraphrase the old question or repeat its flawed reasoning. Use the frozen '
-                      'passage and keep accepted questions unchanged. Every replacement must have exactly '
-                      'one supported A-D answer and plausible passage-based distractors. Keep the specified '
-                      'reading skill; an inference combines details into an unstated conclusion, not a copied fact. '
-                      'Return repairs [{number,question}], five fields plus evidence/explanation as in the schema. '
+                      'Do not paraphrase the old question or repeat its flawed reasoning. For ambiguous questions, '
+                      'use a DIFFERENT aspect of the frozen passage and rewrite ALL FOUR choices; none may repeat '
+                      'a rejected stem or choice. Keep accepted questions unchanged. Every replacement must have exactly one supported '
+                      'A-D answer and plausible but incorrect distractors. Check EACH choice against the exact question: '
+                      'no synonyms of the correct answer, overlapping true claims, or two passage-supported answers. '
+                      'Keep the specified reading skill: an inference combines at least two details into an unstated conclusion, '
+                      'not a copied fact. Return repairs [{number,question}] with complete question objects. '
                       'Prompt <=120 characters, options <=55 (aim 35-45), explanation <=110 (aim 60-90), '
                       'evidence <=180 and copied verbatim. Never invent passage facts.\n'+json.dumps(source))
             repair_label = label+' fresh question replacement'

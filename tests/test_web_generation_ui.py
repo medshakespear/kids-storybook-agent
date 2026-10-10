@@ -159,6 +159,44 @@ class WebGenerationTests(unittest.TestCase):
                 self.assertEqual(response.status_code,202)
                 self.assertEqual(submit.call_args.args[2]['event']['event_name'],'Halloween')
 
+    def test_dated_dropdown_is_chronological_and_topics_use_their_own_selector(self):
+        """The rendered form exposes date/range labels and separate undated choices."""
+        from datetime import date
+        import re
+        with patch.object(web,'list_books',return_value=[]), \
+             patch('core.calendar_catalog.today_in_timezone',return_value=date(2026,10,10)):
+            page=self.client.get('/').data.decode()
+        def options(select_id):
+            """Extract this select's options without a third-party parser."""
+            markup=re.search(r'<select id="'+select_id+r'">(.*?)</select>',page,re.S).group(1)
+            return re.findall(r'<option value="([^"]+)">(.*?)</option>',markup,re.S)
+        events=options('calendar-event')
+        values=[o[0] for o in events]
+        self.assertLess(values.index('Halloween'),values.index('Veterans Day'))
+        halloween=next(o for o in events if o[0]=='Halloween')
+        self.assertIn('Oct 31, 2026',halloween[1])
+        heritage=next(o for o in events if o[0]=='Hispanic Heritage Month')
+        self.assertIn('Sep 15, 2026 – Oct 15, 2026',heritage[1])
+        topics=options('reading-topic')
+        self.assertIn('Media Literacy',[o[0] for o in topics])
+        self.assertNotIn('Media Literacy',values)
+        self.assertNotIn('Halloween',[o[0] for o in topics])
+
+    def test_topic_only_generation_uses_the_shared_pipeline_without_browsing(self):
+        """Undated subjects become original reading briefs in both enabled grade bands."""
+        for band in ('3rd-4th','5th-6th'):
+            with self.subTest(band=band),patch.object(web,'_authorized',return_value=True), \
+                 patch.object(web,'read_reference') as read, \
+                 patch.object(web,'generate_book',return_value=({'title':'Media Literacy'},Path('media.pdf'))) as generate, \
+                 patch.object(web,'register_book') as register:
+                response=self.client.post('/generate',json={'event':'Media Literacy','grade_band':band})
+                self.assertEqual(response.status_code,200)
+                read.assert_not_called()
+                self.assertEqual(generate.call_args.kwargs['book_title'],'Media Literacy')
+                self.assertIn('facts, opinions and advertisements',generate.call_args.kwargs['source_context'])
+                self.assertIn('Selected reading topic',generate.call_args.kwargs['source_context'])
+                self.assertEqual(register.call_args.args[0]['selection_mode'],'manual_topic')
+
     def test_reference_failure_never_starts_ai_generation(self):
         """A blocked page instructs the teacher to paste a description instead."""
         with patch.object(web,'_authorized',return_value=True),patch.object(web,'read_reference',side_effect=ReferenceReadError('Paste a description instead.')),patch.object(web,'generate_book') as generate:

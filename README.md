@@ -474,3 +474,25 @@ Daily batches now choose **one event** overlapping days **7–37 ahead**, inclus
 and generate the configured number of books for that event across the active grade
 bands. Titles and angles can vary within it. Days 0–6 are excluded; an ongoing
 month qualifies if its period overlaps the future window.
+
+### Chronological event and reading-topic selectors
+
+The web form has separate **From an event** and **From a reading topic** modes.
+Events show their inclusive exact date or range, including the year, and sort by
+their current or next configured occurrence rather than alphabetically. Current
+periods appear first; dates after New Year use the following year. Seasonal themes
+are labeled **Teaching window**, so they are not mistaken for holiday dates.
+The reference date follows `BOOK_TIMEZONE`, just like the daily picker.
+
+Undated reading topics have their own subject-grouped list. It includes science,
+nature, digital citizenship, media literacy, money choices, teamwork, accessibility,
+history and reading skills. Select a topic and a grade, then click **Generate workbook**.
+The existing `POST /generate` and `/generation-jobs` endpoints accept the selected
+name in the `event` field for either list. Both use the same reading/QCM pipeline.
+Schedules with no upcoming configured date appear under **Dates not configured**;
+the app does not invent a date. Disabled events stay unavailable.
+
+The daily cron still randomly selects one event overlapping days **7–37 ahead**,
+ignoring the first week, with the existing seasonal/evergreen fallback.
+Manual browsing order does not change that random selection. Added evergreen
+topics are also available to that fallback when no eligible scheduled event exists.

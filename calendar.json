@@ -1265,7 +1265,7 @@
       }
     }
   ],
-  "version": 2,
+  "version": 3,
   "sources": [
     "https://www.opm.gov/policy-data-oversight/pay-leave/federal-holidays/",
     "https://hispanicheritagemonth.gov/About",
@@ -1295,6 +1295,222 @@
     {
       "keyword": "Monsters",
       "topic": "Clearly fictional creature scenarios with age-appropriate explanations and reading evidence."
+    },
+    {
+      "keyword": "The Solar System",
+      "subject": "Science and nature",
+      "topic": "Explore planets, moons and how scientists learn about space; distinguish observations from guesses.",
+      "theme_angles": [
+        "Explore planets, moons and how scientists learn about space; distinguish observations from guesses. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explore planets, moons and how scientists learn about space; distinguish observations from guesses. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Weather and the Water Cycle",
+      "subject": "Science and nature",
+      "topic": "Explain evaporation, condensation and precipitation through observable everyday examples.",
+      "theme_angles": [
+        "Explain evaporation, condensation and precipitation through observable everyday examples. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explain evaporation, condensation and precipitation through observable everyday examples. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Animal Adaptations",
+      "subject": "Science and nature",
+      "topic": "Compare how specific animals survive in their habitats without implying animals choose inherited traits.",
+      "theme_angles": [
+        "Compare how specific animals survive in their habitats without implying animals choose inherited traits. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Compare how specific animals survive in their habitats without implying animals choose inherited traits. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Pollinators and Plants",
+      "subject": "Science and nature",
+      "topic": "Explore how insects and other pollinators help flowering plants, using accurate named examples.",
+      "theme_angles": [
+        "Explore how insects and other pollinators help flowering plants, using accurate named examples. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explore how insects and other pollinators help flowering plants, using accurate named examples. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Ocean Ecosystems",
+      "subject": "Science and nature",
+      "topic": "Explain ocean food webs, habitats and practical ways people protect marine environments.",
+      "theme_angles": [
+        "Explain ocean food webs, habitats and practical ways people protect marine environments. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explain ocean food webs, habitats and practical ways people protect marine environments. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Rocks and Fossils",
+      "subject": "Science and nature",
+      "topic": "Explore how rocks change and what fossils can reveal about past environments.",
+      "theme_angles": [
+        "Explore how rocks change and what fossils can reveal about past environments. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explore how rocks change and what fossils can reveal about past environments. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Simple Machines",
+      "subject": "Science and nature",
+      "topic": "Explain how levers, pulleys and inclined planes change the way people do everyday work.",
+      "theme_angles": [
+        "Explain how levers, pulleys and inclined planes change the way people do everyday work. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explain how levers, pulleys and inclined planes change the way people do everyday work. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Renewable Energy",
+      "subject": "Science and nature",
+      "topic": "Compare solar, wind and water energy using balanced explanations of benefits and limitations.",
+      "theme_angles": [
+        "Compare solar, wind and water energy using balanced explanations of benefits and limitations. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Compare solar, wind and water energy using balanced explanations of benefits and limitations. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Inventions and Problem Solving",
+      "subject": "Science and nature",
+      "topic": "Read about how people identify needs, test designs and improve inventions without invented historical claims.",
+      "theme_angles": [
+        "Read about how people identify needs, test designs and improve inventions without invented historical claims. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Read about how people identify needs, test designs and improve inventions without invented historical claims. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "The Journey of Food",
+      "subject": "Science and nature",
+      "topic": "Follow how familiar foods move from farms to tables and explain the roles of growers and transport workers.",
+      "theme_angles": [
+        "Follow how familiar foods move from farms to tables and explain the roles of growers and transport workers. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Follow how familiar foods move from farms to tables and explain the roles of growers and transport workers. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Digital Citizenship",
+      "subject": "Community and life skills",
+      "topic": "Explore respectful online communication, privacy and asking trusted adults for help through fictional student scenarios.",
+      "theme_angles": [
+        "Explore respectful online communication, privacy and asking trusted adults for help through fictional student scenarios. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explore respectful online communication, privacy and asking trusted adults for help through fictional student scenarios. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Media Literacy",
+      "subject": "Community and life skills",
+      "topic": "Compare facts, opinions and advertisements; explain how readers check claims and sources.",
+      "theme_angles": [
+        "Compare facts, opinions and advertisements; explain how readers check claims and sources. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Compare facts, opinions and advertisements; explain how readers check claims and sources. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Money Choices",
+      "subject": "Community and life skills",
+      "topic": "Explore saving, spending and needs versus wants through fictional age-appropriate situations; focus on reading comprehension.",
+      "theme_angles": [
+        "Explore saving, spending and needs versus wants through fictional age-appropriate situations; focus on reading comprehension. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explore saving, spending and needs versus wants through fictional age-appropriate situations; focus on reading comprehension. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Teamwork and Fair Decisions",
+      "subject": "Community and life skills",
+      "topic": "Read fictional classroom scenarios about listening, sharing responsibilities and considering different ideas.",
+      "theme_angles": [
+        "Read fictional classroom scenarios about listening, sharing responsibilities and considering different ideas. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Read fictional classroom scenarios about listening, sharing responsibilities and considering different ideas. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Resolving Everyday Disagreements",
+      "subject": "Community and life skills",
+      "topic": "Explore respectful ways to handle ordinary disagreements; distinguish disagreement from bullying and seek adult help when unsafe.",
+      "theme_angles": [
+        "Explore respectful ways to handle ordinary disagreements; distinguish disagreement from bullying and seek adult help when unsafe. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explore respectful ways to handle ordinary disagreements; distinguish disagreement from bullying and seek adult help when unsafe. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Accessible Communities",
+      "subject": "Community and life skills",
+      "topic": "Explore how ramps, captions and thoughtful design help people participate; avoid stereotypes about disabilities.",
+      "theme_angles": [
+        "Explore how ramps, captions and thoughtful design help people participate; avoid stereotypes about disabilities. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explore how ramps, captions and thoughtful design help people participate; avoid stereotypes about disabilities. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "How Libraries Help Us",
+      "subject": "Community and life skills",
+      "topic": "Explain how libraries organize information, support readers and help communities learn.",
+      "theme_angles": [
+        "Explain how libraries organize information, support readers and help communities learn. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explain how libraries organize information, support readers and help communities learn. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Learning from Mistakes",
+      "subject": "Community and life skills",
+      "topic": "Use clearly fictional student examples to explore feedback, reflection and trying improved strategies.",
+      "theme_angles": [
+        "Use clearly fictional student examples to explore feedback, reflection and trying improved strategies. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Use clearly fictional student examples to explore feedback, reflection and trying improved strategies. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Fact and Opinion",
+      "subject": "Reading and reasoning",
+      "topic": "Read varied short informational texts and distinguish statements that can be checked from personal judgments.",
+      "theme_angles": [
+        "Read varied short informational texts and distinguish statements that can be checked from personal judgments. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Read varied short informational texts and distinguish statements that can be checked from personal judgments. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Mysteries Solved with Evidence",
+      "subject": "Reading and reasoning",
+      "topic": "Use clearly fictional, nonviolent mysteries to practise drawing conclusions from clues, with exactly one supported answer.",
+      "theme_angles": [
+        "Use clearly fictional, nonviolent mysteries to practise drawing conclusions from clues, with exactly one supported answer. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Use clearly fictional, nonviolent mysteries to practise drawing conclusions from clues, with exactly one supported answer. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Maps and Navigation",
+      "subject": "Reading and reasoning",
+      "topic": "Explore map symbols, landmarks and how people describe routes without requiring students to infer answers from AI artwork.",
+      "theme_angles": [
+        "Explore map symbols, landmarks and how people describe routes without requiring students to infer answers from AI artwork. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explore map symbols, landmarks and how people describe routes without requiring students to infer answers from AI artwork. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Everyday Life in the Past",
+      "subject": "History and culture",
+      "topic": "Compare specific everyday tools and routines across named times and places without broad cultural stereotypes.",
+      "theme_angles": [
+        "Compare specific everyday tools and routines across named times and places without broad cultural stereotypes. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Compare specific everyday tools and routines across named times and places without broad cultural stereotypes. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "People Who Made a Difference",
+      "subject": "History and culture",
+      "topic": "Explore accurately described contributions of named scientists, artists or community leaders; avoid invented quotations and achievements.",
+      "theme_angles": [
+        "Explore accurately described contributions of named scientists, artists or community leaders; avoid invented quotations and achievements. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explore accurately described contributions of named scientists, artists or community leaders; avoid invented quotations and achievements. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
+    },
+    {
+      "keyword": "Languages and Communication",
+      "subject": "History and culture",
+      "topic": "Explore how people communicate through spoken, written and signed languages, respecting diverse communities.",
+      "theme_angles": [
+        "Explore how people communicate through spoken, written and signed languages, respecting diverse communities. Develop original grade-appropriate informational readings with vocabulary, evidence and multiple-choice comprehension.",
+        "Explore how people communicate through spoken, written and signed languages, respecting diverse communities. Explore a different concrete example or perspective through original reading passages with inference and comparison questions."
+      ]
     }
   ]
 }

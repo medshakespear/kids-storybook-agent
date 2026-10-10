@@ -23,6 +23,7 @@ from core.grade_policy import ACTIVE_GRADE_BANDS
 from core.pipeline import generate_book, load_grade_config
 from core.state_manager import load_state
 from core.theme_picker import pick_webhook_grade_band
+from core.calendar_catalog import calendar_catalog
 from core.reference_reader import read_reference, reference_context, ReferenceReadError
 
 
@@ -47,11 +48,17 @@ def health() -> tuple[dict[str, str], int]:
     return {"status": "ok"}, 200
 
 
-def generator_events():
-    """List enabled calendar themes for manual selection, independent of cron dates."""
+def generator_catalog():
+    """Load chronological events and separate undated topics for manual generation."""
     with Path(CALENDAR_PATH).open(encoding='utf-8') as handle:
         calendar = json.load(handle)
-    return sorted([event for event in calendar['events'] if event.get('enabled',True) and event.get('theme_angles')],key=lambda event:event['event_name'])
+    return calendar_catalog(calendar)
+
+
+def generator_events():
+    """Accept both catalog lists through the existing event generation payload."""
+    catalog = generator_catalog()
+    return catalog['events'] + catalog['topics']
 
 
 def generation_input(payload):
@@ -109,7 +116,8 @@ def run_generation(brief):
         chooser = random.SystemRandom()
         keyword = chooser.choice(event.get('title_keywords') or [event['event_name']])
         theme = keyword + ': ' + chooser.choice(event['theme_angles'])
-        context = 'Selected calendar event: ' + event['event_name'] + '\nTitle keyword: ' + keyword
+        undated = event.get('category') in {'evergreen_topic', 'undated_topic'}
+        context = ('Selected reading topic: ' if undated else 'Selected calendar event: ') + event['event_name'] + '\nTitle keyword: ' + keyword
         context += '\n' + event.get('keyword_topics',{}).get(keyword,'') + '\n' + event.get('note','')
         title_options['book_title'] = keyword
     story, pdf_path = generate_book(
@@ -117,7 +125,7 @@ def run_generation(brief):
         grade_config=brief['grade_config'], **title_options)
     if event:
         story['event_name'] = event['event_name']
-        story['selection_mode'] = 'manual_event' 
+        story['selection_mode'] = 'manual_topic' if event.get('category') in {'evergreen_topic', 'undated_topic'} else 'manual_event'
     register_book(story,pdf_path.name,'On demand')
     return dict(status='completed',title=story['title'],resource_type='activity_pack',
                 grade_band=brief['grade_band'],pdf_path='/output/'+pdf_path.name,
@@ -231,7 +239,7 @@ def request_too_large(_: Exception) -> tuple[object, int]:
 @app.get("/books")
 def books_page():
     """Show the public book library with download links."""
-    return render_template("books.html", books=list_books(), key_required=bool(os.environ.get("WEBHOOK_API_KEY")), events=generator_events())
+    return render_template("books.html", books=list_books(), key_required=bool(os.environ.get("WEBHOOK_API_KEY")), **generator_catalog())
 
 
 @app.get("/api/books")

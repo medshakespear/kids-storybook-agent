@@ -78,10 +78,11 @@ def exercise_schema(brief: dict, config: dict) -> dict:
     from core.prompt_recovery import prompt_character_limit
     from core.answer_limits import answer_character_limit
     exact = brief['render_mode'] == 'exact'
+    context_limit = 6 if exact else config.get('context_caption_limit',6)
     table_limit = 36 if not exact and config.get('table_caption_limit') else 0
     properties = {'render_mode': enum([brief['render_mode']]), 'mechanic': enum([brief['mechanic']]),
                   'goal': text(240),
-                  'captions': array(obj({'id': text(24, 'Unique short lowercase identifier; omit the caption_ prefix from the ID.'), 'text': text(120, 'Factual context label only; never task directions. Up to six context labels plus eight short diagram identifiers (e.g. Belt A). '+(f'Additionally allow {table_limit} short table headers/data cells, each bound inside its table. ' if table_limit else '')+'Do not use IDs directions/instructions/passage on exact pages.')}), 0, 14 + table_limit),
+                  'captions': array(obj({'id': text(24, 'Unique short lowercase identifier; omit the caption_ prefix from the ID.'), 'text': text(120, f'Factual context label only; never task directions. Up to {context_limit} context labels plus eight short diagram identifiers (e.g. Belt A). '+(f'Additionally allow {table_limit} short table headers/data cells, each bound inside its table. ' if table_limit else '')+'Do not use IDs directions/instructions/passage on exact pages.')}), 0, context_limit + 8 + table_limit),
                   'questions': array(question_schema(prompt_character_limit(config), answer_character_limit(config)), 0 if exact else 1, config.get('items_per_page', 4))}
     if exact:
         properties['visual'] = visual_schema(brief['mechanic'])

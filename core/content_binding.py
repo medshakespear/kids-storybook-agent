@@ -27,27 +27,32 @@ def diagram_label(value: str) -> bool:
                              value.strip(),re.I))
 
 
-def caption_budget_available(captions: list, text: str) -> bool:
+def caption_budget_available(captions: list, text: str, *, context_limit: int = 6, table_ids=None) -> bool:
     """Keep six contextual captions and up to eight short diagram identifiers."""
     if not isinstance(captions, list):
         return False
+    captions = [c for c in captions if not isinstance(c,dict) or c.get('id') not in (table_ids or set())]
     labels = sum(isinstance(c, dict) and isinstance(c.get('text'), str)
                  and diagram_label(c['text']) for c in captions)
-    return labels < 8 if diagram_label(text) else len(captions) - labels < 6
+    return labels < 8 if diagram_label(text) else len(captions) - labels < context_limit
 
 
-def validate_caption_budget(captions: list, *, table_ids: set[str] | None = None) -> None:
+def validate_caption_budget(captions: list, *, table_ids: set[str] | None = None, context_limit: int = 6) -> None:
     """Reject excessive content while keeping diagram markers separate from prose."""
+    if type(context_limit) is not int or not 1 <= context_limit <= 24:
+        raise ValueError('Context caption limit must be between 1 and 24')
+    error = ('Exercise captions need at most six contextual labels and eight diagram identifiers'
+             if context_limit == 6 else f'Exercise captions need at most {context_limit} contextual labels and eight diagram identifiers')
     table_ids = table_ids or set()
     if len(table_ids) > 36:
         raise ValueError('Exercise tables need at most 36 short headers/data cells')
-    if not isinstance(captions, list) or len(captions) > 14 + len(table_ids):
-        raise ValueError('Exercise captions need at most six contextual labels and eight diagram identifiers')
+    if not isinstance(captions, list) or len(captions) > context_limit + 8 + len(table_ids):
+        raise ValueError(error)
     captions = [c for c in captions if not isinstance(c,dict) or c.get('id') not in table_ids]
     labels = sum(isinstance(c, dict) and isinstance(c.get('text'), str)
                  and diagram_label(c['text']) for c in captions)
-    if labels > 8 or len(captions) - labels > 6:
-        raise ValueError('Exercise captions need at most six contextual labels and eight diagram identifiers')
+    if labels > 8 or len(captions) - labels > context_limit:
+        raise ValueError(error)
 
 
 class CanonicalTextContainers(HTMLParser):
@@ -194,7 +199,7 @@ def bind_formatted_canonical_text(layout: str, blocks: dict[str,str]) -> str:
     return ''.join(parser.render(node) for node in parser.root)
 
 
-def bind_standard_heading(layout: str, exercise: dict) -> str:
+def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6, table_ids=None) -> str:
     """Register allowlisted standalone labels without accepting independent task wording."""
     parser = CanonicalTextContainers({})
     parser.feed(layout)
@@ -229,7 +234,7 @@ def bind_standard_heading(layout: str, exercise: dict) -> str:
             continue
         if any(isinstance(c,dict) and str(c.get('text','')).strip().casefold()==text.casefold() for c in captions):
             continue
-        if not caption_budget_available(captions,text):
+        if not caption_budget_available(captions,text, context_limit=context_limit, table_ids=table_ids):
             continue
         used = {c.get('id') for c in captions if isinstance(c,dict)}
         prefix = ('tip_label' if text.casefold()=='challenge tip:' else

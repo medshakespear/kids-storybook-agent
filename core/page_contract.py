@@ -142,6 +142,9 @@ class BoundLayout(HTMLParser):
             if self.inferred_slot:
                 raise ValueError('Use a complete data-content slot; additional independent layout text cannot be discarded')
             return
+        if re.fullmatch(r'[_\s]{3,}', data) and data.count('_') >= 3:
+            self.parts.append(html.escape(data))
+            return  # Blank writing lines are workspace, not independent task wording.
         normalized = ' '.join(data.split()).casefold()
         matches = [key for key,value in self.text_blocks.items() if normalized==value]
         if not matches:
@@ -349,7 +352,6 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             if config.get('student_font_pt',13)>=15:
                 raise ValueError('Pre-K tasks must be picture-led, not independent reading passages')
             blocks['passage'] = html.escape(passage).replace('\n','<br/>')
-    page['html'] = bind_standard_heading(page['html'],exercise)
     # Context captions are canonical content too, not a second instruction draft.
     captions = exercise.get('captions', [])
     table_ids = set()
@@ -360,7 +362,12 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         table_ids = prepare_table_captions(page)
         captions = exercise.get('captions', [])
     from core.content_binding import validate_caption_budget
-    validate_caption_budget(captions, table_ids=table_ids)
+    context_limit = config.get('context_caption_limit',6) if exercise['render_mode']=='authored' else 6
+    page['html'] = bind_standard_heading(page['html'],exercise, context_limit=context_limit, table_ids=table_ids)
+    captions = exercise.get('captions', [])
+    validate_caption_budget(captions, table_ids=table_ids, context_limit=context_limit)
+    page['_caption_context_limit'] = context_limit
+    page['_table_caption_ids'] = sorted(table_ids)
     caption_ids = set()
     for caption in captions:
         if not isinstance(caption,dict):

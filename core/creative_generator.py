@@ -293,7 +293,8 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
             continue
         if normalized(text) not in words:
             raise ValueError('Layout-only repair may add captions only for complete wording already printed in the retained page')
-        if not caption_budget_available(captions,text):
+        if not caption_budget_available(captions,text, context_limit=original.get('_caption_context_limit',6),
+                                        table_ids=set(original.get('_table_caption_ids',[]))):
             raise ValueError('Exercise captions need at most six contextual labels and eight diagram identifiers')
         captions.append({'id':cid,'text':text.strip()})
         by_id[cid] = captions[-1]
@@ -1503,7 +1504,7 @@ def generate_creative_pack(theme: str, grade_band: str, grade_config: dict, *, s
     config = grade_config[grade_band]
     count, font = config['activity_pages'], config['student_font_pt']
     table_guidance = ('\nTABLE CAPTION OVERRIDE for this mixed authored page: allow up to 36 short '
-                      'table headers/data cells IN ADDITION to six contextual labels and eight diagram '
+                      f'table headers/data cells IN ADDITION to {config.get("context_caption_limit",6)} contextual labels and eight diagram '
                       'identifiers. Retain every value and cell; do not delete data to meet the prose '
                       'caption limit. Use id="row1_c1" and data-content="caption_row1_c1" (prefix only '
                       'the HTML slot, not the caption ID). Every slot must have its matching id/text '

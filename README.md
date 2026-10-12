@@ -541,7 +541,7 @@ Omitting `book_type` selects `reading_qcm`; unknown values return HTTP 400 befor
 generation starts.
 
 Mixed-workbook authored tables have a separate allowance for **36 short headers/data
-cells**, in addition to six contextual captions and eight diagram identifiers.
+cells**, in addition to 24 short contextual captions and eight diagram identifiers.
 This is a content cap, not permission to overflow an A4 page. Gemini's schema and
 prompts use the same allowance. Declare IDs without the `caption_` prefix (for
 example `row1_c1`) and bind them with `data-content="caption_row1_c1"`.
@@ -549,3 +549,10 @@ Python can bind complete literal cell text to a missing caption and preserve
 repeated headers with distinct IDs. It does not invent values for empty unknown
 slots, turn directions into data, or relax the ordinary prose-caption limit.
 Reading/QCM books and exact puzzle caption limits stay unchanged.
+
+Mixed authored activities allow up to 24 short contextual captions, plus the
+separate table-cell allowance and eight diagram identifiers. The schema, content
+compiler and layout-only repairs share these limits. Exact puzzles retain the
+original six-caption rule. Pure underscore writing lines are preserved as blank
+workspace; actual prompts, instructions and answers still require canonical fields.
+Student font sizes and one-page print-bound checks remain enforced.

@@ -281,6 +281,8 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
             # pinned exercise or force a needless semantic repair.
             continue
         if cid in by_id:
+            if original.get('_caption_context_limit') == 24:
+                continue  # Mixed layout repair owns HTML only; retain the canonical caption verbatim.
             if not isinstance(text,str) or normalized(text)!=normalized(str(by_id[cid].get('text',''))):
                 raise ValueError('Layout-only repair cannot change existing caption wording')
             continue
@@ -1300,7 +1302,8 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
             raise ValueError('Match every image id to exactly its intended data-asset reference; do not substitute pictures')
         design['quality_profile'] = {
             'visual_area_mm2': quality.get('visual_area_mm2', 6500),
-            'minimum_text_pt': quality.get('minimum_text_pt', 11)}
+            'minimum_text_pt': quality.get('minimum_text_pt', 11),
+            'model_authored_flow': bool(quality.get('stimulus_limit'))}
     else:
         images, design['html'] = _consolidate_image_manifest(design, cover=cover)
     design['images'] = images

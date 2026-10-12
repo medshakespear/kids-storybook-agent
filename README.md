@@ -571,3 +571,15 @@ all long source text in a layout-only loop. It must retain facts and quantities
 needed by the questions and realign shared answers; content proofreading still
 runs before publication. Smaller source pages retain normal layout-only repair.
 Fonts, response spaces, purposeful visual area and print bounds are still checked.
+
+Mixed student pages automatically remove fixed height clamps from text containers
+and redundant wrappers so wrapped source text cannot collide with the next task.
+Artwork dimensions, canonical answer-box heights and empty/underscore-only work
+panels are retained. Every reflowed page still has to pass one-page geometry,
+overlap, student-font and visual-area checks. This reflow is opt-in for mixed
+activities; the reading/QCM layout and cover remain unchanged.
+
+Mixed layout-only retries keep original caption wording even if the model supplies
+shorter caption suggestions. The returned HTML is re-bound to the original shared
+content. Changing source content is still handled separately by a content revision
+and its subsequent proofreading, never silently by a layout repair.

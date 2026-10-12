@@ -428,6 +428,10 @@ def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: boo
     page['html'] = normalize_image_dimensions(page['html'],page_visuals(page),
         profile.get('visual_area_mm2',6500),lambda style:clean_style(style,profile.get('minimum_text_pt',11)))
     original_html = page['html']
+    if profile.get('model_authored_flow') and not cover:
+        from core.text_flow import reflow_text_heights
+        original_html = reflow_text_heights(original_html)
+        page['html'] = original_html
     last_overflow = ''
     rendered_markup = set()
     with RENDER_LOCK:

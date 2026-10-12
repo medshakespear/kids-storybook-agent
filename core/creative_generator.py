@@ -1261,6 +1261,13 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
             expected_title = design.get('title', expected_title)
             prepared_layout = deepcopy(design)
         compile_exercise(design, quality or {}, expected_title or '', brief)
+        if (quality or {}).get('stimulus_limit'):
+            prepared_layout = {key:deepcopy(design[key]) for key in ('images','exercise')}
+            prepared_layout['html'] = design['source_layout']
+            prepared_layout['_recovery_config'] = deepcopy(quality)
+            prepared_layout['_recovery_title'] = expected_title
+            prepared_layout['_caption_context_limit'] = design.get('_caption_context_limit',24)
+            prepared_layout['_table_caption_ids'] = design.get('_table_caption_ids',[])
     if cover:
         # Cover art has no exercise numbers. Ignore unused exercise metadata,
         # but never silently remove a visible puzzle from authored markup.

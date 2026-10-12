@@ -19,6 +19,7 @@ def generate_varied_pack(theme, grade_band, grade_config, *, source_context=None
     profile['table_caption_limit'] = 36
     profile['context_caption_limit'] = 24
     profile['stimulus_limit'] = 4
+    profile['items_per_page'] = 2
     context = (source_context or '') + '''
 WORKBOOK TYPE: mixed, original student exercises, not a reading/QCM collection.
 Invent meaningful tasks for this specific theme and grade. Possible inspirations include

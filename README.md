@@ -583,3 +583,17 @@ Mixed layout-only retries keep original caption wording even if the model suppli
 shorter caption suggestions. The returned HTML is re-bound to the original shared
 content. Changing source content is still handled separately by a content revision
 and its subsequent proofreading, never silently by a layout repair.
+
+Mixed page recovery now carries the real grade configuration, caption allowances,
+source blocks and planned title into local print-fit checks. Source/heading order
+is retained, and real data tables are excluded from generic stacked recovery so
+row/column associations cannot be lost. Any recovery candidate must pass both the
+page geometry and meaningful artwork-area checks with all questions, answers and
+response spaces intact. New mixed activities plan at most two focused tasks per
+page; the reading/QCM question count and daily cron remain unchanged.
+
+For mixed source-heavy pages, recovery first tries a sizeable square illustration
+beside source text, avoiding a shallow panoramic placeholder for square artwork.
+It uses the same source/caption allowances and grade limits as initial validation.
+Every candidate is actually rendered and must satisfy both the visual-area floor
+and one-page fit before it can be accepted.

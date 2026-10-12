@@ -4,7 +4,33 @@ import math
 import re
 
 from core.page_contract import compile_exercise
-from core.content_binding import CanonicalTextContainers
+from core.content_binding import CanonicalTextContainers, canonical_content_slot
+from html.parser import HTMLParser
+
+
+def recovery_profile(page: dict, minimum_font: int) -> dict:
+    """Use the real mixed grade contract when it was retained by the validator."""
+    return deepcopy(page.get('_recovery_config') or {
+        'student_font_pt':minimum_font,'minimum_text_pt':minimum_font,'items_per_page':16})
+
+
+def supporting_slot_ids(page: dict, exercise: dict) -> list[str]:
+    """Retain source/caption order without inferring or changing wording."""
+    available = {'passage':True} if exercise.get('passage') else {}
+    for field,prefix in (('captions','caption_'),('stimuli','stimulus_')):
+        for item in exercise.get(field,[]):
+            available[prefix+item['id']] = True
+    ordered=[]
+    parser=HTMLParser(convert_charrefs=True)
+    def collect(tag,attrs):
+        """Read declared canonical slot order from the model's retained composition."""
+        slot=canonical_content_slot(dict(attrs).get('data-content'),available)
+        if slot in available and slot not in ordered:
+            ordered.append(slot)
+    parser.handle_starttag=collect
+    parser.handle_startendtag=collect
+    parser.feed(page['html']);parser.close()
+    return ordered+[slot for slot in available if slot not in ordered]
 
 
 def single_exact_visual_recovery(page: dict, minimum_font: int, visual_area: float) -> dict | None:
@@ -112,8 +138,9 @@ def single_illustration_recovery(page: dict, minimum_font: int, visual_area: flo
     # caption or additional task cannot be discarded to make a layout fit.
     checked = deepcopy(page)
     try:
-        compile_exercise(checked,{'student_font_pt':minimum_font,'minimum_text_pt':minimum_font,
-                                 'items_per_page':16},'Internal layout check')
+        compile_exercise(checked,recovery_profile(page,minimum_font),page.get('_recovery_title') or 'Internal layout check')
+        if checked.get('_table_caption_ids'):
+            return None  # Flattening data-table cells would destroy their row/column relationships.
         parser = CanonicalTextContainers({})
         parser.feed(page['html']);parser.close()
         def untracked_space(node):
@@ -143,16 +170,14 @@ def single_illustration_recovery(page: dict, minimum_font: int, visual_area: flo
               f'background-color:{wash};padding:3mm;border-radius:4mm;margin:0 0 3mm"></h1>',
               f'<p data-content="name" style="font-size:{minimum_font}pt;margin:0 0 2mm"></p>',
               f'<p data-content="directions" style="font-size:{minimum_font}pt;margin:0 0 3mm"></p>']
-    for caption in exercise.get('captions',[]):
-        pieces.append(f'<p data-content="caption_{caption["id"]}" style="font-size:{minimum_font}pt;'
-                      f'color:{accent};margin:0 0 2mm"></p>')
+    for slot in supporting_slot_ids(page,exercise):
+        pieces.append(f'<p data-content="{slot}" style="font-size:{minimum_font}pt;color:{accent};margin:0 0 2mm"></p>')
     if re.search(r'Date:\s*_+',checked['html']):
         pieces.append(f'<p data-content="date" style="font-size:{minimum_font}pt;margin:0 0 2mm"></p>')
     pieces.append(f'<div style="text-align:center;background-color:{wash};padding:2mm;'
                   f'border:0.5mm solid {accent};border-radius:4mm;margin:0 0 3mm">'
                   f'<img data-asset="{asset}" style="width:{side}mm;height:{side}mm"/></div>')
-    if exercise.get('passage'):
-        pieces.append(f'<div data-content="passage" style="font-size:{minimum_font}pt;margin:0 0 3mm"></div>')
+
     for question in exercise.get('questions',[]):
         pieces.append(f'<div data-content="question_{question["id"]}" style="font-size:{minimum_font}pt;'
                       f'padding:1mm;border-top:0.5mm solid {accent};margin:0 0 3mm"></div>')
@@ -172,8 +197,9 @@ def multiple_illustration_recovery(page: dict, minimum_font: int, visual_area: f
     if not isinstance(probe.get('exercise'), dict) or probe['exercise'].get('render_mode') != 'authored':
         return None
     try:
-        compile_exercise(probe, {'student_font_pt':minimum_font, 'minimum_text_pt':minimum_font,
-                                'items_per_page':16}, 'Internal layout check')
+        compile_exercise(probe,recovery_profile(page,minimum_font),page.get('_recovery_title') or 'Internal layout check')
+        if probe.get('_table_caption_ids'):
+            return None
         parser = CanonicalTextContainers({}); parser.feed(page['html']); parser.close()
         def untracked(node):
             """Refuse to drop blank working panels that are outside the canonical questions."""
@@ -228,7 +254,7 @@ def reading_panel_recovery(page: dict, minimum_font: int, visual_area: float) ->
     if not isinstance(exercise, dict):
         return None
     captions = exercise.get('captions', [])
-    if not (exercise.get('passage') or (isinstance(captions, list) and len(captions) >= 2)):
+    if not (exercise.get('passage') or exercise.get('stimuli') or (isinstance(captions, list) and len(captions) >= 2)):
         return None
     # Reuse the lossless binding and untracked-workspace safety checks before
     # changing composition. This is an alternative layout, never a content edit.
@@ -248,7 +274,11 @@ def reading_panel_recovery(page: dict, minimum_font: int, visual_area: float) ->
     if height > 150:
         return None
     if len(images) == 1:
-        artwork = f'<img data-asset="{asset}" style="width:100mm;height:{height}mm"/>'
+        if page.get('_recovery_config',{}).get('stimulus_limit'):
+            side=math.ceil(math.sqrt(visual_area*1.04))
+            artwork=f'<img data-asset="{asset}" style="width:{side}mm;height:{side}mm"/>'
+        else:
+            artwork = f'<img data-asset="{asset}" style="width:100mm;height:{height}mm"/>' 
     else:
         from core.illustration_gallery import illustration_grid
         try:
@@ -262,10 +292,8 @@ def reading_panel_recovery(page: dict, minimum_font: int, visual_area: float) ->
     if re.search(r'Date:\s*_+', base['html']):
         pieces.append(f'<p data-content="date" style="{text_style}"></p>')
     supporting = [f'<p data-content="directions" style="{text_style}"></p>']
-    if exercise.get('passage'):
-        supporting.append(f'<div data-content="passage" style="{text_style}"></div>')
-    for caption in exercise.get('captions', []):
-        supporting.append(f'<p data-content="caption_{caption["id"]}" style="{text_style}"></p>')
+    for slot in supporting_slot_ids(page,exercise):
+        supporting.append(f'<p data-content="{slot}" style="{text_style}"></p>')
     pieces.append('<table style="width:175mm;table-layout:fixed;border-spacing:0;margin:0 0 3mm"><tbody><tr>'
                   f'<td style="width:100mm;padding:0;vertical-align:top">{artwork}</td>'
                   '<td style="width:75mm;padding:0 0 0 3mm;vertical-align:top">' + ''.join(supporting) +
@@ -280,6 +308,10 @@ def reading_panel_recovery(page: dict, minimum_font: int, visual_area: float) ->
 
 def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float):
     """Try bounded lossless compositions with sufficient art before another model rewrite."""
+    if page.get('_recovery_config',{}).get('stimulus_limit'):
+        mixed_reading=reading_panel_recovery(page,minimum_font,visual_area)
+        if mixed_reading is not None:
+            yield mixed_reading
     single = single_illustration_recovery(page,minimum_font,visual_area)
     if single is not None:
         yield single

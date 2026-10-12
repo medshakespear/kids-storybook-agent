@@ -36,10 +36,14 @@ def caption_budget_available(captions: list, text: str) -> bool:
     return labels < 8 if diagram_label(text) else len(captions) - labels < 6
 
 
-def validate_caption_budget(captions: list) -> None:
+def validate_caption_budget(captions: list, *, table_ids: set[str] | None = None) -> None:
     """Reject excessive content while keeping diagram markers separate from prose."""
-    if not isinstance(captions, list) or len(captions) > 14:
+    table_ids = table_ids or set()
+    if len(table_ids) > 36:
+        raise ValueError('Exercise tables need at most 36 short headers/data cells')
+    if not isinstance(captions, list) or len(captions) > 14 + len(table_ids):
         raise ValueError('Exercise captions need at most six contextual labels and eight diagram identifiers')
+    captions = [c for c in captions if not isinstance(c,dict) or c.get('id') not in table_ids]
     labels = sum(isinstance(c, dict) and isinstance(c.get('text'), str)
                  and diagram_label(c['text']) for c in captions)
     if labels > 8 or len(captions) - labels > 6:

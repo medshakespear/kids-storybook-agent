@@ -16,6 +16,7 @@ def generate_varied_pack(theme, grade_band, grade_config, *, source_context=None
     config = deepcopy(grade_config)
     profile = config[grade_band]
     profile['purposeful_activity_layout'] = False
+    profile['table_caption_limit'] = 36
     context = (source_context or '') + '''
 WORKBOOK TYPE: mixed, original student exercises, not a reading/QCM collection.
 Invent meaningful tasks for this specific theme and grade. Possible inspirations include
@@ -29,6 +30,10 @@ Gemini owns each page composition, color palette, panels and hierarchy. Vary the
 while keeping one professional visual identity. Use substantial purposeful illustrations.
 All needed information, tables, measurements and labels must be written in the exercise's
 passage/caption/question fields and bound HTML slots; artwork cannot supply exact data.
+Table headers and each data cell are short captions: declare each unique id/text pair,
+then use data-content="caption_ID" in that cell. Caption IDs themselves should NOT
+start with caption_. Mixed pages allow up to 36 short table cells in addition to
+six contextual labels and eight diagram identifiers. All cells must fit on one page.
 Never fabricate a primary source, quotation, ordinance, historical achievement or cultural
 practice. Label invented case studies and simulated source excerpts clearly as fictional.
 Use named, accurate cultural contexts rather than mixing traditions across Indigenous nations.

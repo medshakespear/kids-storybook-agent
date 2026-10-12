@@ -1502,6 +1502,14 @@ def generate_creative_pack(theme: str, grade_band: str, grade_config: dict, *, s
     """Plan a varied pack, then author and print-check each original page independently."""
     config = grade_config[grade_band]
     count, font = config['activity_pages'], config['student_font_pt']
+    table_guidance = ('\nTABLE CAPTION OVERRIDE for this mixed authored page: allow up to 36 short '
+                      'table headers/data cells IN ADDITION to six contextual labels and eight diagram '
+                      'identifiers. Retain every value and cell; do not delete data to meet the prose '
+                      'caption limit. Use id="row1_c1" and data-content="caption_row1_c1" (prefix only '
+                      'the HTML slot, not the caption ID). Every slot must have its matching id/text '
+                      'entry. Keep all table values in canonical captions, not in illustration prompts. '
+                      'Shorten or reflow a large table to fit the page without changing its data.\n'
+                      if config.get('table_caption_limit') else '')
     plan_prompt = f'''Design an ORIGINAL illustrated classroom activity pack for {grade_band}.
 Theme/context: {theme}. User description/inspiration: {source_context or 'Invent a fresh engaging learning experience.'}
 Arithmetic results must be between 0 and {config.get("max_result",10000)}. Operands should be <= {config.get("max_operand",1000)}.
@@ -1587,7 +1595,7 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                   'additional questions use distinct labels 2 or higher. Do not repeat the puzzle task.\n'
                   + density_guidance(config)+'\n'+activity_quality_guidance(grade_band)+'\n'
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
-                  + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + f'\nThe title slot will print: {brief["title"]}.')
+                  + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance + f'\nThe title slot will print: {brief["title"]}.')
         page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title'], require_coherent=True, brief=brief), f'Activity design {number}',
                         response_schema=design_schema(brief,config))
         page = compact_answers(page, number)
@@ -1614,7 +1622,7 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
             f'Repair activity {number} for {grade_band}. Exact title: {previous["title"]}. '
             f'Correct these concrete exercise defects: {json.dumps(issues)}. '
             'Preserve the learning goal, meaningful visuals and response space. Return a complete page.\n'
-            + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + '\nPlanned brief: ' + json.dumps(brief) + '\nPrevious shared specification/layout: ' + json.dumps(source),
+            + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance + '\nPlanned brief: ' + json.dumps(brief) + '\nPrevious shared specification/layout: ' + json.dumps(source),
             lambda raw: validate_design(raw, font, quality=config, expected_title=previous['title'], require_coherent=True, brief=brief),
             f'Exercise repair {number}', 6500, response_schema=design_schema(brief,config))
         repaired = compact_answers(repaired, number)

@@ -352,8 +352,15 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     page['html'] = bind_standard_heading(page['html'],exercise)
     # Context captions are canonical content too, not a second instruction draft.
     captions = exercise.get('captions', [])
+    table_ids = set()
+    if exercise['render_mode'] == 'authored' and config.get('table_caption_limit'):
+        from core.table_captions import prepare_table_captions
+        # operate on the retained shared specification, not its detached copy
+        page['exercise'] = exercise
+        table_ids = prepare_table_captions(page)
+        captions = exercise.get('captions', [])
     from core.content_binding import validate_caption_budget
-    validate_caption_budget(captions)
+    validate_caption_budget(captions, table_ids=table_ids)
     caption_ids = set()
     for caption in captions:
         if not isinstance(caption,dict):

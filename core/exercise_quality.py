@@ -292,6 +292,8 @@ def proofread_pack(pack: dict, ask, repair) -> None:
             'plain circles pottery or stars gourds. A cultural theme needs substantive, accurate '
             'learning context, not only a theme label on unrelated generic puzzles; avoid treating '
             'diverse communities as one culture or invented traditional practices. '
+            'Flag invented quotations, ordinances or historical documents presented as authentic primary '
+            'sources; simulated excerpts and invented case studies must explicitly say fictional. '
             'Other images are decorative/illustrative only: a task must not depend on their exact count, '
             'spelling, path, tiny detail or a specific hidden object. Open drawing/writing can use general art. '
             'Flag questions whose answer is accidentally printed in the question, unless a worked example. '

@@ -22,7 +22,7 @@ def register_book(story, filename, source):
                      grade_band=story['grade_band'], title=story['title'],
                      output_path=f'output/{filename}', generated_on=story.get('generated_on'))
         state['generated'][-1].update(filename=filename, source=source)
-        for key in ('resource_type', 'selection_mode', 'event_date', 'event_end'):
+        for key in ('resource_type', 'selection_mode', 'event_date', 'event_end', 'book_type'):
             if key in story:
                 state['generated'][-1][key] = story[key]
         from core.theme_picker import GRADE_BANDS
@@ -63,6 +63,9 @@ def receive_pdf(upload, metadata):
     for key in ('resource_type', 'selection_mode', 'event_name'):
         if key in metadata and (not isinstance(metadata[key], str) or len(metadata[key]) > 250):
             raise ValueError(f'Invalid {key}')
+    if 'book_type' in metadata:
+        from core.book_types import require_book_type
+        require_book_type(metadata['book_type'])
     for key in ('generated_on', 'event_date', 'event_end'):
         if key in metadata:
             if not isinstance(metadata[key], str):

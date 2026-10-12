@@ -496,3 +496,46 @@ The daily cron still randomly selects one event overlapping days **7–37 ahead*
 ignoring the first week, with the existing seasonal/evergreen fallback.
 Manual browsing order does not change that random selection. Added evergreen
 topics are also available to that fallback when no eligible scheduled event exists.
+
+### Choose the workbook type
+
+The web generator offers two separate formats for either grade band (3–4 or 5–6),
+and works with a link, description, event or undated reading topic:
+
+- **Reading passages + QCM** (`reading_qcm`, default): the existing five illustrated
+  reading/comprehension pairs. Its content and layout pipeline stays unchanged.
+- **Mixed exercises — Gemini design** (`varied_activities`): Gemini plans ten
+  activities and authors each page's HTML/CSS composition, palette and panels.
+  Plans must include at least five different student actions and at least half
+  contextual authored activities. Possible tasks include short-text comparison,
+  vocabulary, process sequencing, table interpretation, applied math, writing,
+  investigations and design challenges, selected for the topic and grade.
+
+Both produce 12-page A4 PDFs: a cover with the real store logo, ten student pages
+and one final answer key. Mixed mode preserves Gemini's page compositions instead
+of replacing them with the legacy canonical worksheet layout. Python still binds
+questions and answers from one shared specification, checks arithmetic and print
+bounds, renders exact diagrams when needed, and assembles the PDF with WeasyPrint.
+Cloudflare supplies illustration assets. Gemini image review remains disabled.
+The content review checks for unsolvable tasks, incorrect keys, repeated activities,
+cultural generalizations and fabricated primary sources. Invented source excerpts
+and scenarios must explicitly be labeled fictional. Human review before sale is
+still needed; automated checks cannot guarantee factual or instructional accuracy.
+
+Select **Book type**, choose your grade and input, then click **Generate workbook**.
+The library displays the selected type beside new books. Existing books remain
+accessible. No new credentials, environment variables or deployment services are
+needed. The daily cron continues to generate reading/QCM books.
+
+Both POST endpoints accept an optional `book_type` field. For example:
+
+```json
+{
+  "event": "The Solar System",
+  "grade_band": "5th-6th",
+  "book_type": "varied_activities"
+}
+```
+
+Omitting `book_type` selects `reading_qcm`; unknown values return HTTP 400 before
+generation starts.

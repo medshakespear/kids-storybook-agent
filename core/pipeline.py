@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from core.grade_policy import require_active_grade
+from core.book_types import DEFAULT_BOOK_TYPE, require_book_type
+from core.varied_generator import generate_varied_pack
 from core.providers import text_provider_names, image_provider_name
 from core.creative_generator import generate_creative_images as generate_activity_images
 from core.creative_generator import strip_creative_art as strip_local_art
@@ -41,11 +43,13 @@ def generate_book(
     grade_band: str,
     source_context: str | None = None,
     book_title: str | None = None,
+    book_type: str = DEFAULT_BOOK_TYPE,
     grade_config: dict[str, Any] | None = None,
     output_dir: str | Path = OUTPUT_DIR,
 ) -> tuple[dict[str, Any], Path]:
-    """Generate reading passages and QCM pages with one consolidated final answer page."""
+    """Generate the selected workbook type with branding and one final answer page."""
 
+    require_book_type(book_type)
     require_active_grade(grade_band)
     text_provider_names()
     image_provider_name()
@@ -53,13 +57,15 @@ def generate_book(
     config = grade_config or load_grade_config()
     started = time.monotonic()
     title_options = {'book_title':book_title} if book_title is not None else {}
-    story = generate_activity_pack(
+    generator = generate_varied_pack if book_type == 'varied_activities' else generate_activity_pack
+    story = generator(
         theme,
         grade_band,
         config,
         source_context=source_context,
         **title_options,
     )
+    story['book_type'] = book_type
     designed = time.monotonic()
     logging.getLogger(__name__).info('Design stage complete: %.1fs', designed - started)
     story['page_count'] = len(story['pages']) + 2

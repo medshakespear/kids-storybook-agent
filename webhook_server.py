@@ -24,6 +24,7 @@ from core.pipeline import generate_book, load_grade_config
 from core.state_manager import load_state
 from core.theme_picker import pick_webhook_grade_band
 from core.calendar_catalog import calendar_catalog
+from core.book_types import BOOK_TYPES, DEFAULT_BOOK_TYPE, require_book_type
 from core.reference_reader import read_reference, reference_context, ReferenceReadError
 
 
@@ -101,7 +102,9 @@ def generation_input(payload):
         band = pick_webhook_grade_band(load_state())
     if not isinstance(band,str) or band not in ACTIVE_GRADE_BANDS or band not in grade_config:
         raise ValueError('Only 3rd-4th and 5th-6th grade bands are enabled.')
-    return dict(link=link, description=description, grade_band=band, grade_config=grade_config, event=event)
+    book_type = require_book_type(payload.get('book_type', DEFAULT_BOOK_TYPE))
+    return dict(link=link, description=description, grade_band=band, grade_config=grade_config, event=event,
+                book_type=book_type)
 
 
 def run_generation(brief):
@@ -109,25 +112,29 @@ def run_generation(brief):
     context = reference_context(read_reference(brief['link'])) if brief['link'] else ''
     if brief['description']:
         context += '\nTeacher creative brief: ' + brief['description']
-    theme = 'Original reading comprehension workbook based on the supplied educational brief.'
+    book_type = brief.get('book_type', DEFAULT_BOOK_TYPE)
+    theme = ('Original mixed-exercise workbook based on the supplied educational brief.'
+             if book_type == 'varied_activities' else 'Original reading comprehension workbook based on the supplied educational brief.')
     title_options = {}
     event = brief.get('event')
     if event:
         chooser = random.SystemRandom()
         keyword = chooser.choice(event.get('title_keywords') or [event['event_name']])
-        theme = keyword + ': ' + chooser.choice(event['theme_angles'])
+        theme = (keyword + ': Original mixed exercises about '+event['event_name']
+                 if book_type == 'varied_activities' else keyword + ': ' + chooser.choice(event['theme_angles']))
         undated = event.get('category') in {'evergreen_topic', 'undated_topic'}
         context = ('Selected reading topic: ' if undated else 'Selected calendar event: ') + event['event_name'] + '\nTitle keyword: ' + keyword
         context += '\n' + event.get('keyword_topics',{}).get(keyword,'') + '\n' + event.get('note','')
         title_options['book_title'] = keyword
     story, pdf_path = generate_book(
         theme=theme, grade_band=brief['grade_band'], source_context=context,
-        grade_config=brief['grade_config'], **title_options)
+        grade_config=brief['grade_config'], book_type=book_type, **title_options)
+    story['book_type'] = book_type
     if event:
         story['event_name'] = event['event_name']
         story['selection_mode'] = 'manual_topic' if event.get('category') in {'evergreen_topic', 'undated_topic'} else 'manual_event'
     register_book(story,pdf_path.name,'On demand')
-    return dict(status='completed',title=story['title'],resource_type='activity_pack',
+    return dict(status='completed',title=story['title'],resource_type='activity_pack',book_type=book_type,
                 grade_band=brief['grade_band'],pdf_path='/output/'+pdf_path.name,
                 download_url='/output/'+pdf_path.name,
                 **{key:story.get(key) for key in ('page_count','image_review','image_validation','content_checks','generation_seconds')})
@@ -239,7 +246,8 @@ def request_too_large(_: Exception) -> tuple[object, int]:
 @app.get("/books")
 def books_page():
     """Show the public book library with download links."""
-    return render_template("books.html", books=list_books(), key_required=bool(os.environ.get("WEBHOOK_API_KEY")), **generator_catalog())
+    return render_template("books.html", books=list_books(), key_required=bool(os.environ.get("WEBHOOK_API_KEY")),
+                           book_types=BOOK_TYPES, **generator_catalog())
 
 
 @app.get("/api/books")

@@ -1065,7 +1065,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
             api.close()
     raise ActivityGenerationError('; '.join(dict.fromkeys(errors))) from None
 
-def validate_plan(raw: dict, count: int, *, require_coherent: bool = False) -> dict:
+def validate_plan(raw: dict, count: int, *, require_coherent: bool = False, require_variety: bool = False) -> dict:
     """Validate bounded art direction and distinct activity concepts without a type menu."""
     if not isinstance(raw, dict):
         raise ValueError('Plan must be an object')
@@ -1101,6 +1101,15 @@ def validate_plan(raw: dict, count: int, *, require_coherent: bool = False) -> d
             raise ValueError(f'Repeat the same exercise mechanic and learning goal at most twice for exact puzzles; '
                              f'vary the actual task on pages {repeated}. Authored drawing/craft pages may share a '
                              'mechanic when their concrete concepts and compositions differ')
+    if require_variety:
+        mechanics = [page['mechanic'] for page in plan['pages']]
+        minimum = min(5, count)
+        if len(set(mechanics)) < minimum:
+            raise ValueError(f'Mixed workbook needs at least {minimum} different student actions; vary actual exercise mechanics, not only titles')
+        if any(mechanics.count(mechanic) > max(2, (count + 3)//4) for mechanic in set(mechanics)):
+            raise ValueError('Mixed workbook repeats one action too often; redistribute activities across different skills')
+        if sum(page['render_mode'] == 'authored' for page in plan['pages']) < (count + 1)//2:
+            raise ValueError('At least half of mixed workbook activities must be authored contextual exercises, not generic exact puzzles')
     return plan
 
 
@@ -1488,7 +1497,8 @@ def density_guidance(config: dict) -> str:
             'bounds, useful visual area and required response-space checks remain mandatory.')
 
 
-def generate_creative_pack(theme: str, grade_band: str, grade_config: dict, *, source_context: str | None = None) -> dict:
+def generate_creative_pack(theme: str, grade_band: str, grade_config: dict, *, source_context: str | None = None,
+                           book_title: str | None = None, require_variety: bool = False) -> dict:
     """Plan a varied pack, then author and print-check each original page independently."""
     config = grade_config[grade_band]
     count, font = config['activity_pages'], config['student_font_pt']
@@ -1538,9 +1548,22 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
     from core.activity_presentation import activity_quality_guidance
     plan_prompt += '\n'+activity_quality_guidance(grade_band)
     plan_prompt += '\nPer-page content budget: '+density_guidance(config)
+    if require_variety:
+        plan_prompt += ('\nThis is a MIXED EXERCISE workbook: use at least five distinct student action '
+                        'mechanics, with no action on more than three pages; at least half must be '
+                        'contextual authored activities. Vary real tasks, not just mechanic names. '
+                        'Avoid generic shape puzzles and QCM-only pages. You own the page compositions. '
+                        'Use a short cover title, grade label, large art and colorful panels; no description. '
+                        'Invented source excerpts and case studies must be explicitly labeled fictional; '
+                        'never claim a made-up text is a real historical primary source.')
+    if book_title is not None:
+        book_title = _text(book_title, 'book_title', 52)
+        plan_prompt += '\nThe exact requested workbook title is: '+json.dumps(book_title)+'. Use it verbatim.'
     from core.response_schemas import plan_schema, design_schema
-    plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True),
+    plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True, require_variety=require_variety),
                     'Creative plan', 6000, response_schema=plan_schema(count))
+    if book_title is not None:
+        plan['title'] = book_title
     context = json.dumps({k: plan[k] for k in ('title', 'art_direction', 'character_description')})
     def design_unit(number):
         """Author one independent page while preserving caller-owned page numbering."""
@@ -1549,7 +1572,9 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                      + layout_contract(font, config.get('minimum_text_pt', 11), cover=True) + '\nThis is the cover: omit student tasks and answers. Include the pack title and grade. '
                      'Python places the REAL store logo in a separate 41mm header above your content. '
                      'Do not draw a logo or repeat the store name. Override the full-page height: '
-                     'YOUR cover fragment must be at most 215mm high; aim for 205mm including all spacing.',
+                     'YOUR cover fragment must be at most 215mm high; aim for 205mm including all spacing.'
+                     + (' Override subtitle guidance: print only the exact title and grade label, no overview or description. '
+                        'Use large artwork and colorful rounded panels.' if require_variety else ''),
                      lambda raw: validate_design(raw, font, cover=True, quality=config), 'Cover design',
                      response_schema=design_schema(cover=True))
         brief = plan['pages'][number - 1]

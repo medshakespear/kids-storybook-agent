@@ -354,6 +354,19 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             blocks['passage'] = html.escape(passage).replace('\n','<br/>')
     # Context captions are canonical content too, not a second instruction draft.
     captions = exercise.get('captions', [])
+    if exercise['render_mode']=='authored' and config.get('stimulus_limit'):
+        from core.activity_stimuli import prepare_stimuli
+        stimuli = prepare_stimuli(page,exercise)
+        if len(stimuli)>4:
+            raise ValueError('Use at most four short source/scenario blocks per activity; split the learning sequence across planned pages')
+        seen = set()
+        for stimulus in stimuli:
+            sid = stimulus.get('id') if isinstance(stimulus,dict) else None
+            if not isinstance(sid,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,23}',sid) or sid in seen:
+                raise ValueError('Source stimulus IDs must be distinct short lowercase identifiers')
+            seen.add(sid)
+            blocks['stimulus_'+sid] = html.escape(bounded_text(stimulus.get('text'),f'stimulus {sid}',650))
+        captions = exercise.get('captions', [])
     table_ids = set()
     if exercise['render_mode'] == 'authored' and config.get('table_caption_limit'):
         from core.table_captions import prepare_table_captions

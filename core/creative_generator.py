@@ -644,12 +644,20 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                                    'Put ALL printed wording', 'Unknown or repeated exercise content slot',
                                    'Use every required exercise content slot')))):
                             layout_repair_base = validated_draft
+                        from core.activity_stimuli import source_density_repair
+                        density_repair = source_density_repair(validated_draft,prompt,str(exc))
+                        if density_repair:
+                            layout_repair_base = None
                         content = json.dumps(validated_draft)
                     # Keep only the latest draft/correction instead of an expanding conversation.
                     messages = [messages[0], {'role':'user','content':prompt}]
                     if content:
                         messages.append({'role': 'assistant', 'content': content[:36000]})
                     repair = f'Correct only this unit and return complete JSON. Validation: {exc}'
+                    from core.activity_stimuli import source_density_repair
+                    density_repair = source_density_repair(validated_draft,prompt,str(exc)) if isinstance(validated_draft,dict) else None
+                    if density_repair:
+                        repair += '\n'+density_repair
                     if isinstance(exc, json.JSONDecodeError):
                         repair += (
                             ' Repair JSON serialization only: check missing commas, unescaped double quotes '
@@ -1483,6 +1491,19 @@ No teacher guide, teaching tips, answer page, or teacher instructions in this fr
 def density_guidance(config: dict) -> str:
     """Budget initial reading pages without truncating authored content or changing tasks."""
     floor = config.get('minimum_text_pt',config.get('student_font_pt',11))
+    if config.get('stimulus_limit'):
+        size = 90 if floor >= 12 else 78
+        words = 90 if floor >= 12 else 120
+        return (f'Mixed-page height budget: heading and directions <=30mm; meaningful main illustration '
+                f'around {size}x{size}mm (or substantial panels meeting the same visual-area target); '
+                f'combined passage and stimuli target <={words} words; one or two focused questions '
+                'with 20-25mm response space each; borders/padding/margins <=15mm. Keep total content '
+                '<=235mm. Place short sources beside artwork or in compact comparison panels where '
+                'useful, instead of stacking four long texts above a tiny picture. These are planning '
+                'targets, not permission to remove required content. Split a complex concept across '
+                'planned activities. Keep minimum fonts, complete questions and practical response space. '
+                'Use exercise.stimuli:[{id,text}] for source/scenario text <=650 characters each, '
+                'up to four; bind with data-content="stimulus_ID". Captions are short labels <=120 chars.')
     if floor>=14:
         reading = 'Use picture-led tasks, no independent reading passage, and one or two brief adult-read actions.'
     else:
@@ -1596,7 +1617,8 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                   'additional questions use distinct labels 2 or higher. Do not repeat the puzzle task.\n'
                   + density_guidance(config)+'\n'+activity_quality_guidance(grade_band)+'\n'
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
-                  + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance + f'\nThe title slot will print: {brief["title"]}.')
+                  + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance
+                  + '\nFINAL PAGE BUDGET: '+density_guidance(config) + f'\nThe title slot will print: {brief["title"]}.')
         page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title'], require_coherent=True, brief=brief), f'Activity design {number}',
                         response_schema=design_schema(brief,config))
         page = compact_answers(page, number)
@@ -1623,7 +1645,8 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
             f'Repair activity {number} for {grade_band}. Exact title: {previous["title"]}. '
             f'Correct these concrete exercise defects: {json.dumps(issues)}. '
             'Preserve the learning goal, meaningful visuals and response space. Return a complete page.\n'
-            + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance + '\nPlanned brief: ' + json.dumps(brief) + '\nPrevious shared specification/layout: ' + json.dumps(source),
+            + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance
+            + '\nFINAL PAGE BUDGET: '+density_guidance(config) + '\nPlanned brief: ' + json.dumps(brief) + '\nPrevious shared specification/layout: ' + json.dumps(source),
             lambda raw: validate_design(raw, font, quality=config, expected_title=previous['title'], require_coherent=True, brief=brief),
             f'Exercise repair {number}', 6500, response_schema=design_schema(brief,config))
         repaired = compact_answers(repaired, number)

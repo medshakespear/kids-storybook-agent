@@ -18,6 +18,7 @@ def generate_varied_pack(theme, grade_band, grade_config, *, source_context=None
     profile['purposeful_activity_layout'] = False
     profile['table_caption_limit'] = 36
     profile['context_caption_limit'] = 24
+    profile['stimulus_limit'] = 4
     context = (source_context or '') + '''
 WORKBOOK TYPE: mixed, original student exercises, not a reading/QCM collection.
 Invent meaningful tasks for this specific theme and grade. Possible inspirations include
@@ -31,6 +32,11 @@ Gemini owns each page composition, color palette, panels and hierarchy. Vary the
 while keeping one professional visual identity. Use substantial purposeful illustrations.
 All needed information, tables, measurements and labels must be written in the exercise's
 passage/caption/question fields and bound HTML slots; artwork cannot supply exact data.
+Longer source excerpts, scenario cards and comparison texts belong in exercise.stimuli,
+not captions. Use up to four {id,text} blocks, each <=650 characters, bound once with
+data-content="stimulus_ID". Captions stay short labels <=120 characters. Source blocks
+are NOT four full-length reading passages: keep combined text short enough for this
+single activity page and its substantial illustration and writing space.
 Table headers and each data cell are short captions: declare each unique id/text pair,
 then use data-content="caption_ID" in that cell. Caption IDs themselves should NOT
 start with caption_. Mixed pages allow up to 36 short table cells in addition to

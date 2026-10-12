@@ -556,3 +556,18 @@ compiler and layout-only repairs share these limits. Exact puzzles retain the
 original six-caption rule. Pure underscore writing lines are preserved as blank
 workspace; actual prompts, instructions and answers still require canonical fields.
 Student font sizes and one-page print-bound checks remain enforced.
+
+Mixed authored pages support `exercise.stimuli`: up to four short source excerpts
+or scenario blocks (`id`, `text`), each at most 650 characters, printed once in
+`data-content="stimulus_ID"` slots. Existing long caption text is migrated without
+truncation; short captions remain labels. These sources share a per-page planning
+budget of about 90 words for grades 3–4 or 120 words for grades 5–6, leaving room
+for substantial artwork and one or two focused responses. This does not impose
+new passage limits on reading/QCM books.
+
+If a mixed source-heavy page overflows and exceeds that planning word budget,
+the bounded retry requests a complete content/layout revision instead of freezing
+all long source text in a layout-only loop. It must retain facts and quantities
+needed by the questions and realign shared answers; content proofreading still
+runs before publication. Smaller source pages retain normal layout-only repair.
+Fonts, response spaces, purposeful visual area and print bounds are still checked.

@@ -6,7 +6,7 @@ import re
 from core.exercise_quality import expected_calculation,normalize_calculation,rounding_precision
 
 
-NUMBER = re.compile(r'(?<![\w.])-?(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|\.\d+)(?:/\d+)?(?![\w.])')
+NUMBER = re.compile(r'(?<![\w.])[-−]?(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|\.\d+)(?:/\d+)?(?!\w|\.\d|/\d)')
 
 
 def format_result(value: Fraction, prompt: str) -> str:
@@ -45,7 +45,7 @@ def repair_declared_result(page: dict, question_id: str) -> dict | None:
         return None
     candidates = []
     for token in tokens:
-        raw = token[0].replace(',','')
+        raw = token[0].replace(',','').replace('−','-')
         try:
             value = Fraction(raw)
         except (ValueError,ZeroDivisionError):

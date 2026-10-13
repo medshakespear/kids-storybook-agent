@@ -655,3 +655,10 @@ directions, questions, answers and images. Empty or duplicate missing-source ent
 are rejected. The same combined word budget and single-page geometry still apply.
 Blank writing lines may include literal table separators (`___________ |`), with
 no independent words, numeric answers or instructions hidden in those separators.
+
+Arithmetic answer parsing accepts ordinary sentence punctuation after whole
+numbers, decimals, fractions, mixed numbers and grouped thousands. A decimal or
+fraction cannot satisfy a check merely because its integer prefix matches the
+expected answer. An unambiguous whole printed calculation can supply its missing
+calculation metadata locally; its prose key still requires verification. Python
+does not infer formulas from word-problem fragments or invent numeric prose answers.

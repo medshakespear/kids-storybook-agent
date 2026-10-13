@@ -439,6 +439,15 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         from core.exercise_quality import numeric_display_text
         numeric_prompt = numeric_display_text(prompt)
         numeric_facts = re.findall(r'(?<![\w.])(?:\d+(?:\.\d+)?|\.\d+)(?:\s*[+−×÷*/-]\s*(?:\d+(?:\.\d+)?|\.\d+))+(?![\w.])', numeric_prompt)
+        if calculation is None:
+            from core.printed_arithmetic import standalone_arithmetic
+            from core.exercise_quality import calculate
+            expression = standalone_arithmetic(prompt)
+            if expression is not None:
+                # A complete literal question identifies its own operation.
+                # Keep prose answers unchanged for the normal key verifier.
+                calculation = {'expression':expression,'answer':str(calculate(expression))}
+                question['calculation'] = calculation
         if numeric_facts and calculation is None:
             raise ValueError(f'Question {qid}: printed arithmetic requires a calculation in the shared specification')
         if calculation is not None:
@@ -474,16 +483,17 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
                                  'Rounding is allowed only when explicitly requested in the printed question')
             # Require the prose key to contain the exact numeric answer, never an unrelated narrative.
             numeric_key = numeric_display_text(answer)
-            candidates = re.findall(r'(?<![\w.])-?(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+)?(?![\w.])', numeric_key)
+            from core.math_result_recovery import NUMBER
+            candidates = NUMBER.findall(numeric_key)
             values = []
             from core.number_word_answers import whole_number_word_answer
             written_number = whole_number_word_answer(answer)
             if written_number is not None:
                 values.append(Fraction(written_number))
             for value in candidates:
-                try: values.append(Fraction(value))
+                try: values.append(Fraction(value.replace(',','').replace('−','-')))
                 except (ValueError,ZeroDivisionError): continue
-            for whole,numerator,denominator in re.findall(r'(?<![\w.])(-?\d+)\s+(\d+)/(\d+)(?![\w.])',answer):
+            for whole,numerator,denominator in re.findall(r'(?<![\w.])(-?\d+)\s+(\d+)/(\d+)(?!\w|\.\d)',answer):
                 try:
                     part = Fraction(int(numerator),int(denominator))
                     values.append(Fraction(whole)+(-part if whole.startswith('-') else part))

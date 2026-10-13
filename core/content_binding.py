@@ -31,6 +31,14 @@ def diagram_label(value: str) -> bool:
                              value.strip(),re.I))
 
 
+def exercise_caption_limit(config: dict, render_mode: str) -> int:
+    """Use the mixed profile for both page modes while retaining legacy exact limits."""
+    limit = config.get('context_caption_limit',6) if render_mode == 'authored' or config.get('stimulus_limit') else 6
+    if type(limit) is not int or not 1 <= limit <= 24:
+        raise ValueError('Context caption limit must be between 1 and 24')
+    return limit
+
+
 def caption_budget_available(captions: list, text: str, *, context_limit: int = 6, table_ids=None) -> bool:
     """Keep six contextual captions and up to eight short diagram identifiers."""
     if not isinstance(captions, list):

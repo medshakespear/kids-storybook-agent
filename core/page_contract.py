@@ -323,7 +323,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         from core.exact_caption_recovery import remove_duplicate_instruction_captions
         page['html'] = remove_duplicate_instruction_captions(exercise,page['html'])
         from core.exact_context import normalize_exact_context
-        page['html'] = normalize_exact_context(exercise,page['html'])
+        from core.content_binding import exercise_caption_limit
+        page['html'] = normalize_exact_context(exercise,page['html'],context_limit=exercise_caption_limit(config,'exact'))
         problems = []
         if exercise.get('directions') or exercise.get('passage'):
             problems.append('Exact visual prints its own verified directions; omit parallel directions/passage to avoid task mismatches')
@@ -376,8 +377,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         page['exercise'] = exercise
         table_ids = prepare_table_captions(page)
         captions = exercise.get('captions', [])
-    from core.content_binding import validate_caption_budget
-    context_limit = config.get('context_caption_limit',6) if exercise['render_mode']=='authored' else 6
+    from core.content_binding import validate_caption_budget, exercise_caption_limit
+    context_limit = exercise_caption_limit(config,exercise['render_mode'])
     page['html'] = bind_standard_heading(page['html'],exercise, context_limit=context_limit, table_ids=table_ids)
     captions = exercise.get('captions', [])
     validate_caption_budget(captions, table_ids=table_ids, context_limit=context_limit)

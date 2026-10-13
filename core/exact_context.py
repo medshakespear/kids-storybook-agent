@@ -5,7 +5,7 @@ from core.content_binding import CanonicalTextContainers, CONTAINERS, validate_c
 from core.context_recovery import contextual_text
 
 
-def normalize_exact_context(exercise: dict, markup: str) -> str:
+def normalize_exact_context(exercise: dict, markup: str, *, context_limit: int = 6) -> str:
     """Split complete long factual captions and omit only empty unused text slots.
 
     The computed diagram owns directions. Independent instructions, media and
@@ -79,7 +79,7 @@ def normalize_exact_context(exercise: dict, markup: str) -> str:
         for old in updated:
             proposed.extend(replacements if old is caption else [old])
         try:
-            validate_caption_budget(proposed)
+            validate_caption_budget(proposed,context_limit=context_limit)
         except ValueError:
             continue
         updated = proposed

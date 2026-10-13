@@ -297,7 +297,9 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
             raise ValueError('Layout-only repair may add captions only for complete wording already printed in the retained page')
         if not caption_budget_available(captions,text, context_limit=original.get('_caption_context_limit',6),
                                         table_ids=set(original.get('_table_caption_ids',[]))):
-            raise ValueError('Exercise captions need at most six contextual labels and eight diagram identifiers')
+            limit = original.get('_caption_context_limit',6)
+            count = 'six' if limit == 6 else str(limit)
+            raise ValueError(f'Exercise captions need at most {count} contextual labels and eight diagram identifiers')
         captions.append({'id':cid,'text':text.strip()})
         by_id[cid] = captions[-1]
     if captions:
@@ -459,8 +461,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     elif answer_repair_base is not None:
                         schema = field_repair_schema(answer_repair_id,'answer',calculation=repair_calculation,answer_limit=answer_limit)
                     elif layout_repair_base is not None:
+                        caption_cap = layout_repair_base.get('_caption_context_limit',6) + 8 + len(layout_repair_base.get('_table_caption_ids',[]))
                         schema = obj({'html':text(18000), 'exercise':obj({'captions':array(
-                            obj({'id':text(24),'text':text(120)}),0,14)})},['html'])
+                            obj({'id':text(24),'text':text(120)}),0,caption_cap)})},['html'])
                     response_format = ({'type':'json_schema','json_schema':{
                         'name':'activity_response','schema':schema}} if schema is not None and provider=='gemini' and not schema_fallback_used
                         else {'type':'json_object'})
@@ -1260,7 +1263,21 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
             design, brief = prepare_activity_presentation(design, brief, quality)
             expected_title = design.get('title', expected_title)
             prepared_layout = deepcopy(design)
-        compile_exercise(design, quality or {}, expected_title or '', brief)
+        recovery_source = None
+        if (quality or {}).get('stimulus_limit'):
+            recovery_source = {key:deepcopy(design[key]) for key in ('html','images','exercise') if key in design}
+            recovery_source['_recovery_config'] = deepcopy(quality)
+            recovery_source['_recovery_title'] = expected_title
+            from core.content_binding import exercise_caption_limit
+            recovery_source['_caption_context_limit'] = exercise_caption_limit(quality,design.get('exercise',{}).get('render_mode','')) if isinstance(design.get('exercise'),dict) else 24
+        try:
+            compile_exercise(design, quality or {}, expected_title or '', brief)
+        except ValueError as exc:
+            if recovery_source is not None:
+                # Keep trusted profile metadata for content-binding repairs too.
+                # Never return partially compiled answers/graphics as the source.
+                exc.layout_source = recovery_source
+            raise
         if (quality or {}).get('stimulus_limit'):
             prepared_layout = {key:deepcopy(design[key]) for key in ('images','exercise')}
             prepared_layout['html'] = design['source_layout']
@@ -1534,6 +1551,11 @@ def generate_creative_pack(theme: str, grade_band: str, grade_config: dict, *, s
     """Plan a varied pack, then author and print-check each original page independently."""
     config = grade_config[grade_band]
     count, font = config['activity_pages'], config['student_font_pt']
+    caption_guidance = (f'\nMIXED CAPTION OVERRIDE for authored AND exact pages: up to '
+                        f'{config.get("context_caption_limit",6)} short factual context labels plus eight diagram '
+                        'identifiers; this overrides the legacy six-label rule. Use only needed labels '
+                        'and fit all content on one page. Exact graphics still own task directions and answers.\n'
+                        if config.get('stimulus_limit') else '')
     table_guidance = ('\nTABLE CAPTION OVERRIDE for this mixed authored page: allow up to 36 short '
                       f'table headers/data cells IN ADDITION to {config.get("context_caption_limit",6)} contextual labels and eight diagram '
                       'identifiers. Retain every value and cell; do not delete data to meet the prose '
@@ -1627,7 +1649,7 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                   'additional questions use distinct labels 2 or higher. Do not repeat the puzzle task.\n'
                   + density_guidance(config)+'\n'+activity_quality_guidance(grade_band)+'\n'
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
-                  + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance
+                  + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance + caption_guidance
                   + '\nFINAL PAGE BUDGET: '+density_guidance(config) + f'\nThe title slot will print: {brief["title"]}.')
         page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title'], require_coherent=True, brief=brief), f'Activity design {number}',
                         response_schema=design_schema(brief,config))
@@ -1655,7 +1677,7 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
             f'Repair activity {number} for {grade_band}. Exact title: {previous["title"]}. '
             f'Correct these concrete exercise defects: {json.dumps(issues)}. '
             'Preserve the learning goal, meaningful visuals and response space. Return a complete page.\n'
-            + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance
+            + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance + caption_guidance
             + '\nFINAL PAGE BUDGET: '+density_guidance(config) + '\nPlanned brief: ' + json.dumps(brief) + '\nPrevious shared specification/layout: ' + json.dumps(source),
             lambda raw: validate_design(raw, font, quality=config, expected_title=previous['title'], require_coherent=True, brief=brief),
             f'Exercise repair {number}', 6500, response_schema=design_schema(brief,config))

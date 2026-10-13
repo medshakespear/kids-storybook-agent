@@ -77,8 +77,9 @@ def exercise_schema(brief: dict, config: dict) -> dict:
     """Lock the planned mechanism while permitting original task content."""
     from core.prompt_recovery import prompt_character_limit
     from core.answer_limits import answer_character_limit
+    from core.content_binding import exercise_caption_limit
     exact = brief['render_mode'] == 'exact'
-    context_limit = 6 if exact else config.get('context_caption_limit',6)
+    context_limit = exercise_caption_limit(config,brief['render_mode'])
     table_limit = 36 if not exact and config.get('table_caption_limit') else 0
     properties = {'render_mode': enum([brief['render_mode']]), 'mechanic': enum([brief['mechanic']]),
                   'goal': text(240),

@@ -616,3 +616,10 @@ Gemini cooldowns retain their cause between requests: a follow-up call during a
 authentication exhaustion do not become outage retries. This avoids premature
 failure when another request has already cooled down all slots; it cannot resolve
 a continuing provider outage or restore exhausted quota.
+
+Mixed workbooks use the same configured 24-context-label allowance on authored
+pages and computed exact pages, plus up to eight diagram identifiers. The initial
+response schema, caption splitting, binding repairs and local diagram recovery
+share this allowance and the real grade profile. The legacy exact profile still
+uses six contextual labels. These are ceilings, not targets: every page must retain
+readable fonts, valid exercise content and a measured one-page fit.

@@ -624,6 +624,12 @@ only pictures and shadows. For an otherwise valid exact page, Python can resize 
 existing SVG from its true smallest label size while preserving the original layout
 and writing panels. The candidate still passes full page-fit and visual-area checks.
 
+Source-card IDs use bare names such as `placard_text`, paired with an HTML slot
+`stimulus_placard_text`. Accidental source-ID prefixes or doubled slot prefixes
+normalize together before binding and missing-source repair. Source text, question
+wording, answers and writing space stay intact. Colliding IDs, duplicate slots and
+actually missing source text still fail validation.
+
 On computed puzzle pages, empty unused directions/passage placeholders are omitted
 only when they contain no wording, graphics or sized/bordered writing panels.
 Complete factual intro captions may be split into canonical caption chunks while

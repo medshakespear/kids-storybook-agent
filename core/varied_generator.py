@@ -35,8 +35,10 @@ All needed information, tables, measurements and labels must be written in the e
 passage/caption/question fields and bound HTML slots; artwork cannot supply exact data.
 Longer source excerpts, scenario cards and comparison texts belong in exercise.stimuli,
 not captions. Use up to eight SHORT {id,text} cards, each <=650 characters, bound once with
-data-content="stimulus_ID". Captions stay short labels <=120 characters. Source blocks
-are NOT eight full-length reading passages: keep combined text short enough for this
+data-content="stimulus_ID". Captions stay short labels <=120 characters. Sources
+use bare IDs such as "placard_text", never "stimulus_placard_text"; the HTML slot
+alone adds the stimulus_ prefix, as in data-content="stimulus_placard_text".
+Source blocks are NOT eight full-length reading passages: keep combined text short enough for this
 single activity page and its substantial illustration and writing space.
 Table headers and each data cell are short captions: declare each unique id/text pair,
 then use data-content="caption_ID" in that cell. Caption IDs themselves should NOT

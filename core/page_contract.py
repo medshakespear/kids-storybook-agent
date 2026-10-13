@@ -522,7 +522,15 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         smallest = min(float(v) for v in re.findall(r'font-size="([0-9.]+)"',svg))
         printed_font = smallest * min(dimensions['width']/720,dimensions['height']/intrinsic_height) * 72/25.4
         if not defer_visual_sizing and printed_font+0.05 < config.get('minimum_text_pt',11):
-            raise ValueError('Exact visual labels would be too small: enlarge its width/height while preserving page fit')
+            minimum = config.get('minimum_text_pt',11)
+            needed_scale = minimum * 25.4 / (72 * smallest)
+            needed_width = 720 * needed_scale
+            needed_height = intrinsic_height * needed_scale
+            raise ValueError('Exact visual labels would be too small: enlarge its width/height while preserving page fit. '
+                             f'Current smallest label is {printed_font:.1f}pt; minimum is {minimum:g}pt. '
+                             f'This unchanged diagram needs at least width:{needed_width:.1f}mm and height:{needed_height:.1f}mm '
+                             'together, preserving its aspect ratio. Keep all captions, questions and response space '
+                             'within the printable page; do not return the same undersized dimensions')
     expected_assets = {a['id'] for a in page.get('images',[]) if isinstance(a,dict) and 'id' in a}
     if set(parser.assets)!=expected_assets or len(parser.assets)!=len(expected_assets):
         counts = Counter(parser.assets)

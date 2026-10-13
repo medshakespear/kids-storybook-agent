@@ -533,6 +533,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         if area:
                             layout_visual_area = int(area[1])
                         layout_defect = str(failure).startswith(('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small', 'Exact visual labels would be too small'))
+                        missing_context = re.search(r'missing (\[[^\]]*\])$',str(failure)) if str(failure).startswith('Use every required exercise content slot') else None
+                        missing_ids = re.findall(r"'([^']+)'",missing_context[1]) if missing_context else []
+                        if (missing_ids and all(slot.startswith('caption_') for slot in missing_ids)
+                                and isinstance(source,dict) and isinstance(source.get('exercise'),dict)
+                                and source['exercise'].get('render_mode')=='exact'):
+                            layout_defect = True
                         if (source is None or len(layout_rescue_candidates) >= 8
                                 or not (layout_repair_base is not None or (response_schema is not None and layout_defect))):
                             return None

@@ -623,3 +623,11 @@ response schema, caption splitting, binding repairs and local diagram recovery
 share this allowance and the real grade profile. The legacy exact profile still
 uses six contextual labels. These are ceilings, not targets: every page must retain
 readable fonts, valid exercise content and a measured one-page fit.
+
+Exact-page recovery can restore missing standalone factual caption slots when the
+complete wording already exists in the shared exercise. It cannot invent missing
+tasks or guess where diagram identifiers such as Node A belong. Restored context
+is compiled and print-checked with the unchanged puzzle, answers and response areas.
+Diagram readability feedback now includes the current smallest printed label and
+the physical dimensions required by that same diagram. Local exact recovery may
+use up to 180mm of the 186mm printable width, subject to the usual geometry checks.

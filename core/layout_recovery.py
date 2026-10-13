@@ -39,7 +39,8 @@ def single_exact_visual_recovery(page: dict, minimum_font: int, visual_area: flo
             or page['exercise'].get('render_mode')!='exact' or page.get('images') not in ([],None)
             or not 0<visual_area<=22000):
         return None
-    checked=deepcopy(page)
+    from core.missing_exact_context import recover_missing_exact_context
+    checked=recover_missing_exact_context(page)
     try:
         compile_exercise(checked,recovery_profile(page,minimum_font),
                          page.get('_recovery_title','Internal layout check'),defer_visual_sizing=True)
@@ -68,7 +69,7 @@ def single_exact_visual_recovery(page: dict, minimum_font: int, visual_area: flo
     smallest=min(float(v) for v in re.findall(r'font-size="([0-9.]+)"',svg))
     scale=max(math.sqrt(visual_area/(width*height)),minimum_font*25.4/(72*smallest))*1.02
     w,h=math.ceil(width*scale),math.ceil(height*scale)
-    if w>175 or h>185:
+    if w>180 or h>185:
         return None
     colors=re.findall(r'#[0-9a-fA-F]{6}\b',page['html'])
     accent=colors[0] if colors else '#167E80'

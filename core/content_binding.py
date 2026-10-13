@@ -26,7 +26,7 @@ def canonical_content_slot(slot: str | None, blocks: dict) -> str | None:
 
 def diagram_label(value: str) -> bool:
     """Recognize a complete short diagram identifier, never directions or answers."""
-    return bool(re.fullmatch(r'(?:node|point|station|zone|vertex|belt)\s+'
+    return bool(re.fullmatch(r'(?:node|point|station|zone|vertex|belt|claim|record)\s+'
                              r'(?:[a-z](?:[1-9]|[12][0-9]|30)?|[1-9]|[12][0-9]|30):?',
                              value.strip(),re.I))
 
@@ -48,6 +48,12 @@ def tip_heading(value: str) -> bool:
 def goal_heading(value: str) -> bool:
     """Recognize only a standalone goal label, never its following task or answer."""
     return bool(re.fullmatch(r'(?:activity\s+)?goal\s*:',value.strip(),re.I))
+
+
+def evidence_heading(value: str) -> bool:
+    """Recognize complete claim/record headings, never their content or instructions."""
+    return bool(re.fullmatch(r'(?:visitor guide claims|visitor claims|measurement records|'
+                             r'objective measurement records|objective measurements)\s*:?',value.strip(),re.I))
 
 
 def caption_budget_available(captions: list, text: str, *, context_limit: int = 6, table_ids=None) -> bool:
@@ -287,7 +293,8 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
         if not slotted and TAG_ALIASES.get(node['tag'],node['tag']) in CONTAINERS:
             pieces = [parser.plain_text(c) for c in node['children']]
             value = ' '.join(''.join(pieces).split()) if all(p is not None for p in pieces) else ''
-            if (value.casefold() in {'zone id','zone id:'} or tip_heading(value) or goal_heading(value) or diagram_label(value)
+            if (value.casefold() in {'zone id','zone id:'} or tip_heading(value) or goal_heading(value)
+                    or evidence_heading(value) or diagram_label(value)
                     or value.casefold() == activity_label):
                 candidates.append((node,value))
                 return
@@ -311,6 +318,7 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
         used = {c.get('id') for c in captions if isinstance(c,dict)}
         prefix = ('goal_label' if goal_heading(text) else
                   'tip_label' if tip_heading(text) else
+                  'evidence_label' if evidence_heading(text) else
                   'diagram_label' if diagram_label(text) else 'zone_label')
         cid = next(f'{prefix}_{i}' for i in range(1,len(used)+2) if f'{prefix}_{i}' not in used)
         captions = list(captions)+[{'id':cid,'text':text}]

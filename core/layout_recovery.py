@@ -1,5 +1,6 @@
 """Lossless recovery layouts for already valid single-illustration exercise content."""
 from copy import deepcopy
+import html
 import math
 import re
 
@@ -31,6 +32,71 @@ def supporting_slot_ids(page: dict, exercise: dict) -> list[str]:
     parser.handle_startendtag=collect
     parser.feed(page['html']);parser.close()
     return ordered+[slot for slot in available if slot not in ordered]
+
+
+def readable_exact_layout(page: dict, minimum_font: int, visual_area: float) -> dict | None:
+    """Resize one verified SVG in the retained layout using its actual smallest label.
+
+    Keep every wrapper, caption, question and writing panel. The caller still
+    measures page fit; expanding artwork in a narrow column cannot bypass it.
+    """
+    if (not isinstance(page.get('exercise'),dict)
+            or page['exercise'].get('render_mode') != 'exact' or not 0 < visual_area <= 22000):
+        return None
+    checked=deepcopy(page)
+    try:
+        compile_exercise(checked,recovery_profile(page,minimum_font),
+                         page.get('_recovery_title','Internal layout check'),defer_visual_sizing=True)
+        from core.task_visuals import page_visuals
+        visuals=page_visuals(checked)
+        if len(visuals) != 1:
+            return None
+        vid,(svg,_) = next(iter(visuals.items()))
+        width=float(re.search(r'<svg[^>]*width="([0-9.]+)"',svg)[1])
+        height=float(re.search(r'<svg[^>]*height="([0-9.]+)"',svg)[1])
+        smallest=min(float(v) for v in re.findall(r'font-size="([0-9.]+)"',svg))
+        scale=max(math.sqrt(visual_area/(width*height)),minimum_font*25.4/(72*smallest))*1.02
+        w,h=math.ceil(width*scale),math.ceil(height*scale)
+        if w > 180 or h > 230:
+            return None
+        parser=CanonicalTextContainers({});parser.feed(page['html']);parser.close()
+        targets=[]
+
+        def visit(node):
+            """Locate only the single declared graphic, leaving other dimensions untouched."""
+            if isinstance(node,str) or 'comment' in node:
+                return
+            if node['tag']=='img' and dict(node['attrs']).get('data-visual')==vid:
+                targets.append(node)
+            for child in node['children']:
+                visit(child)
+
+        for node in parser.root:
+            visit(node)
+        if parser.stack or len(targets)!=1:
+            return None
+        target=targets[0];style=dict(target['attrs']).get('style','')
+        # Remove only image size constraints; preserve its display, color and
+        # spacing. No other content or response dimension is changed.
+        style=re.sub(r'(?:^|;)\s*(?:width|height|min-width|max-width|min-height|max-height)\s*:[^;]*', '',style,flags=re.I).strip('; ')
+        style += f';width:{w}mm;height:{h}mm'
+        target['attrs']=[(k,v) for k,v in target['attrs'] if k!='style']+[('style',style)]
+
+        def literal(node):
+            """Serialize without inferring text bindings or dropping raw metadata."""
+            if isinstance(node,str):
+                return html.escape(node,quote=False)
+            if 'comment' in node:
+                return '<!--'+node['comment']+'-->'
+            attrs=' '.join(f'{k}="{html.escape(v or "",quote=True)}"' for k,v in node['attrs'])
+            start=f'<{node["tag"]} {attrs}>'
+            return start if node['tag'] in {'img','br'} else start+''.join(literal(c) for c in node['children'])+f'</{node["tag"]}>'
+
+        result=deepcopy(page)
+        result['html']=''.join(literal(node) for node in parser.root)
+        return result
+    except (ValueError,TypeError,KeyError,IndexError,ZeroDivisionError):
+        return None
 
 
 def single_exact_visual_recovery(page: dict, minimum_font: int, visual_area: float) -> dict | None:
@@ -309,6 +375,9 @@ def reading_panel_recovery(page: dict, minimum_font: int, visual_area: float) ->
 
 def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float):
     """Try bounded lossless compositions with sufficient art before another model rewrite."""
+    resized=readable_exact_layout(page,minimum_font,visual_area)
+    if resized is not None:
+        yield resized
     if page.get('_recovery_config',{}).get('stimulus_limit'):
         mixed_reading=reading_panel_recovery(page,minimum_font,visual_area)
         if mixed_reading is not None:

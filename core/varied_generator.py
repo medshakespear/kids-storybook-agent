@@ -46,6 +46,12 @@ Never fabricate a primary source, quotation, ordinance, historical achievement o
 practice. Label invented case studies and simulated source excerpts clearly as fictional.
 Use named, accurate cultural contexts rather than mixing traditions across Indigenous nations.
 Provide exact answers for closed tasks and concise concrete success criteria for open tasks.
+Semantic matching of claims to measurements, definitions or evidence is an AUTHORED text
+activity: declare the complete source cards and question/key. Exact matching is only for
+identical pictures or shadows. Do not put a picture puzzle beneath unrelated text-matching
+instructions. Bind all headings, labels and directions in the initial response, not only the
+first instruction. Use a full-width, aspect-preserving computed diagram with readable labels
+on exact pages; budget its height together with captions and all response areas.
 No teacher guide. No answers on student pages. One consolidated final answer key.
 '''
     pack = generate_creative_pack(theme, grade_band, config, source_context=context,

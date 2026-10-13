@@ -617,6 +617,13 @@ exercise field. Arithmetic word problems require a calculation for the complete
 asked result; focused calculation/answer repairs retain the original prompt,
 other tasks, artwork and response space.
 
+Claim/record identifiers and short visitor-claim/measurement headings bind locally
+without swallowing their content. Semantic text matching belongs in authored
+activities with explicit source cards and an answer key; computed matching supports
+only pictures and shadows. For an otherwise valid exact page, Python can resize the
+existing SVG from its true smallest label size while preserving the original layout
+and writing panels. The candidate still passes full page-fit and visual-area checks.
+
 On computed puzzle pages, empty unused directions/passage placeholders are omitted
 only when they contain no wording, graphics or sized/bordered writing panels.
 Complete factual intro captions may be split into canonical caption chunks while

@@ -589,6 +589,10 @@ THIS task rather than replacing it with another mechanism.
   Counting graphics ask students to count and WRITE each row's total; do not add connecting/matching
   directions to a count graphic. Matching, sort, patterns and other tools likewise print their own action.
   No independent instruction paragraphs before or after the exact graphic.
+  Exact matching supports only identical PICTURES or picture SHADOWS. It cannot match textual
+  claims to records, vocabulary to definitions, people to quotations or questions to answers.
+  Use authored mode for those tasks, with all source cards in stimuli and a verified prose key;
+  Python typesets the source text. Do not disguise semantic text matching as a picture puzzle.
 - authored: Gemini invents the complete original creative task: craft, coloring, role-play planning,
   reading, writing, mathematical reasoning or another age-appropriate mechanism; not a fixed menu.
   directions is the single concise task instruction, passage optional. Questions are required.

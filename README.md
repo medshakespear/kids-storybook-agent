@@ -639,3 +639,9 @@ Filled values and appended tasks are not accepted as blank metadata. On an exact
 page, an empty styled directions/passage box retains its geometry after detaching
 the unused text binding; a nonempty mislabeled slot can rebind only to one exact
 declared caption copy. Other instructions still need a coherent content repair.
+
+Short standalone tip headings, including “Tip for Investigators:” and “Tip for
+Young Readers:”, bind locally as contextual captions. Only the complete heading
+is eligible: wording after the colon must still belong to a canonical exercise
+field. Existing caption ceilings, tasks, answers, artwork and print checks remain
+in effect, avoiding a model repair just to register a harmless heading.

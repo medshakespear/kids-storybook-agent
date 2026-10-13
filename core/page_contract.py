@@ -142,7 +142,7 @@ class BoundLayout(HTMLParser):
             if self.inferred_slot:
                 raise ValueError('Use a complete data-content slot; additional independent layout text cannot be discarded')
             return
-        if re.fullmatch(r'[_\s]{3,}', data) and data.count('_') >= 3:
+        if re.fullmatch(r'[_\s|]{3,}', data) and data.count('_') >= 3:
             self.parts.append(html.escape(data))
             return  # Blank writing lines are workspace, not independent task wording.
         if re.fullmatch(r'(?:\[[_\s]*\]\s*)+',data.strip()):
@@ -361,10 +361,11 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     # Context captions are canonical content too, not a second instruction draft.
     captions = exercise.get('captions', [])
     if exercise['render_mode']=='authored' and config.get('stimulus_limit'):
-        from core.activity_stimuli import prepare_stimuli
+        from core.activity_stimuli import prepare_stimuli, stimulus_capacity
         stimuli = prepare_stimuli(page,exercise)
-        if len(stimuli)>4:
-            raise ValueError('Use at most four short source/scenario blocks per activity; split the learning sequence across planned pages')
+        limit = stimulus_capacity(config)
+        if len(stimuli)>limit:
+            raise ValueError(f'Use at most {limit} short source/scenario blocks per activity; keep the combined text within the single-page budget')
         seen = set()
         for stimulus in stimuli:
             sid = stimulus.get('id') if isinstance(stimulus,dict) else None

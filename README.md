@@ -557,7 +557,7 @@ original six-caption rule. Pure underscore writing lines are preserved as blank
 workspace; actual prompts, instructions and answers still require canonical fields.
 Student font sizes and one-page print-bound checks remain enforced.
 
-Mixed authored pages support `exercise.stimuli`: up to four short source excerpts
+Mixed authored pages support `exercise.stimuli`: up to eight short source excerpts
 or scenario blocks (`id`, `text`), each at most 650 characters, printed once in
 `data-content="stimulus_ID"` slots. Existing long caption text is migrated without
 truncation; short captions remain labels. These sources share a per-page planning
@@ -645,3 +645,13 @@ Young Readers:”, bind locally as contextual captions. Only the complete headin
 is eligible: wording after the colon must still belong to a canonical exercise
 field. Existing caption ceilings, tasks, answers, artwork and print checks remain
 in effect, avoiding a model repair just to register a harmless heading.
+
+Source-card capacity is shared by the response schema and Python validation:
+production mixed pages allow eight short cards, while an explicitly configured
+four-card profile retains four. A referenced source missing from the manifest
+requires a complete source-manifest repair rather than an HTML-only correction.
+The repair supplies missing text while Python retains all existing sources,
+directions, questions, answers and images. Empty or duplicate missing-source entries
+are rejected. The same combined word budget and single-page geometry still apply.
+Blank writing lines may include literal table separators (`___________ |`), with
+no independent words, numeric answers or instructions hidden in those separators.

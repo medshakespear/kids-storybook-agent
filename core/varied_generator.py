@@ -18,7 +18,7 @@ def generate_varied_pack(theme, grade_band, grade_config, *, source_context=None
     profile['purposeful_activity_layout'] = False
     profile['table_caption_limit'] = 36
     profile['context_caption_limit'] = 24
-    profile['stimulus_limit'] = 4
+    profile['stimulus_limit'] = 8
     profile['items_per_page'] = 2
     context = (source_context or '') + '''
 WORKBOOK TYPE: mixed, original student exercises, not a reading/QCM collection.
@@ -34,9 +34,9 @@ while keeping one professional visual identity. Use substantial purposeful illus
 All needed information, tables, measurements and labels must be written in the exercise's
 passage/caption/question fields and bound HTML slots; artwork cannot supply exact data.
 Longer source excerpts, scenario cards and comparison texts belong in exercise.stimuli,
-not captions. Use up to four {id,text} blocks, each <=650 characters, bound once with
+not captions. Use up to eight SHORT {id,text} cards, each <=650 characters, bound once with
 data-content="stimulus_ID". Captions stay short labels <=120 characters. Source blocks
-are NOT four full-length reading passages: keep combined text short enough for this
+are NOT eight full-length reading passages: keep combined text short enough for this
 single activity page and its substantial illustration and writing space.
 Table headers and each data cell are short captions: declare each unique id/text pair,
 then use data-content="caption_ID" in that cell. Caption IDs themselves should NOT

@@ -393,6 +393,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     manifest_repair_base = None
     exercise_repair_base = None
     exact_repair_base = None
+    source_repair_base = None
     caption_repair_base, caption_repair_id = None, None
     prompt_repair_base, prompt_repair_id = None, None
     plan_mode_base, plan_mode_number = None, None
@@ -513,6 +514,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         scoped_merge = True
                     elif answer_repair_base is not None:
                         draft = merge_answer_repair(answer_repair_base,draft,answer_repair_id,calculation=repair_calculation)
+                        scoped_merge = True
+                    elif source_repair_base is not None:
+                        from core.activity_stimuli import merge_missing_sources
+                        draft = merge_missing_sources(source_repair_base,draft)
                         scoped_merge = True
                     elif layout_repair_base is not None:
                         draft = merge_layout_repair(layout_repair_base,draft)
@@ -645,7 +650,11 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         range_repair_base, range_repair_id = (validated_draft,range_match[1]) if range_match else (None,None)
                         caption_repair_base, caption_repair_id = (validated_draft,caption_match[1]) if caption_match else (None,None)
                         exact_repair_base = validated_draft if not caption_match and exact_wording_requires_content_repair(validated_draft,str(exc)) else None
-                        if answer_match or math_match or prompt_match or caption_match or range_match or exact_repair_base is not None:
+                        missing_source = (str(exc).startswith('Unknown or repeated exercise content slot: stimulus_')
+                                          and '; unknown;' in str(exc)
+                                          and validated_draft['exercise'].get('render_mode')=='authored')
+                        source_repair_base = validated_draft if missing_source else None
+                        if answer_match or math_match or prompt_match or caption_match or range_match or exact_repair_base is not None or missing_source:
                             layout_repair_base = None
                         elif (isinstance(validated_draft,dict) and isinstance(validated_draft.get('html'),str)
                               and isinstance(validated_draft.get('exercise'),dict)
@@ -665,6 +674,15 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     if content:
                         messages.append({'role': 'assistant', 'content': content[:36000]})
                     repair = f'Correct only this unit and return complete JSON. Validation: {exc}'
+                    if source_repair_base is not None:
+                        repair += (' This is a SOURCE MANIFEST repair, not an HTML-only repair. Return complete '
+                                   'html, images and exercise including exercise.stimuli. Supply a nonempty id/text '
+                                   'entry for EVERY referenced stimulus_ID absent from the retained manifest. Keep '
+                                   'all existing source text, directions, questions, answers, images and response space '
+                                   'unchanged. Python retains those fields. Do not delete missing source slots or '
+                                   'invent historical quotations or evidence. Use retained passage information or '
+                                   'clearly fictional original scenario cards consistent with the existing task and '
+                                   'answer conditions. Keep the combined source-word budget and one-page fit.')
                     from core.activity_stimuli import source_density_repair
                     density_repair = source_density_repair(validated_draft,prompt,str(exc)) if isinstance(validated_draft,dict) else None
                     if density_repair:

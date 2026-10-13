@@ -2,6 +2,47 @@
 import re
 
 
+def stimulus_capacity(config: dict) -> int:
+    """Return the explicitly configured short-source capacity with a bounded legacy default."""
+    limit = config.get('stimulus_limit',4)
+    if type(limit) is not int or not 1 <= limit <= 8:
+        raise ValueError('Source stimulus limit must be between 1 and 8')
+    return limit
+
+
+def merge_missing_sources(original: dict, correction: dict) -> dict:
+    """Adopt missing authored sources and their layout without rewriting retained task data."""
+    from copy import deepcopy
+    from html.parser import HTMLParser
+    exercise = original['exercise']
+    old = exercise.get('stimuli',[])
+    new = correction.get('exercise',{}).get('stimuli') if isinstance(correction,dict) and isinstance(correction.get('exercise'),dict) else None
+    if not isinstance(old,list) or not isinstance(new,list) or not isinstance(correction.get('html'),str):
+        raise ValueError('Missing-source repair must return complete HTML and exercise.stimuli as a list')
+    retained = {s.get('id') for s in old if isinstance(s,dict)}
+    references = set()
+    parser = HTMLParser(convert_charrefs=True)
+    def collect(tag,attrs):
+        """Collect only explicit source references from the retained activity."""
+        slot = dict(attrs).get('data-content','') or ''
+        if slot.startswith('stimulus_'):
+            references.add(slot[len('stimulus_'):])
+    parser.handle_starttag = collect
+    parser.handle_startendtag = collect
+    parser.feed(original['html']); parser.close()
+    missing = references - retained
+    additions=[]
+    for sid in sorted(missing):
+        matches=[s for s in new if isinstance(s,dict) and s.get('id')==sid]
+        if len(matches)!=1 or not isinstance(matches[0].get('text'),str) or not matches[0]['text'].strip():
+            raise ValueError(f'Missing-source repair needs one nonempty source for {sid}; never delete its slot')
+        additions.append(deepcopy(matches[0]))
+    result = deepcopy(original)
+    result['html'] = correction['html']
+    result['exercise']['stimuli'] = deepcopy(old) + additions
+    return result
+
+
 def prepare_stimuli(page: dict, exercise: dict) -> list[dict]:
     """Move complete overlong caption text into source blocks without truncating it.
 

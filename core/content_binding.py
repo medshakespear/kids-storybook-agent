@@ -157,6 +157,18 @@ class CanonicalTextContainers(HTMLParser):
         block = canonical_content_slot(dict(attrs).get('data-content'), self.text_blocks)
         attrs = [(key, block if key == 'data-content' else value) for key, value in attrs]
         duplicate_caption = False
+        if (not inside_slot and block is None and TAG_ALIASES.get(tag,tag) in CONTAINERS
+                and {'name','date'}.issubset(self.text_blocks)):
+            pieces = [self.plain_text(child) for child in node['children']]
+            value = ' '.join(''.join(pieces).split()).casefold() if all(p is not None for p in pieces) else ''
+            combined = re.fullmatch(r'(name|date)\s*:\s*[_\s]{3,}\s+(name|date)\s*:\s*[_\s]{3,}',value)
+            if combined and combined[1] != combined[2]:
+                # Only blank identification fields are metadata. Keep the outer
+                # styling; bind both fields independently so normal deduplication
+                # and canonical filling apply without swallowing student work.
+                children = [{'tag':'span','attrs':[('data-content',combined[1])],'children':[]},' ',
+                            {'tag':'span','attrs':[('data-content',combined[2]),('style','margin-left:4mm')],'children':[]}]
+                node = dict(node,children=children)
         if not inside_slot and isinstance(block,str) and block.startswith('caption_') and block in self.text_blocks:
             if block in self.seen_captions:
                 pieces = [self.plain_text(child) for child in node['children']]

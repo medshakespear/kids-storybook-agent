@@ -34,8 +34,20 @@ def normalize_exact_context(exercise: dict, markup: str, *, context_limit: int =
             # Only an actually empty placeholder without a sized work area.
             style = dict(node['attrs']).get('style', '')
             sized = re.search(r'(?:^|;)\s*(?:height|min-height|max-height|border(?:-[a-z]+)?)\s*:', style, re.I)
-            if not sized and all(isinstance(c, str) and not c.strip() for c in node['children']):
-                omitted.add(id(node))
+            if all(isinstance(c, str) and not c.strip() for c in node['children']):
+                if sized:
+                    # An empty box can still be student workspace. Detach the
+                    # nonexistent text binding while retaining its full geometry.
+                    node['attrs'] = [(k,v) for k,v in node['attrs'] if k != 'data-content']
+                else:
+                    omitted.add(id(node))
+            elif not sized:
+                pieces = [parser.plain_text(c) for c in node['children']]
+                text = ' '.join(''.join(pieces).split()).casefold() if all(p is not None for p in pieces) else ''
+                matches = [c['id'] for c in captions if isinstance(c,dict) and isinstance(c.get('id'),str)
+                           and isinstance(c.get('text'),str) and text and text == ' '.join(c['text'].split()).casefold()]
+                if len(matches) == 1:
+                    node['attrs'] = [(k,'caption_'+matches[0] if k == 'data-content' else v) for k,v in node['attrs']]
         for child in node['children']:
             visit(child)
 

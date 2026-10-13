@@ -145,6 +145,9 @@ class BoundLayout(HTMLParser):
         if re.fullmatch(r'[_\s]{3,}', data) and data.count('_') >= 3:
             self.parts.append(html.escape(data))
             return  # Blank writing lines are workspace, not independent task wording.
+        if re.fullmatch(r'(?:\[[_\s]*\]\s*)+',data.strip()):
+            self.parts.append(html.escape(data))
+            return  # Empty selection/writing boxes carry no independent wording or answer.
         normalized = ' '.join(data.split()).casefold()
         matches = [key for key,value in self.text_blocks.items() if normalized==value]
         if not matches:

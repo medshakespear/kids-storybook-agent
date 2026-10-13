@@ -631,3 +631,11 @@ is compiled and print-checked with the unchanged puzzle, answers and response ar
 Diagram readability feedback now includes the current smallest printed label and
 the physical dimensions required by that same diagram. Local exact recovery may
 use up to 180mm of the 186mm printable width, subject to the usual geometry checks.
+
+Blank bracket controls such as `[   ]` are treated as student workspace, not
+independent exercise wording. Combined blank Name/Date lines are split into
+canonical metadata fields with spacing and duplicate blank fields removed.
+Filled values and appended tasks are not accepted as blank metadata. On an exact
+page, an empty styled directions/passage box retains its geometry after detaching
+the unused text binding; a nonempty mislabeled slot can rebind only to one exact
+declared caption copy. Other instructions still need a coherent content repair.

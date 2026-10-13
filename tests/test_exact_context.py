@@ -33,8 +33,8 @@ class ExactContextTests(unittest.TestCase):
             self.assertIn('height:25mm',page['html'])
             self.assertNotIn('data-content="directions"',page['source_layout'])
 
-    def test_empty_slot_with_art_or_workspace_still_requires_repair(self):
-        """An absent direction field never licenses deleting artwork or a writing area."""
+    def test_empty_slot_with_art_or_workspace_never_loses_content(self):
+        """Absent direction fields preserve artwork and detach only empty workspace bindings."""
         exercise={'render_mode':'exact'}
         for markup in ('<p data-content="directions">Explain your choice.</p>',
                        '<div data-content="directions" style="height:25mm"></div>',
@@ -42,7 +42,10 @@ class ExactContextTests(unittest.TestCase):
                        '<img data-content="directions" data-asset="scene"/>',
                        '<p data-content="directions" style="border:1mm solid #000000"></p>'):
             with self.subTest(markup=markup):
-                self.assertEqual(normalize_exact_context(deepcopy(exercise),markup),markup.replace('/>', '>'))
+                expected=markup.replace('/>', '>')
+                if 'style=' in markup and ('></div>' in markup or '></p>' in markup):
+                    expected=expected.replace(' data-content="directions"','')
+                self.assertEqual(normalize_exact_context(deepcopy(exercise),markup),expected)
 
     def test_long_instruction_or_missing_caption_is_not_invented(self):
         """Only explicit complete factual context is eligible for lossless splitting."""

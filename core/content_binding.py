@@ -45,6 +45,11 @@ def tip_heading(value: str) -> bool:
         r'(?:challenge\s+tip|tip(?:\s+for\s+[a-z]+(?:[ -][a-z]+){0,2})?)\s*:',value.strip(),re.I))
 
 
+def goal_heading(value: str) -> bool:
+    """Recognize only a standalone goal label, never its following task or answer."""
+    return bool(re.fullmatch(r'(?:activity\s+)?goal\s*:',value.strip(),re.I))
+
+
 def caption_budget_available(captions: list, text: str, *, context_limit: int = 6, table_ids=None) -> bool:
     """Keep six contextual captions and up to eight short diagram identifiers."""
     if not isinstance(captions, list):
@@ -282,7 +287,7 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
         if not slotted and TAG_ALIASES.get(node['tag'],node['tag']) in CONTAINERS:
             pieces = [parser.plain_text(c) for c in node['children']]
             value = ' '.join(''.join(pieces).split()) if all(p is not None for p in pieces) else ''
-            if (value.casefold() in {'zone id','zone id:'} or tip_heading(value) or diagram_label(value)
+            if (value.casefold() in {'zone id','zone id:'} or tip_heading(value) or goal_heading(value) or diagram_label(value)
                     or value.casefold() == activity_label):
                 candidates.append((node,value))
                 return
@@ -304,7 +309,8 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
         if not caption_budget_available(captions,text, context_limit=context_limit, table_ids=table_ids):
             continue
         used = {c.get('id') for c in captions if isinstance(c,dict)}
-        prefix = ('tip_label' if tip_heading(text) else
+        prefix = ('goal_label' if goal_heading(text) else
+                  'tip_label' if tip_heading(text) else
                   'diagram_label' if diagram_label(text) else 'zone_label')
         cid = next(f'{prefix}_{i}' for i in range(1,len(used)+2) if f'{prefix}_{i}' not in used)
         captions = list(captions)+[{'id':cid,'text':text}]

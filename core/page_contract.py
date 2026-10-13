@@ -597,6 +597,10 @@ space_mm:50, calculation?:{expression:"20-8",answer:12}}. IDs are distinct print
 answer is a correct solution or a concrete success criterion for an open activity. Any arithmetic
 question includes calculation.expression as a numeric computation such as "20-8", "12.50+7.25"
 or "200*15/100". No variables, equals signs, function calls, units, powers or wording in expression.
+Include this metadata for arithmetic inside word problems too: if each of 3 boxes holds 12+8
+pencils and the question asks for all pencils, use "3*(12+8)" with answer 60, not just "12+8".
+Derive the complete operation from the retained question and its source facts; never attach a
+different question's calculation or add arithmetic to a purely qualitative explanation.
 For a missing-number equation x+8=20 printed in the prompt, expression is "20-8", not "x+8=20".
 Never use a variable name or verbal formula such as "total_cost" as expression. calculation.answer
 must match the exact computation unless the question explicitly asks for rounding (e.g. nearest

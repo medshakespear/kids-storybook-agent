@@ -611,6 +611,12 @@ attributes and pass normal asset, content and print checks. Partial or ambiguous
 copies and question prefixes are not recovered this way; question response areas
 remain owned by the shared question specification.
 
+Standalone “Activity Goal:” and “Goal:” labels bind locally as contextual headings
+within the existing caption budget. Their following wording still needs a declared
+exercise field. Arithmetic word problems require a calculation for the complete
+asked result; focused calculation/answer repairs retain the original prompt,
+other tasks, artwork and response space.
+
 On computed puzzle pages, empty unused directions/passage placeholders are omitted
 only when they contain no wording, graphics or sized/bordered writing panels.
 Complete factual intro captions may be split into canonical caption chunks while

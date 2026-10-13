@@ -597,3 +597,9 @@ beside source text, avoiding a shallow panoramic placeholder for square artwork.
 It uses the same source/caption allowances and grade limits as initial validation.
 Every candidate is actually rendered and must satisfy both the visual-area floor
 and one-page fit before it can be accepted.
+
+Complete canonical instructions inside colored, bordered or padded text wrappers
+are bound locally instead of requesting another Gemini layout. This normalization
+requires the entire container to match the shared exercise wording. Additional
+instructions, graphics, dimensioned panels and blank writing boxes remain protected
+and cannot be discarded as formatting.

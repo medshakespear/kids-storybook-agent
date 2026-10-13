@@ -11,6 +11,10 @@ CONTAINERS = {'h1','h2','h3','h4','h5','h6','p','div','section','span','td','th'
 INLINE = {'span','strong','b','em','br'}
 TEXT_STYLES = {'color','background-color','font-size','font-weight','font-style','font-family',
                'text-decoration','text-align','line-height','white-space'}
+TEXT_DECORATIONS = {'padding','padding-top','padding-right','padding-bottom','padding-left',
+                    'margin','margin-top','margin-right','margin-bottom','margin-left',
+                    'border','border-top','border-right','border-bottom','border-left',
+                    'border-color','border-width','border-style','border-radius'}
 
 
 def canonical_content_slot(slot: str | None, blocks: dict) -> str | None:
@@ -113,16 +117,24 @@ class CanonicalTextContainers(HTMLParser):
         text_block = tag in {'p','div','section'}
         if 'comment' in node or (tag not in INLINE and not text_block):
             return None
+        decorated = False
         for key,value in node['attrs']:
             if key!='style': return None
             declarations = (value or '').split(';')
-            if any(d.strip() and d.split(':',1)[0].strip().lower() not in TEXT_STYLES for d in declarations):
+            properties = {d.split(':',1)[0].strip().lower() for d in declarations if d.strip()}
+            if properties - TEXT_STYLES - TEXT_DECORATIONS:
                 return None
+            decorated = bool(properties & TEXT_DECORATIONS)
         if tag=='br': return ' '
         pieces = [self.plain_text(child) for child in node['children']]
         if any(p is None for p in pieces):
             return None
         value = ''.join(pieces)
+        # A colored/padded label may be harmless formatting around an exact
+        # canonical copy. An empty bordered panel or underline is work space,
+        # so it must never disappear during whole-container replacement.
+        if decorated and (not value.strip() or re.fullmatch(r'[_\s]+',value)):
+            return None
         if text_block:
             # Empty block containers can be independent working space. Keep
             # them out of text-only canonical replacement even without a size.

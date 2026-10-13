@@ -110,6 +110,27 @@ class MixedLayoutRescueTests(unittest.TestCase):
                   'stimuli':[{'id':'one','text':'First excerpt.'},{'id':'two','text':'Second excerpt.'}]}
         self.assertEqual(supporting_slot_ids(page,exercise),['caption_b','stimulus_two','caption_a','stimulus_one'])
 
+    def test_decorated_binding_uses_one_completion_for_both_active_grades(self):
+        """Normalize complete styled instructions before measured mixed-page recovery."""
+        for band in ('3rd-4th','5th-6th'):
+            config=self.config(band);raw=source_page()
+            raw['html']=raw['html'].replace('<p data-content="directions"></p>',
+                '<p>Read the fictional case. <span style="padding:1mm;border-radius:2mm;background-color:#FFF7DE">Explain one useful planning choice.</span></p>')
+            original=deepcopy(raw['exercise'])
+            api=Mock();api.chat.completions.create.return_value=SimpleNamespace(choices=[SimpleNamespace(
+                message=SimpleNamespace(content=json.dumps(raw)),finish_reason='stop')])
+            brief={'render_mode':'authored','mechanic':'compare_choices'}
+            prompt=layout_contract(config['student_font_pt'],config['minimum_text_pt'],coherent=True)+'\n'+density_guidance(config)
+            with patch('core.creative_generator.text_provider_names',return_value=['gemini']), \
+                 patch('core.creative_generator.text_client',return_value=(api,'fixture-model')):
+                result=ask_json(prompt,lambda candidate:validate_design(candidate,config['student_font_pt'],quality=config,
+                    expected_title='Community Planning',require_coherent=True,brief=brief),'Activity design 1',
+                    response_schema=design_schema(brief,config))
+            self.assertEqual(api.chat.completions.create.call_count,1)
+            self.assertEqual(result['exercise']['directions'],original['directions'])
+            self.assertEqual(result['exercise']['questions'],original['questions'])
+            self.assertEqual(result['exercise']['stimuli'],original['stimuli'])
+
     def test_data_tables_are_not_flattened_into_unrelated_labels(self):
         """Row/column associations must survive; canonical stack recovery declines real tables."""
         from tests.test_table_captions import table_page

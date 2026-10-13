@@ -50,6 +50,40 @@ class FormattedBindingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'inferred content slot'):
             self.validate(page)
 
+    def test_decorated_canonical_wrappers_bind_for_both_active_grades(self):
+        """Exact wording in colored label boxes needs no model repair or content change."""
+        for band in ('3rd-4th','5th-6th'):
+            for body in (
+                'Help a plant grow. <span style="padding:1mm;border-radius:2mm;background-color:#FFF7DE">Invent a shelter that lets sunlight reach it.</span>',
+                '<div style="margin:1mm;border:0.2mm solid #167E80">Help a plant grow. Invent a shelter that lets sunlight reach it.</div>',
+                'Help a plant grow. Invent a shelter that lets sunlight reach it.<span style="padding:1mm"> </span>',
+            ):
+                with self.subTest(band=band,body=body):
+                    page=authored_page();original=deepcopy(page['exercise'])
+                    page['html']=page['html'].replace('<p data-content="directions"></p>','<p>'+body+'</p>')
+                    if 'padding:1mm"> </span>' in body:
+                        # Even blank decorative boxes are retained for repair;
+                        # the compiler cannot know they are not writing space.
+                        with self.assertRaises(ValueError):
+                            validate_design(page,12,quality=load_grade_config()[band],expected_title='Safe Design',require_coherent=True)
+                        continue
+                    result=validate_design(page,12,quality=load_grade_config()[band],expected_title='Safe Design',require_coherent=True)
+                    self.assertEqual(result['exercise'],original)
+                    self.assertEqual(result['html'].count(original['directions']),1)
+                    self.assertEqual(result['html'].count('height:45mm'),1)
+                    self.assertEqual(result['images'],page['images'])
+
+    def test_decorated_extra_task_and_blank_workspace_are_never_swallowed(self):
+        """Relaxed formatting cannot hide extra actions or remove a response panel."""
+        for trailing in ('<span style="padding:1mm">Now count the stars.</span>',
+                         '<span style="border-bottom:0.4mm solid #167E80">_____</span>',
+                         '<span style="padding:1mm;position:absolute">Invent a shelter that lets sunlight reach it.</span>'):
+            with self.subTest(trailing=trailing),self.assertRaises(ValueError):
+                page=authored_page()
+                page['html']=page['html'].replace('<p data-content="directions"></p>',
+                    '<p>'+page['exercise']['directions']+trailing+'</p>')
+                self.validate(page)
+
     def test_nested_art_and_manual_work_area_are_not_discarded(self):
         """The prepass will not swallow an image or a dimensioned response panel as text styling."""
         for trailing in ['<img data-asset="scene" style="width:175mm;height:75mm"/>',

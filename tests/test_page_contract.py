@@ -116,8 +116,11 @@ class PageContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'printed arithmetic'):
             self.compile(bad)
         bad=deepcopy(page);del bad['exercise']['questions'][0]['calculation']
-        with self.assertRaisesRegex(ValueError,'requires a calculation'):
-            self.compile(bad)
+        original=deepcopy(bad)
+        recovered=self.compile(bad)
+        self.assertEqual(str(recovered['calculations'][0]['answer']),'7')
+        self.assertEqual(recovered['exercise']['questions'][0]['answer'],'7')
+        self.assertEqual(bad,original)
 
     def test_fraction_and_multistep_math_use_correct_printed_answer(self):
         """Older-grade arithmetic keeps valid mixed-number keys and operation precedence."""

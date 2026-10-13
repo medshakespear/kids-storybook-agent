@@ -162,6 +162,8 @@ class CanonicalTextContainers(HTMLParser):
         tag,attrs = node['tag'],list(node['attrs'])
         block = canonical_content_slot(dict(attrs).get('data-content'), self.text_blocks)
         attrs = [(key, block if key == 'data-content' else value) for key, value in attrs]
+        if not inside_slot and block is None and TAG_ALIASES.get(tag,tag) in CONTAINERS:
+            node = self.separate_canonical_prefix(node)
         duplicate_caption = False
         if (not inside_slot and block is None and TAG_ALIASES.get(tag,tag) in CONTAINERS
                 and {'name','date'}.issubset(self.text_blocks)):
@@ -226,6 +228,27 @@ class CanonicalTextContainers(HTMLParser):
             return start+f'</{tag}>'
         return start+''.join(self.render(child,inside_slot=inside_slot or any(k=='data-content' for k,_ in attrs))
                              for child in node['children'])+f'</{tag}>'
+
+    def separate_canonical_prefix(self, node) -> dict:
+        """Bind an exact leading text run without consuming following art or work space.
+
+        The remainder stays in the original wrapper and goes through normal
+        content, asset and geometry validation. Questions are excluded because
+        canonical questions already own their response areas.
+        """
+        pieces = []
+        for index, child in enumerate(node['children']):
+            piece = self.plain_text(child)
+            if piece is None:
+                value = ' '.join(''.join(pieces).split()).casefold()
+                matches = [key for key,text in self.text_blocks.items()
+                           if value and value == text and not key.startswith('question_')]
+                if len(matches) == 1:
+                    slot = {'tag':'span','attrs':[('data-content',matches[0])],'children':[]}
+                    return dict(node,children=[slot]+node['children'][index:])
+                break
+            pieces.append(piece)
+        return node
 
 
 def bind_formatted_canonical_text(layout: str, blocks: dict[str,str]) -> str:

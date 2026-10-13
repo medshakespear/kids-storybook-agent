@@ -604,6 +604,13 @@ requires the entire container to match the shared exercise wording. Additional
 instructions, graphics, dimensioned panels and blank writing boxes remain protected
 and cannot be discarded as formatting.
 
+When complete canonical wording is immediately followed by an image, an explicit
+content slot or a blank writing panel in the same wrapper, only that leading text
+is bound into a separate slot. The following elements retain their original
+attributes and pass normal asset, content and print checks. Partial or ambiguous
+copies and question prefixes are not recovered this way; question response areas
+remain owned by the shared question specification.
+
 On computed puzzle pages, empty unused directions/passage placeholders are omitted
 only when they contain no wording, graphics or sized/bordered writing panels.
 Complete factual intro captions may be split into canonical caption chunks while

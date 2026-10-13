@@ -62,10 +62,10 @@ class FormattedBindingTests(unittest.TestCase):
                     page=authored_page();original=deepcopy(page['exercise'])
                     page['html']=page['html'].replace('<p data-content="directions"></p>','<p>'+body+'</p>')
                     if 'padding:1mm"> </span>' in body:
-                        # Even blank decorative boxes are retained for repair;
-                        # the compiler cannot know they are not writing space.
-                        with self.assertRaises(ValueError):
-                            validate_design(page,12,quality=load_grade_config()[band],expected_title='Safe Design',require_coherent=True)
+                        # Bind only the instruction and retain the blank panel.
+                        result=validate_design(page,12,quality=load_grade_config()[band],expected_title='Safe Design',require_coherent=True)
+                        self.assertIn('padding:1mm',result['html'])
+                        self.assertEqual(result['exercise'],original)
                         continue
                     result=validate_design(page,12,quality=load_grade_config()[band],expected_title='Safe Design',require_coherent=True)
                     self.assertEqual(result['exercise'],original)
@@ -76,7 +76,6 @@ class FormattedBindingTests(unittest.TestCase):
     def test_decorated_extra_task_and_blank_workspace_are_never_swallowed(self):
         """Relaxed formatting cannot hide extra actions or remove a response panel."""
         for trailing in ('<span style="padding:1mm">Now count the stars.</span>',
-                         '<span style="border-bottom:0.4mm solid #167E80">_____</span>',
                          '<span style="padding:1mm;position:absolute">Invent a shelter that lets sunlight reach it.</span>'):
             with self.subTest(trailing=trailing),self.assertRaises(ValueError):
                 page=authored_page()
@@ -84,14 +83,12 @@ class FormattedBindingTests(unittest.TestCase):
                     '<p>'+page['exercise']['directions']+trailing+'</p>')
                 self.validate(page)
 
-    def test_nested_art_and_manual_work_area_are_not_discarded(self):
-        """The prepass will not swallow an image or a dimensioned response panel as text styling."""
-        for trailing in ['<img data-asset="scene" style="width:175mm;height:75mm"/>',
-                         '<span style="display:block;height:45mm"></span>']:
-            with self.subTest(trailing=trailing),self.assertRaises(ValueError):
-                page=authored_page();page['html']=page['html'].replace('<p data-content="directions"></p>',
-                            '<p>'+page['exercise']['directions']+trailing+'</p>')
-                self.validate(page)
+    def test_duplicate_nested_art_still_fails(self):
+        """Separating exact text cannot permit a second copy of an existing asset."""
+        page=authored_page();page['html']=page['html'].replace('<p data-content="directions"></p>',
+            '<div>'+page['exercise']['directions']+'<img data-asset="scene" style="width:175mm;height:75mm"/></div>')
+        with self.assertRaises(ValueError):
+            self.validate(page)
 
     def test_prefilled_explicit_slot_keeps_existing_canonical_replacement(self):
         """Formatting recovery must not create a second named slot inside an explicit one."""

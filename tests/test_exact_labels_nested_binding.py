@@ -66,14 +66,26 @@ class ExactLabelsNestedBindingTests(unittest.TestCase):
 
     def test_nested_extra_wording_and_work_panels_are_not_discarded(self):
         """Nested block support cannot consume a new instruction or blank workspace."""
-        for body in ['<p>Now count the stars.</p>', '<div></div>',
-                     '<div style="height:45mm"></div>',
+        for body in ['<p>Now count the stars.</p>',
                      '<p><img data-asset="scene" style="width:175mm;height:75mm"/></p>']:
             page=authored_page()
             page['html']=page['html'].replace('<p data-content="directions"></p>',
                 '<div>'+page['exercise']['directions']+body+'</div>')
             with self.subTest(body=body),self.assertRaises(ValueError):
                 self.validate(page)
+
+    def test_nested_blank_work_panels_are_preserved(self):
+        """A canonical instruction may precede a retained empty working panel."""
+        for body in ['<div></div>','<div style="height:45mm"></div>']:
+            with self.subTest(body=body):
+                page=authored_page();original=deepcopy(page['exercise'])
+                page['html']=page['html'].replace('<p data-content="directions"></p>',
+                    '<div>'+page['exercise']['directions']+body+'</div>')
+                result=self.validate(page)
+                self.assertEqual(result['exercise'],original)
+                self.assertEqual(result['html'].count(original['directions']),1)
+                # The canonical question owns another 45mm response area.
+                self.assertEqual(result['html'].count('height:45mm'),2 if 'height:45mm' in body else 1)
 
 
 if __name__=='__main__':

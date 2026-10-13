@@ -219,6 +219,11 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
     if parser.stack:
         raise ValueError('Exercise layout tags must be balanced')
     candidates = []
+    tool_labels = {'sort':'sorting', 'count':'counting', 'matching':'matching',
+                   'maze':'maze', 'pattern':'pattern', 'balance':'size comparison',
+                   'differences':'spot the differences'}
+    activity_label = ('activity ' + tool_labels[exercise['mechanic']] + ' task'
+                      if exercise.get('render_mode') == 'exact' and exercise.get('mechanic') in tool_labels else None)
 
     def visit(node, inside_slot=False):
         """Find whole text-only headings outside existing canonical content slots."""
@@ -228,7 +233,8 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
         if not slotted and TAG_ALIASES.get(node['tag'],node['tag']) in CONTAINERS:
             pieces = [parser.plain_text(c) for c in node['children']]
             value = ' '.join(''.join(pieces).split()) if all(p is not None for p in pieces) else ''
-            if value.casefold() in {'challenge tip:','zone id','zone id:'} or diagram_label(value):
+            if (value.casefold() in {'challenge tip:','zone id','zone id:'} or diagram_label(value)
+                    or value.casefold() == activity_label):
                 candidates.append((node,value))
                 return
         for child in node['children']:

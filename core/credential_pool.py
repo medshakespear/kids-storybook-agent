@@ -84,6 +84,7 @@ class CredentialPool:
         self.credentials = credentials
         self.cooldown = cooldown
         self._blocked_until = [0.0] * len(credentials)
+        self._blocked_errors: list[ProviderError | None] = [None] * len(credentials)
         self._in_flight = [False] * len(credentials)
         self._cursor = 0
         self._lock = threading.Lock()
@@ -133,21 +134,28 @@ class CredentialPool:
             for other, credential in enumerate(self.credentials):
                 if other == index or (error.status_code == 429 and group and credential.quota_group == group):
                     self._blocked_until[other] = max(self._blocked_until[other], until)
+                    self._blocked_errors[other] = error
             self._cursor = (index + 1) % len(self.credentials)
 
     def _exhausted(self, failures: list[str], errors: list[ProviderError]) -> ProviderError:
         """Explain exhaustion and distinguish temporary outages from quota/auth exhaustion."""
         with self._lock:
             earliest = min(self._blocked_until)
+            now = time.monotonic()
+            cooling_errors = [error for until,error in zip(self._blocked_until,self._blocked_errors)
+                              if until > now and error is not None]
         if math.isfinite(earliest):
             wait = max(1, math.ceil(earliest - time.monotonic()))
             hint = f"Retry in at least {wait} seconds; provider limits or outages may require longer."
         else:
             hint = "All configured credentials were rejected; check keys and permissions, then restart."
         details = (" " + "; ".join(failures)) if failures else ""
-        temporary = bool(errors) and any(
+        # A concurrent or immediate follow-up call can find every slot already
+        # cooling down without making an HTTP request. Retain the reason for
+        # that cooldown so the outer bounded loop can still retry a 503.
+        temporary = any(
             error.retryable and error.status_code not in {401, 403, 429}
-            for error in errors
+            for error in errors + cooling_errors
         )
         return ProviderError(
             f"{self.provider}: no credential slots available. {hint}{details}",

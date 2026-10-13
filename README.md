@@ -603,3 +603,16 @@ are bound locally instead of requesting another Gemini layout. This normalizatio
 requires the entire container to match the shared exercise wording. Additional
 instructions, graphics, dimensioned panels and blank writing boxes remain protected
 and cannot be discarded as formatting.
+
+On computed puzzle pages, empty unused directions/passage placeholders are omitted
+only when they contain no wording, graphics or sized/bordered writing panels.
+Complete factual intro captions may be split into canonical caption chunks while
+preserving every word and the existing caption budget. A heading such as “Activity
+Sorting Task” can bind as context only when it matches the selected computed tool.
+All recovered pages still pass geometry and readable-diagram-label checks.
+
+Gemini cooldowns retain their cause between requests: a follow-up call during a
+503 cooldown remains retryable within the existing request deadline. Quota and
+authentication exhaustion do not become outage retries. This avoids premature
+failure when another request has already cooled down all slots; it cannot resolve
+a continuing provider outage or restore exhausted quota.

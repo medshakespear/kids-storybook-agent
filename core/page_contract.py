@@ -322,6 +322,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         page['html'] = renumber_open_exact_question(exercise,page['html'])
         from core.exact_caption_recovery import remove_duplicate_instruction_captions
         page['html'] = remove_duplicate_instruction_captions(exercise,page['html'])
+        from core.exact_context import normalize_exact_context
+        page['html'] = normalize_exact_context(exercise,page['html'])
         problems = []
         if exercise.get('directions') or exercise.get('passage'):
             problems.append('Exact visual prints its own verified directions; omit parallel directions/passage to avoid task mismatches')

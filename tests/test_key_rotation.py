@@ -277,6 +277,27 @@ class PoolMechanicsTests(unittest.TestCase):
         self.assertIsNone(retry_after_seconds({"retry-after": "nan"}))
         self.assertIsNone(retry_after_seconds({"retry-after": "bad"}, {"details": None}))
 
+    def test_followup_call_preserves_outage_cooldown_retryability(self):
+        """Already cooling slots retain 503 routing metadata without another HTTP attempt."""
+        pool=CredentialPool('gemini',(Credential('one','secret'),),60)
+        operation=Mock(side_effect=ProviderError('temporary',True,status_code=503,rotate=True,retry_after=20))
+        for _ in range(2):
+            with self.assertRaises(ProviderError) as failure:
+                pool.run(operation)
+            self.assertTrue(failure.exception.retryable)
+            self.assertGreater(failure.exception.retry_after,0)
+        self.assertEqual(operation.call_count,1)
+
+    def test_followup_quota_cooldown_remains_nonretryable(self):
+        """Retaining cooldown causes must not turn exhausted quota into an outage retry."""
+        pool=CredentialPool('gemini',(Credential('one','secret'),),60)
+        operation=Mock(side_effect=ProviderError('quota',True,status_code=429,rotate=True))
+        for _ in range(2):
+            with self.assertRaises(ProviderError) as failure:
+                pool.run(operation)
+            self.assertFalse(failure.exception.retryable)
+        self.assertEqual(operation.call_count,1)
+
     def test_daily_cloudflare_limit_waits_until_reset(self):
         """Daily allocation errors retain a longer cooldown than the short default."""
         environment = {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "a" * 32}

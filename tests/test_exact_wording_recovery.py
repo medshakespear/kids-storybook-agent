@@ -67,12 +67,24 @@ class ExactWordingRecoveryTests(unittest.TestCase):
         self.assertIn('Exact captions must not contain task directions',
             api.chat.completions.create.call_args.kwargs['messages'][-1]['content'])
 
-    def test_unknown_directions_slot_uses_full_shared_contract(self):
-        """An exact page cannot repair a nonexistent directions field through HTML alone."""
+    def test_empty_unknown_directions_slot_needs_no_model_repair(self):
+        """An empty unused placeholder can disappear while the computed tool owns directions."""
         raw=self.page();raw['html']='<p data-content="directions"></p>'+raw['html']
-        result,api=self.ask([raw,self.page()])
-        self.assertEqual(api.chat.completions.create.call_count,2)
+        result,api=self.ask([raw])
+        self.assertEqual(api.chat.completions.create.call_count,1)
         self.assertNotIn('data-content="directions"',result['source_layout'])
+        self.assertEqual(result['exercise']['visual'],raw['exercise']['visual'])
+
+    def test_nonempty_unknown_directions_slot_uses_full_shared_contract(self):
+        """Independent wording cannot be discarded as an empty placeholder."""
+        raw=self.page();raw['html']='<p data-content="directions">Explain a new grouping rule.</p>'+raw['html']
+        good=self.page()
+        good['exercise']['questions']=[{'id':'2','prompt':'Explain a new grouping rule.',
+            'answer':'Accept a clear alternative rule.','space_mm':20}]
+        good['html']+='<div data-content="question_2"></div>'
+        result,api=self.ask([raw,good])
+        self.assertEqual(api.chat.completions.create.call_count,2)
+        self.assertIn('Explain a new grouping rule.',result['html'])
         self.assertIn('EXACT-PUZZLE CONTENT/BINDING repair',api.chat.completions.create.call_args.kwargs['messages'][-1]['content'])
 
     def test_wording_repair_pins_graphic_data_and_protects_additional_questions(self):

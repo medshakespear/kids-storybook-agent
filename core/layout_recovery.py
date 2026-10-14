@@ -457,7 +457,9 @@ def retained_table_artwork_recovery(page: dict, minimum_font: int, visual_area: 
         # Keep the planned heading first, then give the shared illustration full width.
         index=next((i+1 for i,n in enumerate(roots) if isinstance(n,dict) and dict(n.get('attrs',[])).get('data-content')=='title'),0)
         roots.insert(index,art)
-        result=deepcopy(page);result['html']=''.join(literal_html(n) for n in roots)
+        from core.text_flow import reflow_text_heights
+        result=deepcopy(page)
+        result['html']=reflow_text_heights(''.join(literal_html(n) for n in roots),stack_rows=True)
         return result
     except (ValueError,TypeError,KeyError,IndexError): return None
 

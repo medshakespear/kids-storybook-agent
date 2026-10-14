@@ -744,3 +744,10 @@ content binding and print measurement. Blank metadata and stray null-only text
 therefore need no model repair. Printable words, functional attributes, artwork
 and writing areas still pass their usual checks; small illustrations are enlarged
 only through a measured layout recovery that fits the page.
+
+Text reflow also turns ordinary vertical flex stacks into normal block flow so
+small flex bases cannot force passages into following tables. The measured
+single-illustration/table recovery can stack cramped non-reversed flex rows,
+retaining source wording, table cells, images and blank writing-panel dimensions.
+Reverse-order and wrapping layouts are not guessed. The recovered page must still
+meet its grade's font, visual-area, collision and A4-fit checks.

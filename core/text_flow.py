@@ -5,8 +5,8 @@ import html
 from core.content_binding import CanonicalTextContainers
 
 
-def reflow_text_heights(markup: str) -> str:
-    """Remove height clamps from text and redundant wrappers, retaining usable workspace."""
+def reflow_text_heights(markup: str, *, stack_rows: bool = False) -> str:
+    """Remove text clamps; optionally stack cramped flex rows for measured recovery."""
     parser = CanonicalTextContainers({})
     parser.feed(markup)
     parser.close()
@@ -23,10 +23,35 @@ def reflow_text_heights(markup: str) -> str:
             return False, False
         children = [visit(child) for child in node['children']]
         style = dict(node['attrs']).get('style','') or ''
-        text = any(ink for ink,_ in children)
+        # Retained source layouts contain empty canonical slots whose actual
+        # wording is supplied by the compiler. Those are text, not blank panels.
+        text = any(ink for ink,_ in children) or bool(dict(node['attrs']).get('data-content'))
         protected = (node['tag']=='img' or
                      (node['tag']=='span' and re.search(r'border\s*:\s*0\.4mm\s+solid\s+#809aa6',style,re.I) is not None))
         child_space = any(space for _,space in children)
+        declarations = {part.split(':',1)[0].strip().lower():part.split(':',1)[1].strip().lower()
+                        for part in style.split(';') if ':' in part}
+        vertical = declarations.get('flex-direction')=='column'
+        row = declarations.get('flex-direction','row')=='row'
+        if (text and node['tag'] in {'div','section','p','span'}
+                and declarations.get('display') in {'flex','inline-flex'}
+                and (vertical or (stack_rows and row))):
+            # Preserve DOM order and every child. Explicit reverse/wrap layouts
+            # are not guessed. The recovery caller must still measure page fit.
+            if declarations.get('flex-wrap','nowrap')=='nowrap':
+                removed={'display','flex-direction','align-items','justify-content'}
+                style=';'.join(part for part in style.split(';')
+                              if part.split(':',1)[0].strip().lower() not in removed)+';display:block'
+                node['attrs']=[(key,style if key=='style' else value) for key,value in node['attrs']]
+                changed=True
+                if row:
+                    for child,(ink,_) in zip(node['children'],children):
+                        if not isinstance(child,dict) or not ink or child.get('tag')=='img':
+                            continue  # Keep blank work surfaces and media dimensions.
+                        names={'width','min-width','max-width','flex-basis','flex-grow','flex-shrink'}
+                        child['attrs']=[(key,';'.join(part for part in (value or '').split(';')
+                            if part.split(':',1)[0].strip().lower() not in names) if key=='style' else value)
+                            for key,value in child['attrs']]
         # Empty / underscore-only dimensioned panels are student work surfaces.
         if not text and re.search(r'(?:^|;)\s*(?:height|min-height)\s*:',style,re.I):
             protected = True

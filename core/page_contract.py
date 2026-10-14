@@ -97,6 +97,11 @@ class BoundLayout(HTMLParser):
                 detail = ('already printed; remove the duplicate slot' if block in self.used else
                           f'unknown; available slots are {sorted(self.blocks)}. '
                           'Declare contextual wording in exercise.captions and match caption_ID exactly')
+                if block not in self.blocks and block.startswith('question_'):
+                    detail=(f'unknown; available slots are {sorted(self.blocks)}. '
+                            'Question slots must match existing exercise.questions[].id. Rebind only '
+                            'unambiguous stale labels; preserve verified prompts, answers and response '
+                            'space. Never invent a question or discard meaningful unmatched wording')
                 raise ValueError(f'Unknown or repeated exercise content slot: {block}; {detail}')
             self.used.add(block)
             self.slot = block
@@ -533,6 +538,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     page['answers'] = ' '.join(answers)
     # Each answer and question count is already bounded. Check final sheet geometry
     # during pack preflight rather than imposing a contradictory aggregate character cap.
+    from core.question_slots import normalize_question_slots
+    page['html']=normalize_question_slots(page['html'],blocks)
     if page['visuals']:
         if exercise['render_mode']=='exact':
             from core.exact_visual_slots import normalize_exact_visual_slots

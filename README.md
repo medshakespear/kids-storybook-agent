@@ -800,3 +800,11 @@ locally as canonical labels. Scoped wording repairs can inspect whole nonempty
 text through width/display formatting; images, nested content slots and blank
 writing panels remain protected. Definitions cannot contain new questions,
 numerical answers or appended tasks.
+
+Question slots are aligned with the verified exercise IDs before print binding.
+A lone empty, unsized stale label may rebind to the lone missing question; complete
+verbatim question wording can also identify a unique missing question. An extra
+entirely blank placeholder keeps its frame and children as writing space without
+a phantom question number. Meaningful unmatched text, ambiguous mappings, media,
+nested slots and duplicates of declared questions still require a proper repair.
+No new question, answer or response height is invented by this normalization.

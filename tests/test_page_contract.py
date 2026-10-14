@@ -79,14 +79,24 @@ class PageContractTests(unittest.TestCase):
             self.compile(page)
 
     def test_required_slots_and_media_are_used_once(self):
-        """Missing or duplicated text/graphics are invalid, not silently repaired into other tasks."""
+        """Missing instructions and duplicated content/media remain invalid."""
         base=authored_page()
-        for html in [base['html'].replace('data-content="question_1"','data-content="question_2"'),
-                     base['html']+'<p data-content="directions"></p>',
+        for html in [base['html']+'<p data-content="directions"></p>',
                      base['html']+'<img data-asset="scene" style="width:10mm;height:10mm"/>',
                      base['html'].replace('<p data-content="directions"></p>','')]:
             with self.subTest(html=html),self.assertRaises(ValueError):
                 self.compile(dict(base,html=html))
+
+    def test_single_empty_stale_question_label_preserves_the_declared_task(self):
+        """A label typo can bind to the one known task without changing its question or key."""
+        base=authored_page();original=deepcopy(base)
+        base['html']=base['html'].replace('data-content="question_1"','data-content="question_2"')
+        result=self.compile(base)
+        self.assertEqual(result['exercise']['questions'],original['exercise']['questions'])
+        self.assertEqual(result['images'],original['images'])
+        self.assertEqual(result['html'].count('1. Draw your shelter.'),1)
+        self.assertIn('height:45mm',result['html'])
+        self.assertIn('Accept a design',result['answers'])
 
     def test_closed_pixel_task_does_not_pass_as_authored(self):
         """A shadow answer cannot be guessed from an uncontrolled generated illustration."""

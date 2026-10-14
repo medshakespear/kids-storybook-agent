@@ -82,8 +82,8 @@ def normalize_print_markup(markup: str) -> str:
             self.parts.append('</'+TAG_ALIASES.get(tag,tag)+'>')
 
         def handle_data(self, data):
-            """Retain every text character with correct escaping."""
-            self.parts.append(html.escape(data,quote=False))
+            """Replace nonprinting null bytes with spaces without joining adjacent words."""
+            self.parts.append(html.escape(data.replace('\x00',' '),quote=False))
 
         def handle_comment(self, data):
             """Keep comments visible to existing content checks."""

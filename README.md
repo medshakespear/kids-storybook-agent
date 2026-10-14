@@ -738,3 +738,9 @@ manifest repair rather than a caption/layout repair; the verified puzzle and
 existing questions, answers and artwork remain pinned. Computed diagrams still
 own their instructions, and readable diagram labels and page-fit checks remain
 mandatory.
+
+Nonprinting null bytes in generated HTML text are normalized to spaces before
+content binding and print measurement. Blank metadata and stray null-only text
+therefore need no model repair. Printable words, functional attributes, artwork
+and writing areas still pass their usual checks; small illustrations are enlarged
+only through a measured layout recovery that fits the page.

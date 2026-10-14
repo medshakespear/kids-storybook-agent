@@ -644,6 +644,14 @@ their canonical slots own response boxes. Remaining inferred-slot errors identif
 the slot and following element and use a focused layout-only repair instead of
 repeating the original generation prompt. Extra wording and workspace stay protected.
 
+Simple 1-4 equal-column CSS grids normalize to print tables before validation,
+preserving cell order and writing panels. Complex spanning/positioned grids still
+require explicit correction. A small illustration beside a data table can move to
+a full-width section at the required visual size; actual data rows, headings,
+source text, questions and response space remain intact. Only a proven one-row
+image/text layout table may be unwrapped. All candidates still pass the same
+artwork-area floor and measured A4 page-fit checks.
+
 On computed puzzle pages, empty unused directions/passage placeholders are omitted
 only when they contain no wording, graphics or sized/bordered writing panels.
 Complete factual intro captions may be split into canonical caption chunks while

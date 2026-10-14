@@ -373,11 +373,103 @@ def reading_panel_recovery(page: dict, minimum_font: int, visual_area: float) ->
     return result
 
 
+def retained_table_artwork_recovery(page: dict, minimum_font: int, visual_area: float) -> dict | None:
+    """Move one illustration out of a narrow column while retaining all data-table cells.
+
+    Only a one-row two-column image/text layout table may be unwrapped. Tables
+    with headers or multiple data rows retain their structure. No text, questions,
+    sources or independently authored response panels are removed.
+    """
+    if (page.get('exercise',{}).get('render_mode')!='authored'
+            or not isinstance(page.get('images'),list) or len(page['images'])!=1
+            or '<table' not in page.get('html','').lower()
+            or not 0<visual_area<=22000): return None
+    checked=deepcopy(page)
+    try:
+        compile_exercise(checked,recovery_profile(page,minimum_font),page.get('_recovery_title','Internal layout check'))
+        parser=CanonicalTextContainers({});parser.feed(page['html']);parser.close()
+        if parser.stack: return None
+        asset=page['images'][0]['id'];targets=[]
+
+        def find(node):
+            """Locate the sole declared illustration without interpreting its pixels."""
+            if isinstance(node,str) or 'comment' in node: return
+            if node['tag']=='img' and dict(node['attrs']).get('data-asset')==asset: targets.append(node)
+            for child in node['children']: find(child)
+
+        for node in parser.root: find(node)
+        if len(targets)!=1: return None
+        target=targets[0]
+
+        def image_only(node):
+            """Prove a wrapper holds only the image, not labels or blank writing panels."""
+            if isinstance(node,str): return not node.strip()
+            if node is target: return True
+            if 'comment' in node or node['tag'] not in {'div','section','p','span','td'}: return False
+            if any(k=='data-content' for k,_ in node['attrs']): return False
+            return bool(node['children']) and any(not isinstance(c,str) for c in node['children']) and all(image_only(c) for c in node['children'])
+
+        def strip_sizes(node, names):
+            """Remove column/frame clamps from a proven layout wrapper only."""
+            node['attrs']=[(k,';'.join(d for d in (v or '').split(';')
+                if d.split(':',1)[0].strip().lower() not in names) if k=='style' else v) for k,v in node['attrs']]
+
+        def extract(node):
+            """Extract art and unwrap only a verified image/text layout table."""
+            if isinstance(node,str) or 'comment' in node: return node
+            if node is target: return None
+            if image_only(node) and node['tag'] in {'div','section','p','span'}: return None
+            if node['tag']=='table':
+                rows=[]
+
+                def rows_of(item):
+                    """Read direct layout rows without entering nested data tables."""
+                    if isinstance(item,str): return not item.strip()
+                    if 'comment' in item: return False
+                    if item['tag']=='tr': rows.append(item);return True
+                    if item['tag'] in {'tbody','thead','tfoot'}: return all(rows_of(c) for c in item['children'])
+                    return False
+
+                valid=all(rows_of(c) for c in node['children'])
+                cells=[c for c in rows[0]['children'] if not isinstance(c,str) or c.strip()] if valid and len(rows)==1 else []
+                if (len(cells)==2 and all(isinstance(c,dict) and c.get('tag')=='td' for c in cells)
+                        and not any(k in {'colspan','rowspan'} for c in cells for k,_ in c['attrs'])):
+                    flags=[image_only(c) for c in cells]
+                    if sum(flags)==1:
+                        other=deepcopy(cells[1 if flags[0] else 0]);other['tag']='div'
+                        strip_sizes(other,{'width','min-width','max-width','height','min-height','max-height'})
+                        other['children']=[n for c in other['children'] if (n:=extract(c)) is not None]
+                        return other
+            was_image=image_only(node)
+            node['children']=[n for c in node['children'] if (n:=extract(c)) is not None]
+            if was_image and node['tag']=='td': strip_sizes(node,{'height','min-height','max-height'})
+            return node
+
+        from core.print_grid import literal_html
+        roots=[n for node in parser.root if (n:=extract(node)) is not None]
+        side=math.ceil(math.sqrt(visual_area)*1.025)
+        if side>155: return None
+        image=deepcopy(target)
+        strip_sizes(image,{'width','height','min-width','max-width','min-height','max-height','object-fit'})
+        attrs=dict(image['attrs']);attrs['style']=attrs.get('style','')+f';width:{side}mm;height:{side}mm;object-fit:contain'
+        image['attrs']=list(attrs.items())
+        art={'tag':'div','attrs':[('style','text-align:center;margin:0 0 3mm')],'children':[image]}
+        # Keep the planned heading first, then give the shared illustration full width.
+        index=next((i+1 for i,n in enumerate(roots) if isinstance(n,dict) and dict(n.get('attrs',[])).get('data-content')=='title'),0)
+        roots.insert(index,art)
+        result=deepcopy(page);result['html']=''.join(literal_html(n) for n in roots)
+        return result
+    except (ValueError,TypeError,KeyError,IndexError): return None
+
+
 def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float):
     """Try bounded lossless compositions with sufficient art before another model rewrite."""
     resized=readable_exact_layout(page,minimum_font,visual_area)
     if resized is not None:
         yield resized
+    table_art=retained_table_artwork_recovery(page,minimum_font,visual_area)
+    if table_art is not None:
+        yield table_art
     if page.get('_recovery_config',{}).get('stimulus_limit'):
         mixed_reading=reading_panel_recovery(page,minimum_font,visual_area)
         if mixed_reading is not None:

@@ -1311,6 +1311,8 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
     design['html'] = _text(design.get('html'), 'html', 18000)
     from core.print_tags import normalize_print_markup
     design['html'] = normalize_print_markup(design['html'])
+    from core.print_grid import normalize_print_grid
+    design['html'] = normalize_print_grid(design['html'])
     if quality is not None:
         design['html'] = reveal_print_content(design['html'])
     if require_coherent and not cover:

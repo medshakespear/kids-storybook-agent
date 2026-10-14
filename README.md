@@ -751,3 +751,10 @@ single-illustration/table recovery can stack cramped non-reversed flex rows,
 retaining source wording, table cells, images and blank writing-panel dimensions.
 Reverse-order and wrapping layouts are not guessed. The recovered page must still
 meet its grade's font, visual-area, collision and A4-fit checks.
+
+Complete source-panel headings such as “Museum Placard”, “Exhibit Label” and
+“Student Notes” bind locally as short captions. Appended instructions or factual
+answers do not qualify. An additional in-place artwork-growth recovery preserves
+all original wrappers, source text, table cells and independent blank panels,
+changing only the illustration and proven image-only frame dimensions. It is
+accepted only after the full readable-font, visual-area and page-fit checks pass.

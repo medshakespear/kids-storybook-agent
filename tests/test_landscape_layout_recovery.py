@@ -42,7 +42,7 @@ class LandscapeRecoveryTests(unittest.TestCase):
         """Keep the same reading, questions, artwork and both 45mm response areas."""
         page=self.page();original=deepcopy(page)
         candidates=list(layout_recovery_candidates(page,12,8000))
-        self.assertEqual(len(candidates),4)
+        self.assertGreaterEqual(len(candidates),4)
         recovered = self.validate(candidates[0])
         self.assertEqual(recovered['exercise'], original['exercise'])
         self.assertEqual(recovered['html'].count('height:45mm'), 2)
@@ -135,7 +135,15 @@ class LandscapeRecoveryTests(unittest.TestCase):
         for extra in ['<div style="height:40mm"></div>','<p>Write another explanation.</p>']:
             page=self.page();page['html']+=extra
             with self.subTest(extra=extra):
-                self.assertEqual(list(layout_recovery_candidates(page,12,8000)),[])
+                candidates=list(layout_recovery_candidates(page,12,8000))
+                if 'height:40mm' in extra:
+                    self.assertTrue(candidates)
+                    for candidate in candidates:
+                        self.assertIn('height:40mm',candidate['html'])
+                        self.assertEqual(candidate['exercise'],page['exercise'])
+                        self.assertEqual(candidate['images'],page['images'])
+                else:
+                    self.assertEqual(candidates,[])
 
 
 if __name__=='__main__':

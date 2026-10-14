@@ -464,6 +464,59 @@ def retained_table_artwork_recovery(page: dict, minimum_font: int, visual_area: 
     except (ValueError,TypeError,KeyError,IndexError): return None
 
 
+def retained_artwork_growth(page: dict, minimum_font: int, visual_area: float) -> dict | None:
+    """Grow one illustration in place without deleting text, tables or blank work panels."""
+    if (not isinstance(page.get('exercise'),dict) or page['exercise'].get('render_mode')!='authored'
+            or not isinstance(page.get('images'),list) or len(page['images'])!=1
+            or not 0<visual_area<=22000):
+        return None
+    try:
+        checked=deepcopy(page)
+        compile_exercise(checked,recovery_profile(page,minimum_font),page.get('_recovery_title','Internal layout check'))
+        parser=CanonicalTextContainers({});parser.feed(page['html']);parser.close()
+        if parser.stack: return None
+        targets=[];asset=page['images'][0]['id']
+
+        def visit(node):
+            """Locate declared art while preserving every original sibling and wrapper."""
+            if isinstance(node,str) or 'comment' in node: return
+            if node['tag']=='img' and dict(node['attrs']).get('data-asset')==asset: targets.append(node)
+            for child in node['children']: visit(child)
+
+        for node in parser.root: visit(node)
+        if len(targets)!=1: return None
+        target=targets[0]
+
+        def image_only(node):
+            """Require a nonempty image subtree; blank workspace cannot qualify."""
+            if isinstance(node,str): return not node.strip()
+            if node is target: return True
+            if 'comment' in node or node['tag'] not in {'div','section','p','span'}: return False
+            if any(k=='data-content' for k,_ in node['attrs']): return False
+            return bool(node['children']) and any(isinstance(c,dict) for c in node['children']) and all(image_only(c) for c in node['children'])
+
+        def resize(node):
+            """Clear only redundant image-frame clamps, retaining all other geometry."""
+            if isinstance(node,str) or 'comment' in node: return
+            if node is target or image_only(node):
+                names={'width','height','min-width','max-width','min-height','max-height'}
+                node['attrs']=[(k,';'.join(d for d in (v or '').split(';')
+                    if d.split(':',1)[0].strip().lower() not in names) if k=='style' else v) for k,v in node['attrs']]
+            for child in node['children']: resize(child)
+
+        for node in parser.root: resize(node)
+        height=math.ceil(visual_area*1.04/175)
+        if height>155: return None
+        style=dict(target['attrs']).get('style','') or ''
+        style+=f';width:175mm;height:{height}mm;object-fit:contain'
+        target['attrs']=[(k,v) for k,v in target['attrs'] if k!='style']+[('style',style)]
+        from core.print_grid import literal_html
+        result=deepcopy(page);result['html']=''.join(literal_html(n) for n in parser.root)
+        return result  # Caller must remeasure all grade, collision and page-fit checks.
+    except (ValueError,TypeError,KeyError,IndexError):
+        return None
+
+
 def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float):
     """Try bounded lossless compositions with sufficient art before another model rewrite."""
     resized=readable_exact_layout(page,minimum_font,visual_area)
@@ -508,4 +561,7 @@ def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float
         compact_exact = exact_caption_grid_recovery(page,minimum_font,visual_area)
         if compact_exact is not None:
             yield compact_exact
+    growth=retained_artwork_growth(page,minimum_font,visual_area)
+    if growth is not None:
+        yield growth
 

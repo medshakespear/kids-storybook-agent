@@ -75,6 +75,13 @@ def evidence_heading(value: str) -> bool:
                              r'objective measurement records|objective measurements)\s*:?',value.strip(),re.I))
 
 
+def source_heading(value: str) -> bool:
+    """Recognize complete source-panel labels, never excerpts, directions or answers."""
+    return bool(re.fullmatch(r'(?:museum placard|exhibit placard|museum label|exhibit label|'
+                             r'student notes|field notes|source card|evidence card|source excerpt)\s*:?',
+                             value.strip(),re.I))
+
+
 def caption_budget_available(captions: list, text: str, *, context_limit: int = 6, table_ids=None) -> bool:
     """Keep six contextual captions and up to eight short diagram identifiers."""
     if not isinstance(captions, list):
@@ -333,7 +340,7 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
             pieces = [parser.plain_text(c) for c in node['children']]
             value = ' '.join(''.join(pieces).split()) if all(p is not None for p in pieces) else ''
             if (value.casefold() in {'zone id','zone id:'} or tip_heading(value) or goal_heading(value)
-                    or evidence_heading(value) or diagram_label(value)
+                    or evidence_heading(value) or source_heading(value) or diagram_label(value)
                     or value.casefold() == activity_label):
                 candidates.append((node,value))
                 return
@@ -357,6 +364,7 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
         used = {c.get('id') for c in captions if isinstance(c,dict)}
         prefix = ('goal_label' if goal_heading(text) else
                   'tip_label' if tip_heading(text) else
+                  'source_label' if source_heading(text) else
                   'evidence_label' if evidence_heading(text) else
                   'diagram_label' if diagram_label(text) else 'zone_label')
         cid = next(f'{prefix}_{i}' for i in range(1,len(used)+2) if f'{prefix}_{i}' not in used)

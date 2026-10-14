@@ -15,6 +15,7 @@ TEXT_DECORATIONS = {'padding','padding-top','padding-right','padding-bottom','pa
                     'margin','margin-top','margin-right','margin-bottom','margin-left',
                     'border','border-top','border-right','border-bottom','border-left',
                     'border-color','border-width','border-style','border-radius'}
+TEXT_DIMENSIONS={'width','height','min-width','max-width','min-height','max-height','display'}
 
 
 def combined_metadata_fields(value: str) -> tuple[str, str] | None:
@@ -80,6 +81,16 @@ def source_heading(value: str) -> bool:
     return bool(re.fullmatch(r'(?:museum placard|exhibit placard|museum label|exhibit label|'
                              r'student notes|field notes|source card|evidence card|source excerpt)\s*:?',
                              value.strip(),re.I))
+
+
+def definition_label(value: str) -> bool:
+    """Recognize a short complete literacy definition, never tasks or numerical keys."""
+    value=value.strip()
+    if len(value)>120 or re.search(r'\d|[!?]|[.]\s*\S',value): return False
+    if not re.match(r'^(?:can\s+be|(?:a|an|the)\s+(?:fact|opinion|statement|claim)\s+'
+                    r'(?:is|can|means|tells|expresses))\b',value,re.I): return False
+    from core.context_recovery import contextual_text
+    return contextual_text(value)
 
 
 def caption_budget_available(captions: list, text: str, *, context_limit: int = 6, table_ids=None) -> bool:
@@ -161,30 +172,34 @@ class CanonicalTextContainers(HTMLParser):
         """Keep comments visible to the existing strict content compiler."""
         self.append({'comment':value})
 
-    def plain_text(self, node) -> str | None:
-        """Extract only inline formatting; reject media, slots, dimensions and nontext layout."""
+    def plain_text(self, node, *, allow_text_dimensions: bool = False) -> str | None:
+        """Read text formatting; optionally inspect sized text, never media, slots or workspace."""
         if isinstance(node,str): return node
         tag = TAG_ALIASES.get(node.get('tag',''),node.get('tag',''))
         text_block = tag in {'p','div','section'}
         if 'comment' in node or (tag not in INLINE and not text_block):
             return None
         decorated = False
+        dimensioned = False
         for key,value in node['attrs']:
             if key!='style': return None
             declarations = (value or '').split(';')
             properties = {d.split(':',1)[0].strip().lower() for d in declarations if d.strip()}
-            if properties - TEXT_STYLES - TEXT_DECORATIONS:
+            if properties - TEXT_STYLES - TEXT_DECORATIONS - (TEXT_DIMENSIONS if allow_text_dimensions else set()):
+                return None
+            if 'display' in properties and not re.search(r'(?:^|;)\s*display\s*:\s*(?:inline|inline-block|block)\s*(?:;|$)',value or '',re.I):
                 return None
             decorated = bool(properties & TEXT_DECORATIONS)
+            dimensioned = bool(properties & TEXT_DIMENSIONS)
         if tag=='br': return ' '
-        pieces = [self.plain_text(child) for child in node['children']]
+        pieces = [self.plain_text(child,allow_text_dimensions=allow_text_dimensions) for child in node['children']]
         if any(p is None for p in pieces):
             return None
         value = ''.join(pieces)
         # A colored/padded label may be harmless formatting around an exact
         # canonical copy. An empty bordered panel or underline is work space,
         # so it must never disappear during whole-container replacement.
-        if decorated and (not value.strip() or re.fullmatch(r'[_\s]+',value)):
+        if (decorated or dimensioned) and (not value.strip() or re.fullmatch(r'[_\s|]+|(?:\[[_\s]*\]\s*)+',value)):
             return None
         if text_block:
             # Empty block containers can be independent working space. Keep
@@ -337,10 +352,10 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
             return
         slotted = inside_slot or any(k=='data-content' for k,_ in node['attrs'])
         if not slotted and TAG_ALIASES.get(node['tag'],node['tag']) in CONTAINERS:
-            pieces = [parser.plain_text(c) for c in node['children']]
+            pieces = [parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
             value = ' '.join(''.join(pieces).split()) if all(p is not None for p in pieces) else ''
             if (value.casefold() in {'zone id','zone id:'} or tip_heading(value) or goal_heading(value)
-                    or evidence_heading(value) or source_heading(value) or diagram_label(value)
+                    or evidence_heading(value) or source_heading(value) or definition_label(value) or diagram_label(value)
                     or value.casefold() == activity_label):
                 candidates.append((node,value))
                 return
@@ -357,7 +372,13 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
     for node,text in candidates:
         if sum(value.casefold()==text.casefold() for _,value in candidates)!=1:
             continue
-        if any(isinstance(c,dict) and str(c.get('text','')).strip().casefold()==text.casefold() for c in captions):
+        existing=[c for c in captions if isinstance(c,dict) and str(c.get('text','')).strip().casefold()==text.casefold()]
+        if len(existing)==1 and isinstance(existing[0].get('id'),str):
+            node['attrs'].append(('data-content','caption_'+existing[0]['id']))
+            node['children']=[]
+            changed=True
+            continue
+        if existing:
             continue
         if not caption_budget_available(captions,text, context_limit=context_limit, table_ids=table_ids):
             continue
@@ -365,6 +386,7 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
         prefix = ('goal_label' if goal_heading(text) else
                   'tip_label' if tip_heading(text) else
                   'source_label' if source_heading(text) else
+                  'definition_label' if definition_label(text) else
                   'evidence_label' if evidence_heading(text) else
                   'diagram_label' if diagram_label(text) else 'zone_label')
         cid = next(f'{prefix}_{i}' for i in range(1,len(used)+2) if f'{prefix}_{i}' not in used)

@@ -256,7 +256,7 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
             return
         slot = dict(node['attrs']).get('data-content')
         if node['tag'] in CONTAINERS and (not slot or (slot.startswith('caption_') and slot not in declared_slots)):
-            pieces = [parser.plain_text(c) for c in node['children']]
+            pieces = [parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
             if all(p is not None for p in pieces):
                 words.add(normalized(''.join(pieces)))
         for child in node['children']:

@@ -5,12 +5,14 @@ from html.parser import HTMLParser
 VOID={'img','br'}
 BLOCKS={'div','section','p','h1','h2','h3','h4','h5','h6','ul','ol','table'}
 OPTIONAL={'p','li','td','th','tr','thead','tbody'}
+INLINE_ENDS={'span','strong','b','em'}
 
 
 def balance_print_fragment(markup: str) -> str:
     """Restore standard optional/trailing closes, preserving text and start attributes.
 
-    Crossed nonoptional tags and orphan closing tags require an explicit model
+    An orphan inline end has no matching scope and may be ignored as in HTML.
+    Crossed nonoptional tags and orphan structural closes still require explicit
     repair. Normal content, CSS, asset and geometry validators still run.
     """
     class Probe(HTMLParser):
@@ -70,6 +72,7 @@ def balance_print_fragment(markup: str) -> str:
             """Ignore void ends and close only omitted optional ancestors before a real end."""
             if tag in VOID: return
             if tag not in self.stack:
+                if tag in INLINE_ENDS: return
                 raise ValueError(f'Exercise layout tags must be balanced: orphan </{tag}>; open tags {self.stack}')
             while self.stack[-1]!=tag:
                 if self.stack[-1] not in OPTIONAL:

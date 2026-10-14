@@ -46,7 +46,7 @@ def raw_paragraphs(page: dict) -> set[str]:
             return
         inside=inside or any(k=='data-content' for k,_ in node['attrs'])
         if not inside and node['tag'] in CONTAINERS:
-            pieces=[parser.plain_text(c) for c in node['children']]
+            pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
             if all(p is not None for p in pieces):
                 text=normalized(''.join(pieces))
                 blank=bool(re.fullmatch(r'(?:name|date)\s*:\s*[_\s]*|[_\s|]+|\[[_\s]*\]',text))

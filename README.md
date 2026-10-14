@@ -661,7 +661,7 @@ invented. Generated diagrams are not silently converted or discarded.
 
 Omitted trailing HTML closes, standard optional paragraph/table-cell closes and
 redundant void-element ends are repaired locally before content binding. Crossed
-or orphan end tags receive a closing-tag-only repair: the original start tags,
+or orphan structural end tags receive a closing-tag-only repair: the original start tags,
 attributes, printed wording, exercise, images and writing dimensions stay protected.
 Unclear truncated markup is rejected instead of publishing a broken page. All
 normal content and A4 layout checks still run after structure repair.
@@ -791,3 +791,12 @@ bounded request attempts and time limits. Reading/QCM generation is unchanged.
 Gemini's valid page design stays preferred; this reflow is used for invalid geometry.
 Physically infeasible content, invalid exercise answers and provider outages still
 produce errors rather than an unsafe or unreadable PDF.
+
+Redundant orphan closing tags for inline formatting (`span`, `strong`, `b`, `em`)
+are ignored only when that tag has no open scope. Crossed containers and orphan
+structural closes still require a content-preserving syntax repair. Complete short
+literacy definitions such as “Can be proven true or false with evidence.” bind
+locally as canonical labels. Scoped wording repairs can inspect whole nonempty
+text through width/display formatting; images, nested content slots and blank
+writing panels remain protected. Definitions cannot contain new questions,
+numerical answers or appended tasks.

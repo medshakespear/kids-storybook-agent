@@ -98,6 +98,9 @@ def main() -> int:
         except Exception as exc:  # Keep the remaining batch alive.
             failures.append({"spec": label, "error": str(exc)})
             print(f"  FAILED: {label}: {exc}", flush=True)
+            diagnostic=getattr(exc,'layout_diagnostic',None)
+            if isinstance(diagnostic,dict):
+                print('LAYOUT_DIAGNOSTIC: '+json.dumps(diagnostic,ensure_ascii=True),flush=True)
             traceback.print_exc()
 
     if successes:

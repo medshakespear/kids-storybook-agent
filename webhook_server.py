@@ -166,7 +166,8 @@ def generate():
         return jsonify(error='Reference page could not be read.',detail=str(exc)),422
     except Exception as exc:
         logger.exception('On-demand generation failed')
-        return jsonify(error='Activity-pack generation failed.',detail=str(exc),image_review_failures=getattr(exc,'failures',[])),500
+        return jsonify(error='Activity-pack generation failed.',detail=str(exc),image_review_failures=getattr(exc,'failures',[]),
+            layout_diagnostic=getattr(exc,'layout_diagnostic',None)),500
 
 
 # Transient job status is kept in memory; only completed books persist in state.json.
@@ -184,6 +185,9 @@ def perform_job(job_id, brief):
     except Exception as exc:
         logger.exception('Background workbook generation failed')
         result = dict(status='failed',error='Reference page could not be read.' if isinstance(exc,ReferenceReadError) else 'Activity-pack generation failed.',detail=str(exc))
+        diagnostic=getattr(exc,'layout_diagnostic',None)
+        if isinstance(diagnostic,dict):
+            result.update(_layout_diagnostic=diagnostic,diagnostic_url='/generation-jobs/'+job_id+'/diagnostics')
     with _jobs_lock:
         _jobs[job_id].update(result,updated=time.monotonic())
 
@@ -221,8 +225,25 @@ def generation_job_status(job_id):
     if not result:
         return jsonify(error='Job not found. The service may have restarted; check the book library before retrying.'),404
     result.pop('updated',None)
+    result.pop('_layout_diagnostic',None)
     response = jsonify(result)
     response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.get('/generation-jobs/<job_id>/diagnostics')
+def generation_job_diagnostics(job_id):
+    """Download generated layout data for one known job using the same API-key protection."""
+    if not _authorized():
+        return jsonify(error='Unauthorized. Supply a valid X-API-Key header.'),401
+    with _jobs_lock:
+        diagnostic=_jobs.get(job_id,{}).get('_layout_diagnostic')
+    if not isinstance(diagnostic,dict):
+        return jsonify(error='No layout diagnostic is available for this job.'),404
+    response=jsonify(diagnostic)
+    response.headers['Content-Disposition']='attachment; filename="workbook-layout-diagnostic.json"'
+    response.headers['Cache-Control']='no-store'
+    response.headers['X-Content-Type-Options']='nosniff'
     return response
 
 

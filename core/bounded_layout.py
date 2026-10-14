@@ -22,7 +22,12 @@ def bounded_authored_layouts(page: dict, minimum_font: int, visual_area: float):
             or not 0<visual_area<=22000):
         return
     try:
-        checked=deepcopy(page);blocks={}
+        source=page
+        if len(page['images'])==1 and '<table' in page.get('html','').lower():
+            from core.layout_recovery import retained_table_artwork_recovery
+            separated=retained_table_artwork_recovery(page,minimum_font,visual_area)
+            if separated is not None: source=separated
+        checked=deepcopy(source);blocks={}
         compile_exercise(checked,config,page.get('_recovery_title','Internal layout check'),blocks_out=blocks)
         markup=bind_formatted_canonical_text(checked['source_layout'],blocks)
         parser=CanonicalTextContainers(blocks);parser.feed(markup);parser.close()
@@ -59,6 +64,8 @@ def bounded_authored_layouts(page: dict, minimum_font: int, visual_area: float):
             """Collect every required slot, asset, table and independent blank work surface."""
             if isinstance(node,str):
                 if not node.strip(): return
+                if node.strip() in {':',';',',','|'}:
+                    return  # Decorative separators do not define a student task.
                 if re.fullmatch(r'[_\s|]{3,}|(?:\[[_\s]*\]\s*)+',node.strip()):
                     workspaces.append('<p>'+literal_html(node)+'</p>');return
                 raise ValueError('Unbound literal text cannot be discarded by bounded reflow')

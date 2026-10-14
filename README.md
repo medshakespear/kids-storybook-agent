@@ -808,3 +808,19 @@ entirely blank placeholder keeps its frame and children as writing space without
 a phantom question number. Meaningful unmatched text, ambiguous mappings, media,
 nested slots and duplicates of declared questions still require a proper repair.
 No new question, answer or response height is invented by this normalization.
+
+Large exact-diagram recovery retains every declared source card as well as the
+captions and questions. For authored pages with a single illustration inside a
+layout table, bounded recovery can move that illustration out of its narrow cell
+while preserving nested data tables, source wording, answer keys and writing space.
+Both paths still pass the normal font, visual-area and single-page checks.
+
+If measured layout recovery exhausts its bounded attempts, a failed background
+generation offers **Download layout diagnostic** in the web interface. The JSON
+contains the retained page HTML, illustration manifest, shared exercise, print
+settings and recovery errors for reproduction; it excludes transport prompts,
+headers, API keys and image filesystem paths. The download uses the same optional
+`WEBHOOK_API_KEY` as generation and remains available only while that in-memory job
+is retained. Synchronous `/generate` errors include `layout_diagnostic`; cron logs
+print the replay after `LAYOUT_DIAGNOSTIC:`. Generated worksheet content may be in
+the report, so share it with someone who should have access to that content.

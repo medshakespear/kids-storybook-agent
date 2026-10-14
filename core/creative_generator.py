@@ -401,6 +401,8 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     plan_repair_field = "render_mode"
     layout_rescue_candidates = set()
     layout_rescue_base = None
+    last_layout_draft = None
+    layout_recovery_failures = []
     floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
     minimum_font = int(floor_match[1]) if floor_match else 11
     layout_visual_area = 10500 if minimum_font>=14 else 10000 if minimum_font==13 else 8000 if minimum_font==12 else 6000
@@ -546,7 +548,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         validated_draft = deepcopy(exc.layout_source)
                     def recover_print_layout(source, failure):
                         """Measure bounded lossless layouts after any preceding local content repair."""
-                        nonlocal layout_visual_area, layout_rescue_base
+                        nonlocal layout_visual_area, layout_rescue_base, last_layout_draft
                         if isinstance(source,dict):
                             source_signature=json.dumps({key:source.get(key) for key in ('html','images','exercise')},sort_keys=True)
                             if source_signature!=layout_rescue_base:
@@ -566,6 +568,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                                 or not (layout_repair_base is not None or binding_repair_base is not None
                                         or (response_schema is not None and layout_defect))):
                             return None
+                        if layout_defect:
+                            last_layout_draft=deepcopy(source)
+                        tested=0
                         from core.layout_recovery import layout_recovery_candidates
                         for rescue in layout_recovery_candidates(source,minimum_font,layout_visual_area):
                             signature = json.dumps(rescue,sort_keys=True)
@@ -574,12 +579,17 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             if len(layout_rescue_candidates)>=8:
                                 break
                             layout_rescue_candidates.add(signature)
+                            tested+=1
                             try:
                                 recovered = validate(rescue)
-                            except (ValueError,TypeError,KeyError,IndexError):
+                            except (ValueError,TypeError,KeyError,IndexError) as recovery_error:
+                                layout_recovery_failures.append(dict(candidate=len(layout_rescue_candidates),
+                                    error=str(recovery_error)[:1500]))
                                 continue  # Preserve every question, font floor, art threshold and response area.
                             LOGGER.info('%s: measured lossless layout recovery succeeded',label)
                             return recovered
+                        if not tested:
+                            layout_recovery_failures.append(dict(candidate=0,error='No eligible lossless layout candidate for this retained page'))
                         return None
                     recovered = recover_print_layout(validated_draft or layout_repair_base, exc)
                     if recovered is not None:
@@ -1161,7 +1171,15 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     time.sleep(delay)
         finally:
             api.close()
-    raise ActivityGenerationError('; '.join(dict.fromkeys(errors))) from None
+    failure=ActivityGenerationError('; '.join(dict.fromkeys(errors)))
+    if last_layout_draft is not None:
+        from core.layout_diagnostics import build_layout_diagnostic
+        failure.layout_diagnostic=build_layout_diagnostic(last_layout_draft,label,minimum_font,
+            layout_visual_area,layout_recovery_failures)
+        LOGGER.error('%s: layout recovery exhausted; mode=%s, attempted candidates=%s',label,
+            last_layout_draft['exercise'].get('render_mode') if isinstance(last_layout_draft.get('exercise'),dict) else None,
+            len(layout_recovery_failures))
+    raise failure from None
 
 def validate_plan(raw: dict, count: int, *, require_coherent: bool = False, require_variety: bool = False) -> dict:
     """Validate bounded art direction and distinct activity concepts without a type menu."""

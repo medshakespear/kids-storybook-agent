@@ -145,8 +145,8 @@ def single_exact_visual_recovery(page: dict, minimum_font: int, visual_area: flo
             f'<p data-content="name" style="font-size:{minimum_font}pt;margin:0 0 2mm"></p>']
     if re.search(r'Date:\s*_+',checked['html']):
         pieces.append(f'<p data-content="date" style="font-size:{minimum_font}pt;margin:0 0 2mm"></p>')
-    for caption in checked['exercise'].get('captions',[]):
-        pieces.append(f'<p data-content="caption_{caption["id"]}" style="font-size:{minimum_font}pt;margin:0 0 2mm"></p>')
+    for slot in supporting_slot_ids(page,checked['exercise']):
+        pieces.append(f'<p data-content="{slot}" style="font-size:{minimum_font}pt;margin:0 0 2mm"></p>')
     pieces.append(f'<div style="text-align:center;margin:0 0 3mm"><img data-visual="{vid}" '
                   f'style="width:{w}mm;height:{h}mm"/></div>')
     for question in checked['exercise'].get('questions',[]):

@@ -1637,7 +1637,15 @@ def density_guidance(config: dict) -> str:
                 'targets, not permission to remove required content. Split a complex concept across '
                 'planned activities. Keep minimum fonts, complete questions and practical response space. '
                 'Use exercise.stimuli:[{id,text}] for source/scenario text <=650 characters each, '
-                'up to four; bind with data-content="stimulus_ID". Captions are short labels <=120 chars.')
+                'normally up to four; short matching sets may use two columns of 2-4 cards each '
+                'within the configured source-card capacity. Bind with data-content="stimulus_ID". '
+                'Preserve the two source columns and their printed labels; place the large '
+                'illustration beside a short matching-response task rather than below every card. '
+                'Put all required writing space in questions[].space_mm; do not add duplicate '
+                'blank panels beneath those question slots. Label ranges such as (1-4) identify '
+                'cards; they are not subtraction and must not receive a calculation. '
+                'Independently solve each text match using the source wording and printed labels '
+                'before authoring its answer key. Captions are short labels <=120 chars.')
     if floor>=14:
         reading = 'Use picture-led tasks, no independent reading passage, and one or two brief adult-read actions.'
     else:

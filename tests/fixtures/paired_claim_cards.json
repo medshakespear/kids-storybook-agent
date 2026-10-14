@@ -1,0 +1,112 @@
+{
+  "title": "Matching Claims to Evidence",
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "col1_title",
+          "text": "Factual Claims (Statements to Verify)"
+        },
+        {
+          "id": "col2_title",
+          "text": "Verifiable Evidence Sources"
+        },
+        {
+          "id": "claim1_label",
+          "text": "Claim A"
+        },
+        {
+          "id": "claim2_label",
+          "text": "Claim B"
+        },
+        {
+          "id": "claim3_label",
+          "text": "Claim C"
+        },
+        {
+          "id": "claim4_label",
+          "text": "Claim D"
+        },
+        {
+          "id": "ev1_label",
+          "text": "Source 1"
+        },
+        {
+          "id": "ev2_label",
+          "text": "Source 2"
+        },
+        {
+          "id": "ev3_label",
+          "text": "Source 3"
+        },
+        {
+          "id": "ev4_label",
+          "text": "Source 4"
+        }
+      ],
+      "directions": "Match each factual claim on the left to its correct verifiable evidence source on the right. Draw a line to connect them.",
+      "goal": "Match specific factual claims to their corresponding type of verifiable evidence or testing method.",
+      "mechanic": "matching",
+      "questions": [
+        {
+          "answer": "Claim A matches Source 3; Claim B matches Source 1; Claim C matches Source 4; Claim D matches Source 2.",
+          "calculation": {
+            "answer": "1",
+            "expression": "4-3"
+          },
+          "id": "1",
+          "prompt": "Draw connecting lines or write the matching source number (1-4) next to each factual claim (A-D) to pair each claim with its correct verifiable evidence source.",
+          "space_mm": 25
+        },
+        {
+          "answer": "Claim B can be checked by measuring and recording actual temperature data from a calibrated thermometer over the stated time period.",
+          "id": "2",
+          "prompt": "Explain briefly how you can prove that Claim B is a fact rather than an opinion using the correct evidence source.",
+          "space_mm": 25
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "claim_1",
+          "text": "Water boils at 100 degrees Celsius at standard atmospheric pressure."
+        },
+        {
+          "id": "claim_2",
+          "text": "The local outdoor temperature reached 28 degrees Celsius yesterday afternoon."
+        },
+        {
+          "id": "claim_3",
+          "text": "The school library contains exactly 3,450 books in its catalog."
+        },
+        {
+          "id": "claim_4",
+          "text": "A standard adult human skeleton has 206 principal bones."
+        },
+        {
+          "id": "evidence_a",
+          "text": "Meteorological weather station logs and thermometer recordings from yesterday."
+        },
+        {
+          "id": "evidence_b",
+          "text": "A certified chemistry laboratory manual describing physical constants of water."
+        },
+        {
+          "id": "evidence_c",
+          "text": "The official school library inventory database and computerized checkout record."
+        },
+        {
+          "id": "evidence_d",
+          "text": "An authenticated human anatomy textbook and medical reference guide."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family: Arial, sans-serif; color: #1e293b; max-width: 186mm; margin: 0 auto; padding: 2px; box-sizing: border-box;\"><h1 data-content=\"title\" style=\"font-size: 16pt; font-weight: bold; color: #1e3a8a; text-align: center; margin: 0 0 2px 0;\"></h1><div style=\"display: flex; justify-content: space-between; font-size: 12pt; margin-bottom: 3px;\"><span data-content=\"name\">Name: ______________________</span><span data-content=\"date\">Date: _______________</span></div><p data-content=\"directions\" style=\"font-size: 12pt; font-weight: bold; color: #b45309; margin: 0 0 3px 0; text-align: center;\"></p><div style=\"display: flex; gap: 6px; margin-bottom: 4px;\"><div style=\"flex: 1; background-color: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px;\"><h3 style=\"font-size: 12pt; color: #1e3a8a; margin: 0 0 2px 0; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 1px;\" data-content=\"caption_col1_title\"></h3><div style=\"margin-bottom: 3px;\"><strong data-content=\"caption_claim1_label\"></strong><div data-content=\"stimulus_claim_1\" style=\"font-size: 12pt; margin-top: 1px; padding: 2px 4px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px;\"></div></div><div style=\"margin-bottom: 3px;\"><strong data-content=\"caption_claim2_label\"></strong><div data-content=\"stimulus_claim_2\" style=\"font-size: 12pt; margin-top: 1px; padding: 2px 4px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px;\"></div></div><div style=\"margin-bottom: 3px;\"><strong data-content=\"caption_claim3_label\"></strong><div data-content=\"stimulus_claim_3\" style=\"font-size: 12pt; margin-top: 1px; padding: 2px 4px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px;\"></div></div><div><strong data-content=\"caption_claim4_label\"></strong><div data-content=\"stimulus_claim_4\" style=\"font-size: 12pt; margin-top: 1px; padding: 2px 4px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px;\"></div></div></div><div style=\"flex: 1; background-color: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px;\"><h3 style=\"font-size: 12pt; color: #1e3a8a; margin: 0 0 2px 0; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 1px;\" data-content=\"caption_col2_title\"></h3><div style=\"margin-bottom: 3px;\"><strong data-content=\"caption_ev1_label\"></strong><div data-content=\"stimulus_evidence_a\" style=\"font-size: 12pt; margin-top: 1px; padding: 2px 4px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px;\"></div></div><div style=\"margin-bottom: 3px;\"><strong data-content=\"caption_ev2_label\"></strong><div data-content=\"stimulus_evidence_b\" style=\"font-size: 12pt; margin-top: 1px; padding: 2px 4px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px;\"></div></div><div style=\"margin-bottom: 3px;\"><strong data-content=\"caption_ev3_label\"></strong><div data-content=\"stimulus_evidence_c\" style=\"font-size: 12pt; margin-top: 1px; padding: 2px 4px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px;\"></div></div><div><strong data-content=\"caption_ev4_label\"></strong><div data-content=\"stimulus_evidence_d\" style=\"font-size: 12pt; margin-top: 1px; padding: 2px 4px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px;\"></div></div></div></div><div style=\"display: flex; gap: 6px; align-items: stretch; margin-bottom: 4px;\"><div style=\"flex: 1; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px; font-size: 12pt;\"><div data-content=\"question_1\"></div><div style=\"height: 18mm; border: 1px dashed #94a3b8; border-radius: 4px; margin-top: 2px;\"></div></div><div style=\"width: 130px; display: flex; justify-content: center; align-items: center; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px;\"><img data-asset=\"investigation_icon\" style=\"width: 120px; height: 65px; object-fit: contain;\"/></div></div><div style=\"background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px; font-size: 12pt;\"><div data-content=\"question_2\"></div><div style=\"height: 22mm; border: 1px dashed #94a3b8; border-radius: 4px; margin-top: 2px;\"></div></div></div>",
+    "images": [
+      {
+        "id": "investigation_icon",
+        "prompt": "An illustrated clean flat vector graphic showing science investigation tools like a magnifying glass, checkmark notes, and evidence files in navy, sage green, and warm terracotta, isolated with no text."
+      }
+    ]
+  }
+}

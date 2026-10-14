@@ -824,3 +824,20 @@ headers, API keys and image filesystem paths. The download uses the same optiona
 is retained. Synchronous `/generate` errors include `layout_diagnostic`; cron logs
 print the replay after `LAYOUT_DIAGNOSTIC:`. Generated worksheet content may be in
 the report, so share it with someone who should have access to that content.
+
+For authored activities that already contain two disjoint source-card columns,
+layout recovery preserves those columns and their labels instead of stacking all
+the cards. It can place the substantial square illustration beside one task and
+keep subsequent tasks full width. Every source, question, answer, illustration
+and independent writing panel remains; measured pagination, readable fonts,
+visual area, bounds and overlap checks still apply. This path covers both active
+grade bands and runs before general reflow candidates.
+
+Printed matching-label ranges such as `source number (1-4)` are identifiers, not
+subtraction. Clearly label-only matching tasks discard stray numeric calculation
+metadata without changing their prompts or prose keys; actual arithmetic and
+ambiguous quantitative tasks keep their checks. Content proofreading independently
+pairs authored claims/cards with their evidence/definition cards using the printed
+labels before comparing the key. Layout fit alone never approves those semantic
+answers. Initial generation guidance also avoids redundant blank writing panels
+and budgets short card sets together with the large illustration and task space.

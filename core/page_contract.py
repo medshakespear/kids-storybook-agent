@@ -465,11 +465,12 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             content += f'<span style="display:block;height:{space:g}mm;border:0.4mm solid #809AA6;margin-top:3mm;border-radius:3mm"></span>'
         blocks['question_'+qid] = content
         answers.append(f'{qid}. {answer}')
-        from core.calculation_attachment import detach_conceptual_calculation
+        from core.calculation_attachment import detach_conceptual_calculation, label_matching_text
         detach_conceptual_calculation(question)
         calculation = question.get('calculation')
         from core.exercise_quality import numeric_display_text
-        numeric_prompt = numeric_display_text(prompt)
+        label_text = label_matching_text(prompt)
+        numeric_prompt = numeric_display_text(label_text if label_text is not None else prompt)
         numeric_facts = re.findall(r'(?<![\w.])(?:\d+(?:\.\d+)?|\.\d+)(?:\s*[+−×÷*/-]\s*(?:\d+(?:\.\d+)?|\.\d+))+(?![\w.])', numeric_prompt)
         if calculation is None:
             from core.printed_arithmetic import standalone_arithmetic

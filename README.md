@@ -771,3 +771,10 @@ Python can reduce only its height using the rendered width and grade-specific
 visual-area floor. The same text, font sizes and writing areas remain. Computed
 diagrams and multi-image layouts are excluded from this resize, and genuinely
 overfull content still fails rather than being clipped or printed too small.
+
+Authored text-binding repairs distinguish factual explanations from imperative
+directions. A complete instruction paragraph already printed on the page may bind
+verbatim to `exercise.directions` when its student actions and explicit quantities
+belong to the retained exercise. Existing directions remain first; questions,
+answers, sources, pictures and response space remain pinned. Fragments, paraphrases,
+new unkeyed actions and instruction-as-caption/passage workarounds are rejected.

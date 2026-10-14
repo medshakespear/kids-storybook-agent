@@ -3,6 +3,21 @@ import re
 
 from core.content_binding import CanonicalTextContainers,CONTAINERS
 
+ACTION_GROUPS=(('read','review','study','examine','look'),
+               ('rewrite','transform','rephrase','restate','convert'),
+               ('draw','sketch','illustrate'),('write','record','list'),
+               ('sort','classify','categorize','group'),('match','pair','connect'),
+               ('explain','describe','justify'),('compare','contrast'),
+               ('calculate','solve','compute','count'),('choose','select','circle'),
+               ('design','create','invent'),('identify','find','locate'),('measure',),('complete',))
+ACTION_MAP={word:index for index,group in enumerate(ACTION_GROUPS) for word in group}
+ACTION_PATTERN='|'.join(ACTION_MAP)
+
+
+def instruction_start(text: str) -> bool:
+    """Keep imperative paragraphs out of factual-passage binding."""
+    return bool(re.match(r'^(?:(?:please|now|then)\s+)?(?:'+ACTION_PATTERN+r')\b',text,re.I))
+
 
 def normalized(value: str) -> str:
     """Compare complete printed wording independent of case and whitespace."""
@@ -75,6 +90,26 @@ def complete_additions(value: str, candidates: set[str]) -> set[str] | None:
     return split(value)
 
 
+def retained_instruction(text: str, exercise: dict) -> bool:
+    """Accept already printed directions only for actions present in the retained task."""
+    mapping=ACTION_MAP
+    verbs=ACTION_PATTERN
+    actions=re.findall(r'(?:^|[.!?;]\s+)(?:(?:please|now|then)\s+)?('+verbs+r')\b',text,re.I)
+    if not actions or not instruction_start(text):
+        return False
+    canonical=' '.join(str(exercise.get(k,'')) for k in ('directions','goal','mechanic')).replace('_',' ')
+    canonical+=' '+' '.join(str(q.get('prompt','')) for q in exercise.get('questions',[]) if isinstance(q,dict))
+    declared={mapping[word.lower()] for word in re.findall(r'\b('+verbs+r')\b',canonical,re.I)}
+    if any(mapping[word.lower()] not in declared|{0} for word in actions):
+        return False  # Do not authorize a new action with no retained answer criterion.
+    from core.prompt_recovery import numeric_values
+    # Complete wording is preserved, and a directions-only repair may not add
+    # numerical requirements absent from the existing task/source specification.
+    for field in ('stimuli','captions'):
+        canonical+=' '+' '.join(str(item.get('text','')) for item in exercise.get(field,[]) if isinstance(item,dict))
+    return set(numeric_values(text)).issubset(numeric_values(canonical))
+
+
 def merge_authored_wording(original: dict, correction: dict) -> dict:
     """Adopt lossless prose bindings while pinning questions, keys, sources and artwork."""
     from core.creative_generator import merge_layout_repair
@@ -83,7 +118,8 @@ def merge_authored_wording(original: dict, correction: dict) -> dict:
         raise ValueError('Authored wording repair requires HTML and a shared authored exercise')
     candidates=raw_paragraphs(original)
     from core.context_recovery import contextual_text
-    prose={text for text in candidates if contextual_text(text)}
+    prose={text for text in candidates if contextual_text(text) and not instruction_start(text)}
+    instructions={text for text in candidates if retained_instruction(text,original['exercise'])}
     adopted={};covered=set()
     for field in ('directions','passage'):
         old=original['exercise'].get(field,'') or ''
@@ -96,7 +132,7 @@ def merge_authored_wording(original: dict, correction: dict) -> dict:
         if before and not after.startswith(before+' '):
             raise ValueError('Authored wording repair must retain existing directions and passage verbatim')
         added=after[len(before):].strip() if before else after
-        blocks=complete_additions(added,prose)
+        blocks=complete_additions(added,prose|instructions if field=='directions' else prose)
         if blocks is None:
             raise ValueError('Authored wording repair must bind complete original paragraphs; no truncation or new wording')
         adopted[field]=new;covered.update(blocks)

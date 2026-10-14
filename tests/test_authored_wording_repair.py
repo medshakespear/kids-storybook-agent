@@ -84,6 +84,54 @@ class AuthoredWordingRepairTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'retain existing'):
             merge_authored_wording(page,correction)
 
+    def test_printed_task_instructions_bind_as_directions_for_both_grades(self):
+        """Whole imperative wording clarifies the retained rewrite task without key drift."""
+        instruction=('Read the subjective school lunch opinions below. Transform each into a verifiable, '
+                     'objective statement that could be checked by observation.')
+        for band in ('3rd-4th','5th-6th'):
+            with self.subTest(band=band):
+                page=authored_page(mechanic='rewrite_statements')
+                page['exercise']['directions']='Read the lunch opinions and rewrite them.'
+                page['exercise']['questions'][0].update(prompt='Rewrite each lunch opinion as a verifiable statement.',
+                    answer='Accept a statement that can be checked through observation.',space_mm=25)
+                page['html']=page['html'].replace('<p data-content="directions"></p>',
+                    '<p data-content="directions"></p><p>'+instruction+'</p>')
+                original=deepcopy(page);good=deepcopy(page)
+                good['exercise']['directions']+=' '+instruction
+                good['html']=good['html'].replace('<p>'+instruction+'</p>','')
+                good['exercise']['questions'][0]['answer']='An unwanted rewritten key.'
+                api=Mock();api.chat.completions.create.side_effect=[SimpleNamespace(choices=[SimpleNamespace(
+                    message=SimpleNamespace(content=json.dumps(raw)),finish_reason='stop')]) for raw in (page,good)]
+                config=self.config(band);brief={'render_mode':'authored','mechanic':'rewrite_statements'}
+                with patch('core.creative_generator.text_provider_names',return_value=['gemini']), \
+                     patch('core.creative_generator.text_client',return_value=(api,'test')), \
+                     patch('core.creative_generator.time.sleep'):
+                    result=ask_json(layout_contract(config['student_font_pt'],config['minimum_text_pt'],coherent=True),
+                        lambda raw:validate_design(raw,config['student_font_pt'],quality=config,
+                            expected_title='Lunch Opinion Studio',require_coherent=True),
+                        'Activity design 6',response_schema=design_schema(brief,config))
+                self.assertEqual(api.chat.completions.create.call_count,2)
+                self.assertEqual(result['html'].count(instruction),1)
+                self.assertEqual(result['exercise']['questions'],original['exercise']['questions'])
+                self.assertEqual(result['images'],original['images'])
+                self.assertIn('height:25mm',result['html'])
+
+    def test_instruction_binding_cannot_add_new_actions_or_quantities(self):
+        """Clarification is scoped to the retained task; fragments and new tasks still fail."""
+        for instruction in ('Calculate 17 + 4.','Rewrite 17 different statements.',
+                            'Write an entirely new task. Draw a poster.'):
+            page=self.page();page['html']=page['html'].replace(BODY,instruction)
+            correction=deepcopy(page);correction['exercise']['directions']+=' '+instruction
+            correction['html']=correction['html'].replace('<p>'+instruction+'</p>','')
+            with self.subTest(instruction=instruction),self.assertRaisesRegex(ValueError,'complete original paragraphs'):
+                merge_authored_wording(page,correction)
+        instruction='Read the examples. Transform the opinions into statements that can be checked.'
+        page=self.page();page['html']=page['html'].replace(BODY,instruction)
+        correction=deepcopy(page);correction['exercise']['passage']=instruction
+        correction['html']=correction['html'].replace('<p>'+instruction+'</p>','<p data-content="passage"></p>')
+        with self.assertRaisesRegex(ValueError,'complete original paragraphs'):
+            merge_authored_wording(page,correction)
+
     def test_fragment_paraphrase_and_deleted_prose_are_rejected(self):
         """No shortened caption workaround, new words or dropped task tail can pass."""
         for text in (BODY[:100],BODY.replace('personal preference','a different scenario'),

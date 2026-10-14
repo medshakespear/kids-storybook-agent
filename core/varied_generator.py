@@ -10,7 +10,8 @@ def generate_varied_pack(theme, grade_band, grade_config, *, source_context=None
 
     This configuration copy never changes the reading/QCM mode or global defaults.
     Content slots bind the model's layout to verified exercise wording and answers;
-    Python does not replace these pages with the legacy canonical worksheet layout.
+    Failed geometry receives bounded reflow of the same verified content before
+    requesting another model design; successful model compositions stay intact.
     """
     require_active_grade(grade_band)
     config = deepcopy(grade_config)

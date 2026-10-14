@@ -519,6 +519,8 @@ def retained_artwork_growth(page: dict, minimum_font: int, visual_area: float) -
 
 def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float):
     """Try bounded lossless compositions with sufficient art before another model rewrite."""
+    from core.bounded_layout import bounded_authored_layouts
+    yield from bounded_authored_layouts(page,minimum_font,visual_area)
     resized=readable_exact_layout(page,minimum_font,visual_area)
     if resized is not None:
         yield resized

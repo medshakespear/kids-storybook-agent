@@ -400,6 +400,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     plan_mode_base, plan_mode_number = None, None
     plan_repair_field = "render_mode"
     layout_rescue_candidates = set()
+    layout_rescue_base = None
     floor_match = re.search(r'Minimum student font: (\d+)pt', prompt)
     minimum_font = int(floor_match[1]) if floor_match else 11
     layout_visual_area = 10500 if minimum_font>=14 else 10000 if minimum_font==13 else 8000 if minimum_font==12 else 6000
@@ -545,7 +546,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         validated_draft = deepcopy(exc.layout_source)
                     def recover_print_layout(source, failure):
                         """Measure bounded lossless layouts after any preceding local content repair."""
-                        nonlocal layout_visual_area
+                        nonlocal layout_visual_area, layout_rescue_base
+                        if isinstance(source,dict):
+                            source_signature=json.dumps({key:source.get(key) for key in ('html','images','exercise')},sort_keys=True)
+                            if source_signature!=layout_rescue_base:
+                                layout_rescue_candidates.clear()
+                                layout_rescue_base=source_signature
                         area = re.search(r'Visuals are too small: use at least (\d+) square mm', str(failure))
                         if area:
                             layout_visual_area = int(area[1])

@@ -306,7 +306,7 @@ def normalize_illustration_ids(page: dict) -> None:
                           replace,page['html'],flags=re.I)
 
 
-def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = None, *, defer_visual_sizing: bool = False) -> None:
+def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = None, *, defer_visual_sizing: bool = False, blocks_out: dict | None = None) -> None:
     """Build shared tasks and answers; defer label sizing only before local recomposition."""
     if any(page.get(k) for k in ('answers','visuals','calculations')):
         raise ValueError('Use only the shared exercise specification, not independent answers/visuals/calculations drafts')
@@ -593,6 +593,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     page['exercise_binding'] = {'status':'bound','mechanic':exercise['mechanic'],
                                 'render_mode':exercise['render_mode'],'question_ids':sorted(reserved)}
     if brief: page['planned_intent'] = deepcopy(brief)
+    if blocks_out is not None:
+        blocks_out.update(blocks)
 
 
 EXERCISE_CONTRACT = '''Each student page returns ONLY html, images and exercise. Content and answers have

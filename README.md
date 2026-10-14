@@ -778,3 +778,16 @@ verbatim to `exercise.directions` when its student actions and explicit quantiti
 belong to the retained exercise. Existing directions remain first; questions,
 answers, sources, pictures and response space remain pinned. Fragments, paraphrases,
 new unkeyed actions and instruction-as-caption/passage workarounds are rejected.
+
+Mixed authored pages now share one bounded layout recovery for the recurring
+overflow/small-artwork loop. It verifies the complete exercise first, keeps data
+tables together, and tries three arrangements of the same source text and art.
+All question panels remain full width with their original `space_mm`; independent
+blank panels remain too. Square illustration panels meet the grade's area floor
+without relying on empty letterboxed space. Each candidate is rendered and checked
+for pagination, collisions, bounds, fonts and meaningful visual area. A changed
+model draft gets its own eight-candidate recovery budget, within the existing
+bounded request attempts and time limits. Reading/QCM generation is unchanged.
+Gemini's valid page design stays preferred; this reflow is used for invalid geometry.
+Physically infeasible content, invalid exercise answers and provider outages still
+produce errors rather than an unsafe or unreadable PDF.

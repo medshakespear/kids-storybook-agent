@@ -241,25 +241,38 @@ class CanonicalTextContainers(HTMLParser):
                              for child in node['children'])+f'</{tag}>'
 
     def separate_canonical_prefix(self, node) -> dict:
-        """Bind an exact leading text run without consuming following art or work space.
+        """Bind complete text runs before or after protected siblings without consuming them.
 
         The remainder stays in the original wrapper and goes through normal
         content, asset and geometry validation. Questions are excluded because
         canonical questions already own their response areas.
         """
-        pieces = []
-        for index, child in enumerate(node['children']):
-            piece = self.plain_text(child)
+        pieces=[self.plain_text(child) for child in node['children']]
+        if all(piece is not None for piece in pieces):
+            return node  # Retain the existing whole-container and duplicate handling.
+        children=[];run=[];texts=[]
+
+        def flush():
+            """Replace only one complete unique non-question block in a contiguous run."""
+            value=' '.join(''.join(texts).split()).casefold()
+            matches=[key for key,text in self.text_blocks.items()
+                     if value and value==text and not key.startswith('question_')]
+            if not matches:
+                matches=[key for key in ('name','date') if key in self.text_blocks
+                         and re.fullmatch(key+r'\s*:\s*[_\s]*',value)]
+            if len(matches)==1:
+                children.append({'tag':'span','attrs':[('data-content',matches[0])],'children':[]})
+            else:
+                children.extend(run)
+            run.clear();texts.clear()
+
+        for child,piece in zip(node['children'],pieces):
             if piece is None:
-                value = ' '.join(''.join(pieces).split()).casefold()
-                matches = [key for key,text in self.text_blocks.items()
-                           if value and value == text and not key.startswith('question_')]
-                if len(matches) == 1:
-                    slot = {'tag':'span','attrs':[('data-content',matches[0])],'children':[]}
-                    return dict(node,children=[slot]+node['children'][index:])
-                break
-            pieces.append(piece)
-        return node
+                flush();children.append(child)
+            else:
+                run.append(child);texts.append(piece)
+        flush()
+        return dict(node,children=children)
 
 
 def bind_formatted_canonical_text(layout: str, blocks: dict[str,str]) -> str:

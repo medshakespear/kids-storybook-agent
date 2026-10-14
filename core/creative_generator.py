@@ -677,6 +677,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                               and (layout_repair_base is not None or str(exc).startswith(
                                   ('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small', 'Exact visual labels would be too small',
                                    'Put ALL printed wording', 'Unknown or repeated exercise content slot',
+                                   'Bind this entire text container', 'Use a complete data-content slot',
                                    'Use every required exercise content slot')))):
                             layout_repair_base = validated_draft
                         from core.activity_stimuli import source_density_repair
@@ -1059,6 +1060,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             'every data-content slot and data-asset/data-visual ID exactly once. Keep all '
                             'task wording and response space unchanged; no new headings or captions. '
                             'Python applies ONLY the corrected HTML, plus captions binding exact original labels. '
+                            'For an inferred-slot error, put ONLY the complete canonical wording in its own '
+                            'named text wrapper; keep the following element outside it. Do not bind a parent '
+                            'containing artwork, another slot or writing panels. Canonical question slots already '
+                            'print their declared response space; retain separate independently authored work panels. '
                             f'A4 content width 186mm, height 265mm; minimum text {minimum_font}pt. '
                             f'Useful visual area must total at least {layout_visual_area} square mm, '
                             f'with one main visual at least {layout_visual_area*.55:g} square mm, or 2-4 substantial panels, each at least 75% of an equal share of that total target. '

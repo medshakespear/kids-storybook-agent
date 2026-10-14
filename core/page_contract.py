@@ -72,7 +72,11 @@ class BoundLayout(HTMLParser):
         tag = TAG_ALIASES.get(tag,tag)
         if self.slot:
             if self.inferred_slot:
-                raise ValueError('Bind this entire text container with data-content; do not append independent formatting or wording to an inferred content slot')
+                parent=self.stack[-1][0] if self.stack else 'container'
+                raise ValueError('Bind this entire text container with data-content; do not append independent formatting or wording to an inferred content slot. '
+                                 f'Inferred slot {self.slot!r} in <{parent}> is followed by <{tag}>. '
+                                 'Wrap only its complete canonical wording in a separate text slot; '
+                                 'retain the following element outside that slot')
             # A prefilled slot is only a redundant model draft: canonical text
             # replaces it. Never discard task graphics or another content slot.
             if tag not in {'p','div','section','span','strong','b','em','br'} or any(
@@ -140,7 +144,9 @@ class BoundLayout(HTMLParser):
             return
         if self.slot:
             if self.inferred_slot:
-                raise ValueError('Use a complete data-content slot; additional independent layout text cannot be discarded')
+                raise ValueError('Use a complete data-content slot; additional independent layout text cannot be discarded. '
+                                 f'Inferred slot {self.slot!r} is followed by {data.strip()[:100]!r}; '
+                                 'retain and bind the additional wording separately')
             return
         if re.fullmatch(r'[_\s|]{3,}', data) and data.count('_') >= 3:
             self.parts.append(html.escape(data))

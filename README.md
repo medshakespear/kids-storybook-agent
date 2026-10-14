@@ -638,6 +638,12 @@ protected. Added prose must copy complete original paragraphs, and the repair
 cannot discard the remaining original wording. Pure extra commands need their own
 proper task specification. Normal content and page-fit checks still apply.
 
+Canonical text recovery also handles complete text runs after a picture or another
+slot, retaining all protected siblings. Question runs remain conservative because
+their canonical slots own response boxes. Remaining inferred-slot errors identify
+the slot and following element and use a focused layout-only repair instead of
+repeating the original generation prompt. Extra wording and workspace stay protected.
+
 On computed puzzle pages, empty unused directions/passage placeholders are omitted
 only when they contain no wording, graphics or sized/bordered writing panels.
 Complete factual intro captions may be split into canonical caption chunks while

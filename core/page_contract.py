@@ -159,6 +159,9 @@ class BoundLayout(HTMLParser):
         if re.fullmatch(r'(?:\[[_\s]*\]\s*)+',data.strip()):
             self.parts.append(html.escape(data))
             return  # Empty selection/writing boxes carry no independent wording or answer.
+        if data.strip()=='•':
+            self.parts.append(html.escape(data))
+            return  # A single retained list marker carries no independent task wording.
         normalized = ' '.join(data.split()).casefold()
         matches = [key for key,value in self.text_blocks.items() if normalized==value]
         if not matches:
@@ -226,11 +229,15 @@ def validate_brief(page: dict, *, planning: bool = False) -> None:
         definition_match=(kind=='matching' and (
             (not physical and re.search(r'\b(?:vocabulary|words?|terms?)\b',goal) and re.search(r'\bdefinitions?\b',goal))
             or re.search(r'\b(?:match|pair|link|connect)\b[^.!?]{0,100}\b(?:vocabulary|words?|terms?)\b[^.!?]{0,100}\bdefinitions?\b',concept)))
-        if fact_sort or text_sort or claim_match or definition_match:
+        from core.maze_intent import is_statement_maze
+        statement_maze=kind=='maze' and is_statement_maze(page,planning=True)
+        if fact_sort or text_sort or claim_match or definition_match or statement_maze:
             # Correct only the planned tool selection. No generated diagram,
             # question, key or artwork exists to discard at this stage.
             mode='authored'
             page.pop('mechanic_constraints',None)
+            if statement_maze:
+                original=kind='statement_path'
     if mode=='exact' and kind not in EXACT_MECHANICS:
         complete_open_task = bool(page.get('directions')) and isinstance(page.get('questions'),list) and bool(page['questions'])
         if kind in OPEN_MECHANICS and not page.get('visual') and (planning or complete_open_task):
@@ -322,6 +329,12 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     if not isinstance(exercise, dict):
         raise ValueError('Return exercise as the shared source of task content, visuals and answers')
     validate_brief(exercise)
+    from core.maze_intent import is_statement_maze
+    if exercise['render_mode']=='exact' and exercise['mechanic']=='maze' and is_statement_maze(exercise):
+        raise ValueError('Statement-path task cannot use the geometric maze tool: it draws only walls, '
+                         'a route and stars, not factual/opinion checkpoints. Re-author this activity '
+                         'from an authored plan with complete printed statement choices, route labels '
+                         'and a verified answer key; do not rename or remove its student learning goal')
     if brief and any(exercise.get(k) != brief.get(k) for k in ('render_mode','mechanic')):
         raise ValueError('Preserve the planned render_mode and mechanic; do not replace this exercise with a different puzzle')
     exercise['goal'] = bounded_text(exercise.get('goal'), 'goal', 240)

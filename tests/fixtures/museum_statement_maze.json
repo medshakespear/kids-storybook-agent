@@ -1,0 +1,72 @@
+{
+  "title": "The Museum Guide Maze of Claims",
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "subtitle",
+          "text": "Trace a path through a statement maze by choosing only verifiable factual checkpoints."
+        },
+        {
+          "id": "node_start",
+          "text": "Start: The museum opened in 1985."
+        },
+        {
+          "id": "node_correct_1",
+          "text": "Exhibits span three floors."
+        },
+        {
+          "id": "node_correct_2",
+          "text": "Admission costs ten dollars."
+        },
+        {
+          "id": "node_exit",
+          "text": "Exit: Gift shop is on the left."
+        },
+        {
+          "id": "legend_title",
+          "text": "Legend"
+        },
+        {
+          "id": "fact_label",
+          "text": "Fact: Can be checked and proven true."
+        },
+        {
+          "id": "rule_title",
+          "text": "Rule"
+        },
+        {
+          "id": "rule_desc",
+          "text": "Avoid opinion statements or feelings."
+        }
+      ],
+      "goal": "Trace a path through the museum claim maze by identifying factual statements.",
+      "mechanic": "maze",
+      "questions": [
+        {
+          "answer": "Admission cost is a measurable fact that can be verified on a price list, while 'best gift shop' is a personal opinion or judgment.",
+          "id": "2",
+          "prompt": "Explain why you chose 'Admission costs ten dollars' instead of 'The museum has the best gift shop' as your checkpoint.",
+          "space_mm": 22
+        }
+      ],
+      "render_mode": "exact",
+      "visual": {
+        "cols": 5,
+        "id": "museum_maze",
+        "kind": "maze",
+        "question": 1,
+        "rows": 5,
+        "seed": 42,
+        "tokens": 3
+      }
+    },
+    "html": "<div style=\"font-family: Arial, sans-serif; max-width: 186mm; margin: 0 auto; padding: 5mm; color: #2C3E50; box-sizing: border-box;\"><div style=\"border-bottom: 2px solid #34495E; padding-bottom: 3mm; margin-bottom: 5mm; display: flex; justify-content: space-between; align-items: flex-end;\"><div><h1 data-content=\"title\" style=\"font-size: 20pt; margin: 0 0 2mm 0; color: #2C3E50;\">Fact and Opinion: Museum Guide</h1><p style=\"font-size: 12pt; margin: 0; color: #7F8C8D;\"><span data-content=\"caption_subtitle\"></span></p></div><div style=\"text-align: right; font-size: 12pt;\"><p data-content=\"name\" style=\"margin: 0 0 1mm 0;\">Name: ______________________</p><p data-content=\"date\" style=\"margin: 0;\">Date: _______________</p></div></div><section style=\"display: flex; gap: 6mm; align-items: flex-start; margin-bottom: 6mm;\"><div style=\"flex: 1; display: flex; flex-direction: column; align-items: center;\"><div style=\"border: 1px solid #BDC3C7; border-radius: 4px; padding: 2mm; background-color: #F8F9F9;\"><img data-visual=\"museum_maze\" style=\"width: 140mm; height: 95mm; object-fit: contain;\"/></div><div style=\"display: flex; gap: 4mm; margin-top: 3mm; font-size: 12pt;\"><span><span data-content=\"caption_node_start\"></span></span> | <span><span data-content=\"caption_node_correct_1\"></span></span> | <span><span data-content=\"caption_node_correct_2\"></span></span> | <span><span data-content=\"caption_node_exit\"></span></span></div></div><div style=\"width: 38mm; display: flex; flex-direction: column; gap: 4mm;\"><div style=\"background-color: #EBF5FB; border-left: 4px solid #2980B9; padding: 3mm; border-radius: 0 4px 4px 0;\"><p style=\"font-size: 12pt; font-weight: bold; margin: 0 0 1mm 0; color: #2980B9;\"><span data-content=\"caption_legend_title\"></span></p><p style=\"font-size: 12pt; margin: 0;\"><span style=\"color: #27AE60; font-weight: bold;\"><span data-content=\"caption_fact_label\"></span></span></p></div><div style=\"background-color: #FEF9E7; border-left: 4px solid #F39C12; padding: 3mm; border-radius: 0 4px 4px 0;\"><p style=\"font-size: 12pt; font-weight: bold; margin: 0 0 1mm 0; color: #D68910;\"><span data-content=\"caption_rule_title\"></span></p><p style=\"font-size: 12pt; margin: 0;\"><span data-content=\"caption_rule_desc\"></span></p></div></div></section><section style=\"background-color: #F4F6F6; padding: 4mm; border-radius: 4px; border: 1px solid #D5DBDB;\"><div data-content=\"question_2\"></div></section></div>",
+    "images": [
+      {
+        "id": "owl_reporter",
+        "prompt": "An investigative journalist owl wearing wire-rimmed glasses and a reporter's cap, illustrated with crisp line work and flat vector color shading, slate blue and mustard yellow tones, educational workbook spot art."
+      }
+    ]
+  }
+}

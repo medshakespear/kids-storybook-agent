@@ -841,3 +841,23 @@ pairs authored claims/cards with their evidence/definition cards using the print
 labels before comparing the key. Layout fit alone never approves those semantic
 answers. Initial generation guidance also avoids redundant blank writing panels
 and budgets short card sets together with the large illustration and task space.
+
+The planner distinguishes fact/opinion statement paths from geometric mazes.
+An exact maze can only draw walls, a route and stars; it cannot contain factual
+statement checkpoints supplied in unrelated captions. A clearly planned
+fact/opinion path becomes an authored `statement_path` before design, preserving
+its title, learning goal and concept. The authored activity must print its source
+cards, START/FINISH and next-step connections; it cannot route through AI pixels.
+Content proofreading independently checks the printed branches and answer route.
+Already generated, mismatched exact mazes require re-authoring rather than a
+layout-only fix that silently changes the learning task.
+
+Valid exact puzzles may retain supporting illustrations in a bounded two-column
+recovery. It restores a missing declared image reference from the retained
+manifest and renders the original puzzle at its readable aspect ratio beside all
+declared supporting captions/source cards and illustrations. Additional questions,
+answer keys and response heights stay intact. Unknown text, repeated assets and
+independent dimensioned work panels prevent this recomposition. Every candidate
+still passes normal semantic, font, artwork, single-page and overlap checks.
+A standalone bullet marker is retained as formatting; unbound instructions and
+sequences of unexplained symbols remain invalid.

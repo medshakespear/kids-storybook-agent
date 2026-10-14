@@ -55,6 +55,9 @@ identical pictures or shadows. Do not put a picture puzzle beneath unrelated tex
 instructions. Bind all headings, labels and directions in the initial response, not only the
 first instruction. Use a full-width, aspect-preserving computed diagram with readable labels
 on exact pages; budget its height together with captions and all response areas.
+Fact/opinion or reading-checkpoint paths are authored statement_path activities. Print every
+candidate statement, label and next-step connection, and a complete unique route in the key.
+The geometric exact maze has only walls and stars; it cannot host statement checkpoints.
 No teacher guide. No answers on student pages. One consolidated final answer key.
 '''
     pack = generate_creative_pack(theme, grade_band, config, source_context=context,

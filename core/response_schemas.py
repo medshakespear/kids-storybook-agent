@@ -138,7 +138,7 @@ def plan_schema(count: int) -> dict:
               'layout_brief':text(650)}
     branches = []
     authored = {**common, 'render_mode':enum(['authored']),
-                'mechanic':text(50,'Original creative action label.')}
+                'mechanic':text(50,'Original creative action label. Use statement_path for factual/opinion or reading-checkpoint routes; geometric exact mazes contain only walls and stars.')}
     branches.append(obj(authored))
     for kinds in [['matching'], ['sort'], ['maze','count','balance','pattern','differences']]:
         fields = {**common, 'render_mode':enum(['exact']), 'mechanic':enum(kinds)}

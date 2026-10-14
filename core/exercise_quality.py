@@ -177,7 +177,12 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
             raise ValueError(f'Print the exact planned activity title: {activity_title(expected_title)}. '
                              'Put it visibly in h1 or h2; preserve the exercise and artwork.')
     kinds = {v['kind'] for v in page.get('visuals', [])}
-    if re.search(r'\bmaze\b', normalized) and not re.search(r'(draw|design|create).{0,30}(your|an?).{0,15}maze', normalized) and 'maze' not in kinds:
+    from core.maze_intent import has_printed_statement_path
+    statement_path=has_printed_statement_path(page)
+    if page.get('exercise_binding') and page.get('exercise',{}).get('mechanic')=='statement_path' and not statement_path:
+        raise ValueError('Statement-path task needs complete printed source cards with START, FINISH '
+                         'and explicit next-step connections; keep routing out of AI artwork')
+    if re.search(r'\bmaze\b', normalized) and not re.search(r'(draw|design|create).{0,30}(your|an?).{0,15}maze', normalized) and 'maze' not in kinds and not statement_path:
         raise ValueError('A maze task requires an exact visuals kind=maze component, not an AI picture of a path')
     if re.search(r'(find|spot|circle).{0,60}\bdifferences?\b', normalized) and 'differences' not in kinds:
         raise ValueError('Spot-the-difference tasks require an exact visuals kind=differences component with both rows')
@@ -280,6 +285,11 @@ def proofread_pack(pack: dict, ask, repair) -> None:
             'or array order are not printed labels. A matching key containing plausible source numbers '
             'is not proof of correctness. Flag every incorrect pair and specify the correct printed '
             'label pair in the issue. Numbered label ranges such as (1-4) are not arithmetic. '
+            'For authored statement paths, independently follow every printed checkpoint/next-step '
+            'connection using the statement choices. Require one complete fact-only route from '
+            'START to FINISH; flag absent choices, missing links, ambiguous branches or a key that '
+            'does not follow the printed route. A geometric star maze does not contain semantic '
+            'fact/opinion checkpoints merely because captions mention them. '
             'if original_answer_conditions are supplied, verify concise answers preserve their essential '
             'solutions and success conditions; flag any omitted required condition or changed value. '
             'compare the planned activity with the shared exercise and actually printed task. Flag substituted '

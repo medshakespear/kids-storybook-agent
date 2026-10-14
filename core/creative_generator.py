@@ -557,7 +557,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         area = re.search(r'Visuals are too small: use at least (\d+) square mm', str(failure))
                         if area:
                             layout_visual_area = int(area[1])
-                        layout_defect = str(failure).startswith(('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small', 'Exact visual labels would be too small'))
+                        layout_defect = str(failure).startswith(('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small', 'Exact visual labels would be too small', 'Render every purposeful exercise illustration'))
                         missing_context = re.search(r'missing (\[[^\]]*\])$',str(failure)) if str(failure).startswith('Use every required exercise content slot') else None
                         missing_ids = re.findall(r"'([^']+)'",missing_context[1]) if missing_context else []
                         if (missing_ids and all(slot.startswith('caption_') for slot in missing_ids)
@@ -1718,6 +1718,11 @@ at most twice. Authored pages can share drawing/coloring/craft labels when their
 and compositions differ meaningfully. Use render_mode authored for these open creative tasks,
 not exact. Canonical names for the exact tools are listed above. No teacher guide.'''
     plan_prompt += '\nFor shadow matching use mechanic="matching" with mechanic_constraints={"mode":"shadow"}; never use mechanic="shadows".'
+    plan_prompt += ('\nThe exact maze tool creates only a geometric wall maze with stars. '
+        'Fact/opinion, vocabulary, reading or claim-checkpoint paths use render_mode="authored", '
+        'mechanic="statement_path" and complete printed candidate statements, checkpoint connections '
+        'and route answers. Do not claim that a geometric maze contains semantic statement nodes. '
+        'Keep the original reasoning goal when choosing its supported representation.')
     plan_prompt += ('\nmechanic_constraints is optional: matching may specify ONLY mode=shadow/identical; '
                     'sort may specify ONLY attribute=shape/color/size. For maze/count/balance/pattern/'
                     'differences and authored tasks OMIT mechanic_constraints. Never add mode or attribute '
@@ -1766,6 +1771,15 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
                   + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance + caption_guidance
                   + '\nFINAL PAGE BUDGET: '+density_guidance(config) + f'\nThe title slot will print: {brief["title"]}.')
+        if brief['mechanic']=='statement_path':
+            prompt+= ('\nSTATEMENT-PATH TASK: This is an authored reasoning activity, not a geometric '
+                'wall/star maze. Print all candidate factual/opinion statements and explicit checkpoint '
+                'labels/connections in canonical exercise.stimuli source cards. Define START and FINISH '
+                'and every next-step choice; provide a unique, independently verified fact-only route '
+                'in the answer key and one short evidence-based reflection. Keep complete statements '
+                'beside their own labels. Use HTML panels/tables with clear printed next-step labels; '
+                'no raw SVG, no data-visual maze and no exact-answer routes based on AI artwork. '
+                'Include purposeful illustrative art and practical response space within the page budget.')
         page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title'], require_coherent=True, brief=brief), f'Activity design {number}',
                         response_schema=design_schema(brief,config))
         page = compact_answers(page, number)

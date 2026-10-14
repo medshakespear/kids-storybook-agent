@@ -83,7 +83,7 @@ def source_card_layouts(page, minimum_font, visual_area):
         def collect(node):
             """Retain complete task containers and all remaining declared content once."""
             if isinstance(node,str):
-                if node.strip() and node.strip() not in {':',';',',','|'}:
+                if node.strip() and node.strip() not in {':',';',',','|','•'}:
                     raise ValueError('Unbound text cannot be discarded')
                 return
             if 'comment' in node: raise ValueError('Keep comments for strict validation')

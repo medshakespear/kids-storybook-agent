@@ -64,7 +64,7 @@ def bounded_authored_layouts(page: dict, minimum_font: int, visual_area: float):
             """Collect every required slot, asset, table and independent blank work surface."""
             if isinstance(node,str):
                 if not node.strip(): return
-                if node.strip() in {':',';',',','|'}:
+                if node.strip() in {':',';',',','|','•'}:
                     return  # Decorative separators do not define a student task.
                 if re.fullmatch(r'[_\s|]{3,}|(?:\[[_\s]*\]\s*)+',node.strip()):
                     workspaces.append('<p>'+literal_html(node)+'</p>');return

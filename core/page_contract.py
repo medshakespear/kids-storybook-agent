@@ -206,6 +206,26 @@ def validate_brief(page: dict, *, planning: bool = False) -> None:
                          'Use one literal value, never "exact or authored"')
     original = bounded_text(page.get('mechanic'),'mechanic',50)
     kind,constraints = canonical_mechanic(original)
+    if planning and mode=='exact':
+        goal=str(page.get('learning_goal','')).casefold()
+        concept=str(page.get('activity_concept','')).casefold()
+        physical=bool(re.search(r'\b(?:shapes?|colors?|colours?|sizes?|pictures?|shadows?)\b',goal))
+        fact_sort=(kind=='sort' and (
+            (not physical and re.search(r'\bfacts?\b',goal) and re.search(r'\bopinions?\b',goal))
+            or re.search(r'\b(?:sort|classif\w*|categor\w*|group|distinguish|separate)\b[^.!?]{0,100}\bfacts?\b[^.!?]{0,70}\bopinions?\b',concept)))
+        text_sort=(kind=='sort' and re.search(
+            r'\b(?:sort|classif\w*|categor\w*|group|separate)\b[^.!?]{0,100}\b(?:statements?|sentences?|claims?|paragraphs?|source cards?|text cards?)\b',concept))
+        claim_match=(kind=='matching' and (
+            (not physical and re.search(r'\bclaims?\b',goal) and re.search(r'\b(?:records?|measurements?|evidence)\b',goal))
+            or re.search(r'\b(?:match|pair|link|connect)\b[^.!?]{0,100}\bclaims?\b[^.!?]{0,100}\b(?:records?|measurements?|evidence)\b',concept)))
+        definition_match=(kind=='matching' and (
+            (not physical and re.search(r'\b(?:vocabulary|words?|terms?)\b',goal) and re.search(r'\bdefinitions?\b',goal))
+            or re.search(r'\b(?:match|pair|link|connect)\b[^.!?]{0,100}\b(?:vocabulary|words?|terms?)\b[^.!?]{0,100}\bdefinitions?\b',concept)))
+        if fact_sort or text_sort or claim_match or definition_match:
+            # Correct only the planned tool selection. No generated diagram,
+            # question, key or artwork exists to discard at this stage.
+            mode='authored'
+            page.pop('mechanic_constraints',None)
     if mode=='exact' and kind not in EXACT_MECHANICS:
         complete_open_task = bool(page.get('directions')) and isinstance(page.get('questions'),list) and bool(page['questions'])
         if kind in OPEN_MECHANICS and not page.get('visual') and (planning or complete_open_task):
@@ -599,6 +619,8 @@ THIS task rather than replacing it with another mechanism.
   claims to records, vocabulary to definitions, people to quotations or questions to answers.
   Use authored mode for those tasks, with all source cards in stimuli and a verified prose key;
   Python typesets the source text. Do not disguise semantic text matching as a picture puzzle.
+  Exact sort groups symbols only by shape, color or size. Fact/opinion classification and other
+  semantic text sorting belong in authored mode with declared statement cards and a prose key.
 - authored: Gemini invents the complete original creative task: craft, coloring, role-play planning,
   reading, writing, mathematical reasoning or another age-appropriate mechanism; not a fixed menu.
   directions is the single concise task instruction, passage optional. Questions are required.

@@ -18,9 +18,15 @@ TEXT_DECORATIONS = {'padding','padding-top','padding-right','padding-bottom','pa
 
 
 def canonical_content_slot(slot: str | None, blocks: dict) -> str | None:
-    """Resolve a bare declared caption ID without guessing unknown or task slots."""
-    if isinstance(slot, str) and slot not in blocks and 'caption_' + slot in blocks:
-        return 'caption_' + slot
+    """Resolve unique declared caption aliases without inventing missing source text."""
+    if isinstance(slot,str) and slot not in blocks:
+        matches=[]
+        if 'caption_'+slot in blocks: matches.append('caption_'+slot)
+        if slot.startswith('stimulus_'):
+            bare=slot
+            while bare.startswith('stimulus_'): bare=bare[len('stimulus_'):]
+            if 'caption_'+bare in blocks: matches.append('caption_'+bare)
+        if len(set(matches))==1: return matches[0]
     return slot
 
 

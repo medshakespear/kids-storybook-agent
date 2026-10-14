@@ -652,6 +652,13 @@ source text, questions and response space remain intact. Only a proven one-row
 image/text layout table may be unwrapped. All candidates still pass the same
 artwork-area floor and measured A4 page-fit checks.
 
+During planning, fact/opinion sorting, claim-to-record matching and vocabulary-to-
+definition matching select authored text activities instead of computed picture
+puzzles. Picture sorting and shadow/identical-image matching remain exact. A
+mistaken `stimulus_ID` reference may resolve to a uniquely declared `caption_ID`
+card when no actual source uses that slot; unknown or ambiguous evidence is never
+invented. Generated diagrams are not silently converted or discarded.
+
 On computed puzzle pages, empty unused directions/passage placeholders are omitted
 only when they contain no wording, graphics or sized/bordered writing panels.
 Complete factual intro captions may be split into canonical caption chunks while

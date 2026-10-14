@@ -730,3 +730,11 @@ spaces, printed without a wrapper, or placed beside protected artwork or writing
 panels. Each field prints once. Filled values and appended instructions still
 require proper exercise content; this recovery never consumes neighboring assets
 or response areas.
+
+Mixed activity pages may declare supporting source cards in `exercise.stimuli`
+for either authored activities or computed puzzles. Each card uses one
+`stimulus_ID` slot and retains its canonical wording. Missing cards enter a source
+manifest repair rather than a caption/layout repair; the verified puzzle and
+existing questions, answers and artwork remain pinned. Computed diagrams still
+own their instructions, and readable diagram labels and page-fit checks remain
+mandatory.

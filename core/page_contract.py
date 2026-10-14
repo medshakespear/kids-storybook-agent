@@ -386,7 +386,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             blocks['passage'] = html.escape(passage).replace('\n','<br/>')
     # Context captions are canonical content too, not a second instruction draft.
     captions = exercise.get('captions', [])
-    if exercise['render_mode']=='authored' and config.get('stimulus_limit'):
+    if config.get('stimulus_limit') and (exercise['render_mode']=='authored'
+            or exercise.get('stimuli') or re.search(r'\bdata-content\s*=\s*[\'\"]stimulus_',page['html'])):
         from core.activity_stimuli import prepare_stimuli, stimulus_capacity
         stimuli = prepare_stimuli(page,exercise)
         limit = stimulus_capacity(config)

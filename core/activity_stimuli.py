@@ -83,7 +83,7 @@ def stimulus_capacity(config: dict) -> int:
 
 
 def merge_missing_sources(original: dict, correction: dict) -> dict:
-    """Adopt missing authored sources and their layout without rewriting retained task data."""
+    """Adopt missing supporting sources without rewriting authored tasks or computed puzzles."""
     from copy import deepcopy
     from html.parser import HTMLParser
     original=deepcopy(original);correction=deepcopy(correction)

@@ -98,13 +98,15 @@ def exercise_schema(brief: dict, config: dict) -> dict:
             'The computed visual is question 1 and counts toward the page action limit. '
             'Do not repeat its question or answer. Keep response space for every extra action.')
     else:
-        if config.get('stimulus_limit'):
-            from core.activity_stimuli import stimulus_capacity
-            properties['stimuli'] = array(obj({'id':text(24,'Short lowercase ID; use stimulus_ID in HTML.'),
-                                              'text':text(650,'Short complete source excerpt or scenario. Keep all source blocks within the per-page combined word budget.')}),0,stimulus_capacity(config))
         properties['directions'] = text(180 if config.get('student_font_pt', 13) >= 14 else 350,
                                       'One concise task instruction, not a repeated question.')
         properties['passage'] = text(1500, 'Optional factual reading, keep short enough for the page.')
+    if config.get('stimulus_limit'):
+        from core.activity_stimuli import stimulus_capacity
+        properties['stimuli'] = array(obj({'id':text(24,'Short lowercase ID; use stimulus_ID in HTML.'),
+            'text':text(650,'Short complete source excerpt or scenario, never parallel computed-puzzle instructions. '
+                        'Use only for supporting context or additional questions. Keep all source blocks within '
+                        'the per-page combined word budget.')}),0,stimulus_capacity(config))
     required = [k for k in properties if k not in {'captions', 'passage', 'stimuli'}]
     return obj(properties, required)
 

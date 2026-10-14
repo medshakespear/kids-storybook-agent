@@ -5,11 +5,11 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 import unittest
 from core.activity_stimuli import merge_missing_sources, stimulus_capacity
-from core.creative_generator import ask_json, validate_design, layout_contract, density_guidance
+from core.creative_generator import ask_json, validate_design, layout_contract, density_guidance, merge_exact_wording_repair
 from core.response_schemas import design_schema, exercise_schema
 from core.page_contract import BoundLayout
 from core.pipeline import load_grade_config
-from tests.coherent_fixtures import authored_page
+from tests.coherent_fixtures import authored_page, exact_page, visual_examples
 
 
 class SourceManifestRecoveryTests(unittest.TestCase):
@@ -69,6 +69,42 @@ class SourceManifestRecoveryTests(unittest.TestCase):
         for limit in (0,9,True,'8'):
             with self.assertRaises(ValueError):stimulus_capacity({'stimulus_limit':limit})
 
+    def test_exact_source_repair_preserves_puzzle_and_recovers_label_size(self):
+        """A missing supporting card is supplied once, with real geometry in both grades."""
+        for band in ('3rd-4th','5th-6th'):
+            with self.subTest(band=band):
+                config=dict(load_grade_config()[band],purposeful_activity_layout=False,
+                    stimulus_limit=8,context_caption_limit=24,items_per_page=2)
+                raw=exact_page(visual_examples()[5]);raw['exercise']['stimuli']=[]
+                raw['exercise']['questions']=[{'id':'2','prompt':'Explain one useful classroom idea from Card A.',
+                    'answer':'Accept an explanation of testing clear labels with visitors.','space_mm':15}]
+                raw['html']=raw['html'].replace('width:175mm;height:150mm','width:95mm;height:75mm')
+                raw['html']+='<p data-content="directions"></p><p data-content="stimulus_card_a"></p><div data-content="question_2"></div>'
+                original=deepcopy(raw);good=deepcopy(raw)
+                source={'id':'card_a','text':'Fictional Card A: Students test their display labels with classroom visitors.'}
+                good['exercise']['stimuli']=[source]
+                good['exercise']['visual']['items']=[]  # This unwanted drift must not be adopted.
+                good['exercise']['questions'][0]['answer']='Unrelated answer.'
+                api=Mock();api.chat.completions.create.side_effect=[SimpleNamespace(choices=[SimpleNamespace(
+                    message=SimpleNamespace(content=json.dumps(page)),finish_reason='stop')]) for page in (raw,good)]
+                brief={'render_mode':'exact','mechanic':'sort'}
+                with patch('core.creative_generator.text_provider_names',return_value=['gemini']), \
+                     patch('core.creative_generator.text_client',return_value=(api,'fixture-model')), \
+                     patch('core.creative_generator.time.sleep'):
+                    result=ask_json(layout_contract(config['student_font_pt'],config['minimum_text_pt'],coherent=True),
+                        lambda page:validate_design(page,config['student_font_pt'],quality=config,
+                            expected_title='Museum Sorting',require_coherent=True,brief=brief),
+                        'Activity design 2',response_schema=design_schema(brief,config))
+                self.assertEqual(api.chat.completions.create.call_count,2)
+                self.assertIn('SOURCE MANIFEST repair',api.chat.completions.create.call_args.kwargs['messages'][-1]['content'])
+                self.assertEqual(result['exercise']['stimuli'],[source])
+                self.assertEqual(result['exercise']['visual'],original['exercise']['visual'])
+                self.assertEqual(result['exercise']['questions'],original['exercise']['questions'])
+                self.assertIn('height:15mm',result['html'])
+                self.assertEqual(result['html'].count(source['text']),1)
+                self.assertNotIn('data-content="directions"',result['html'])
+                self.assertEqual(raw,original)
+
     def test_missing_source_is_never_guessed_or_overwritten(self):
         """New text must exist explicitly once; all retained sources remain canonical."""
         raw=self.page()
@@ -80,6 +116,16 @@ class SourceManifestRecoveryTests(unittest.TestCase):
         changed['exercise']['stimuli'].append({'id':'card_e','text':'A supplied missing source.'})
         result=merge_missing_sources(raw,changed)
         self.assertEqual(result['exercise']['stimuli'][:4],raw['exercise']['stimuli'])
+
+    def test_exact_wording_repairs_cannot_replace_supporting_evidence(self):
+        """A later directions correction retains existing source wording and puzzle data."""
+        page=exact_page(visual_examples()[5])
+        page['exercise']['stimuli']=[{'id':'card_a','text':'Fictional Card A: Visitors test clear labels.'}]
+        correction=deepcopy(page)
+        correction['exercise']['stimuli'][0]['text']='Different evidence.'
+        result=merge_exact_wording_repair(page,correction)
+        self.assertEqual(result['exercise']['stimuli'],page['exercise']['stimuli'])
+        self.assertEqual(result['exercise']['visual'],page['exercise']['visual'])
 
     def test_blank_lines_with_table_separators_are_workspace_only(self):
         """Accept blank separators while rejecting words, numeric answers and extra tasks."""

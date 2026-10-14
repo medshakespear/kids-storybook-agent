@@ -179,7 +179,7 @@ def merge_exact_wording_repair(original: dict, correction: dict) -> dict:
     result = deepcopy(correction)
     retained = original['exercise']
     exercise = result['exercise']
-    for key in ('render_mode','mechanic','goal','visual','mechanic_constraints'):
+    for key in ('render_mode','mechanic','goal','visual','mechanic_constraints','stimuli'):
         if key in retained:
             exercise[key] = deepcopy(retained[key])
         else:
@@ -665,7 +665,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         exact_repair_base = validated_draft if not caption_match and exact_wording_requires_content_repair(validated_draft,str(exc)) else None
                         missing_source = (str(exc).startswith('Unknown or repeated exercise content slot: stimulus_')
                                           and '; unknown;' in str(exc)
-                                          and validated_draft['exercise'].get('render_mode')=='authored')
+                                          and validated_draft['exercise'].get('render_mode') in {'authored','exact'})
                         source_repair_base = validated_draft if missing_source else None
                         authored_unbound = (isinstance(validated_draft.get('exercise'),dict)
                                             and validated_draft['exercise'].get('render_mode')=='authored'

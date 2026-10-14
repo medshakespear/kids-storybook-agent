@@ -659,6 +659,13 @@ mistaken `stimulus_ID` reference may resolve to a uniquely declared `caption_ID`
 card when no actual source uses that slot; unknown or ambiguous evidence is never
 invented. Generated diagrams are not silently converted or discarded.
 
+Omitted trailing HTML closes, standard optional paragraph/table-cell closes and
+redundant void-element ends are repaired locally before content binding. Crossed
+or orphan end tags receive a closing-tag-only repair: the original start tags,
+attributes, printed wording, exercise, images and writing dimensions stay protected.
+Unclear truncated markup is rejected instead of publishing a broken page. All
+normal content and A4 layout checks still run after structure repair.
+
 On computed puzzle pages, empty unused directions/passage placeholders are omitted
 only when they contain no wording, graphics or sized/bordered writing panels.
 Complete factual intro captions may be split into canonical caption chunks while

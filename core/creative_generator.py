@@ -466,8 +466,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         schema = response_schema
                     elif layout_repair_base is not None:
                         caption_cap = layout_repair_base.get('_caption_context_limit',6) + 8 + len(layout_repair_base.get('_table_caption_ids',[]))
-                        schema = obj({'html':text(18000), 'exercise':obj({'captions':array(
-                            obj({'id':text(24),'text':text(120)}),0,caption_cap)})},['html'])
+                        schema = (obj({'html':text(18000)}) if layout_repair_base.get('_syntax_only_repair') else
+                                  obj({'html':text(18000), 'exercise':obj({'captions':array(
+                                      obj({'id':text(24),'text':text(120)}),0,caption_cap)})},['html']))
                     response_format = ({'type':'json_schema','json_schema':{
                         'name':'activity_response','schema':schema}} if schema is not None and provider=='gemini' and not schema_fallback_used
                         else {'type':'json_object'})
@@ -527,7 +528,11 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         draft = merge_authored_wording(binding_repair_base,draft)
                         scoped_merge = True
                     elif layout_repair_base is not None:
-                        draft = merge_layout_repair(layout_repair_base,draft)
+                        if layout_repair_base.get('_syntax_only_repair'):
+                            from core.html_balance import merge_structural_repair
+                            draft = merge_structural_repair(layout_repair_base,draft)
+                        else:
+                            draft = merge_layout_repair(layout_repair_base,draft)
                         scoped_merge = True
                     validated_draft = deepcopy(draft)
                     result = validate(draft)
@@ -678,8 +683,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                                   ('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small', 'Exact visual labels would be too small',
                                    'Put ALL printed wording', 'Unknown or repeated exercise content slot',
                                    'Bind this entire text container', 'Use a complete data-content slot',
+                                   'Exercise layout tags must be balanced',
                                    'Use every required exercise content slot')))):
                             layout_repair_base = validated_draft
+                            if str(exc).startswith('Exercise layout tags must be balanced'):
+                                layout_repair_base = deepcopy(validated_draft)
+                                layout_repair_base['_syntax_only_repair'] = True
                         from core.activity_stimuli import source_density_repair
                         density_repair = source_density_repair(validated_draft,prompt,str(exc))
                         if density_repair:
@@ -1052,6 +1061,15 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             'paragraphs. Keep every question, answer, source, image and space_mm unchanged; Python '
                             'pins them. Maintain readable fonts and one-page A4 fit. Validation: '+str(exc)+
                             '\nRetained page:\n'+json.dumps(binding_repair_base)}]
+                    elif layout_repair_base is not None and layout_repair_base.get('_syntax_only_repair'):
+                        messages=[messages[0],{'role':'user','content':
+                            'Repair HTML closing-tag structure ONLY. Return JSON {"html":"..."}. '
+                            'Preserve every start tag, attribute, printed word, source/image reference and '
+                            'writing dimension in the same order. Insert/remove/reorder only closing tags '
+                            'to correct crossed nesting or orphan end tags. Do not redesign, add captions, '
+                            'change exercises or remove content. Python pins the entire original exercise '
+                            'and image manifest and checks the unchanged start tags and wording. '
+                            'Validation: '+str(exc)+'\nRetained HTML:\n'+layout_repair_base['html']}]
                     elif layout_repair_base is not None:
                         messages = [messages[0],{'role':'user','content':
                             'Repair ONLY this existing printable layout. Return JSON containing html only; '
@@ -1309,8 +1327,11 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
     design = deepcopy(raw)
     prepared_layout = None
     design['html'] = _text(design.get('html'), 'html', 18000)
+    from core.html_balance import balance_print_fragment, reject_truncated_tag
+    reject_truncated_tag(design['html'])
     from core.print_tags import normalize_print_markup
     design['html'] = normalize_print_markup(design['html'])
+    design['html'] = balance_print_fragment(design['html'])
     from core.print_grid import normalize_print_grid
     design['html'] = normalize_print_grid(design['html'])
     if quality is not None:

@@ -390,6 +390,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     repair_calculation = False
     range_repair_base, range_repair_id = None, None
     layout_repair_base = None
+    binding_repair_base = None
     manifest_repair_base = None
     exercise_repair_base = None
     exact_repair_base = None
@@ -461,6 +462,8 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         schema = field_repair_schema(prompt_repair_id,'prompt')
                     elif answer_repair_base is not None:
                         schema = field_repair_schema(answer_repair_id,'answer',calculation=repair_calculation,answer_limit=answer_limit)
+                    elif binding_repair_base is not None:
+                        schema = response_schema
                     elif layout_repair_base is not None:
                         caption_cap = layout_repair_base.get('_caption_context_limit',6) + 8 + len(layout_repair_base.get('_table_caption_ids',[]))
                         schema = obj({'html':text(18000), 'exercise':obj({'captions':array(
@@ -519,6 +522,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         from core.activity_stimuli import merge_missing_sources
                         draft = merge_missing_sources(source_repair_base,draft)
                         scoped_merge = True
+                    elif binding_repair_base is not None:
+                        from core.authored_wording import merge_authored_wording
+                        draft = merge_authored_wording(binding_repair_base,draft)
+                        scoped_merge = True
                     elif layout_repair_base is not None:
                         draft = merge_layout_repair(layout_repair_base,draft)
                         scoped_merge = True
@@ -545,7 +552,8 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                                 and source['exercise'].get('render_mode')=='exact'):
                             layout_defect = True
                         if (source is None or len(layout_rescue_candidates) >= 8
-                                or not (layout_repair_base is not None or (response_schema is not None and layout_defect))):
+                                or not (layout_repair_base is not None or binding_repair_base is not None
+                                        or (response_schema is not None and layout_defect))):
                             return None
                         from core.layout_recovery import layout_recovery_candidates
                         for rescue in layout_recovery_candidates(source,minimum_font,layout_visual_area):
@@ -654,7 +662,14 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                                           and '; unknown;' in str(exc)
                                           and validated_draft['exercise'].get('render_mode')=='authored')
                         source_repair_base = validated_draft if missing_source else None
-                        if answer_match or math_match or prompt_match or caption_match or range_match or exact_repair_base is not None or missing_source:
+                        authored_unbound = (isinstance(validated_draft.get('exercise'),dict)
+                                            and validated_draft['exercise'].get('render_mode')=='authored'
+                                            and str(exc).startswith('Put ALL printed wording'))
+                        if authored_unbound:
+                            binding_repair_base = validated_draft
+                        elif not str(exc).startswith('Authored wording repair'):
+                            binding_repair_base = None
+                        if answer_match or math_match or prompt_match or caption_match or range_match or exact_repair_base is not None or missing_source or binding_repair_base is not None:
                             layout_repair_base = None
                         elif (isinstance(validated_draft,dict) and isinstance(validated_draft.get('html'),str)
                               and isinstance(validated_draft.get('exercise'),dict)
@@ -1023,6 +1038,19 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             'If an explanation follows the object, remove only that explanation; preserve '
                             'all exercise and illustration data inside the object. Parser error: '+str(exc)+
                             '\nResponse to serialize:\n'+(content or '')[:36000]}]
+                    elif binding_repair_base is not None:
+                        messages = [messages[0],{'role':'user','content':
+                            'Repair authored TEXT BINDING, not the activity or only its layout. Return complete '
+                            'html, images and exercise. Bind ALL already printed unslotted wording in this pass. '
+                            'Copy a long explanation/instruction paragraph VERBATIM into exercise.passage and '
+                            'bind its entire container with data-content="passage". Do not split or shorten it '
+                            'into captions. If passage already exists, retain it verbatim first and append the '
+                            'whole original paragraph. Keep existing directions unchanged; only append complete '
+                            'already printed instruction paragraphs when needed. Short whole headings may bind '
+                            'through captions with their exact original text. No invented wording or deleted '
+                            'paragraphs. Keep every question, answer, source, image and space_mm unchanged; Python '
+                            'pins them. Maintain readable fonts and one-page A4 fit. Validation: '+str(exc)+
+                            '\nRetained page:\n'+json.dumps(binding_repair_base)}]
                     elif layout_repair_base is not None:
                         messages = [messages[0],{'role':'user','content':
                             'Repair ONLY this existing printable layout. Return JSON containing html only; '

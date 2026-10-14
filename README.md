@@ -630,6 +630,14 @@ normalize together before binding and missing-source repair. Source text, questi
 wording, answers and writing space stay intact. Colliding IDs, duplicate slots and
 actually missing source text still fail validation.
 
+Authored pages with unbound contextual prose receive a text-binding repair rather
+than an HTML-only repair. A complete existing explanatory paragraph can become
+`exercise.passage`; it is not shortened into a 120-character caption. Existing
+directions, passages, questions, keys, sources, images and response spaces remain
+protected. Added prose must copy complete original paragraphs, and the repair
+cannot discard the remaining original wording. Pure extra commands need their own
+proper task specification. Normal content and page-fit checks still apply.
+
 On computed puzzle pages, empty unused directions/passage placeholders are omitted
 only when they contain no wording, graphics or sized/bordered writing panels.
 Complete factual intro captions may be split into canonical caption chunks while

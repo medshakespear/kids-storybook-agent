@@ -724,3 +724,9 @@ fraction cannot satisfy a check merely because its integer prefix matches the
 expected answer. An unambiguous whole printed calculation can supply its missing
 calculation metadata locally; its prose key still requires verification. Python
 does not infer formulas from word-problem fragments or invent numeric prose answers.
+
+Combined blank Name/Date lines bind locally even when separated by nonbreaking
+spaces, printed without a wrapper, or placed beside protected artwork or writing
+panels. Each field prints once. Filled values and appended instructions still
+require proper exercise content; this recovery never consumes neighboring assets
+or response areas.

@@ -51,9 +51,34 @@ class BlankFormBindingTests(unittest.TestCase):
         self.assertEqual(result['html'].count('Name:'),1)
         self.assertEqual(result['html'].count('Date:'),1)
 
+    def test_unicode_metadata_beside_protected_content_binds_locally(self):
+        """Nonbreaking-space fields bind without losing an image or blank work panel."""
+        line = 'Name: _______________________ \u00a0\u00a0 Date: _______________'
+        for band in ('3rd-4th','5th-6th'):
+            for markup in (line, '<p>'+line+'</p>',
+                           '<div>'+line+'<span style="display:inline-block;width:8mm;height:3mm"></span></div>',
+                           '<div><strong>Name:</strong> ______ &nbsp;&#160; <em>Date:</em> ______'
+                           '<span style="display:inline-block;width:8mm;height:3mm"></span></div>'):
+                with self.subTest(band=band,markup=markup):
+                    page=authored_page();page['exercise'].update(captions=[],stimuli=[])
+                    original=deepcopy(page['exercise']);images=deepcopy(page['images'])
+                    page['html']=markup+page['html'];config=self.config(band)
+                    result=validate_design(page,config['student_font_pt'],quality=config,
+                        expected_title='Garden Design',require_coherent=True)
+                    self.assertEqual(result['html'].count('Name:'),1)
+                    self.assertEqual(result['html'].count('Date:'),1)
+                    self.assertEqual(result['exercise'],original)
+                    self.assertEqual(result['images'],images)
+                    self.assertIn('height:45mm',result['html'])
+                    self.assertIn('data-asset="scene"',result['html'])
+                    if 'height:3mm' in markup:
+                        self.assertIn('height:3mm',result['html'])
+
     def test_identification_line_cannot_swallow_meaningful_content(self):
         """Filled student values and an appended task need proper content binding."""
-        for line in ('Name: Alex Date: October 13','Name: _____ Date: _____ Now draw a plant.'):
+        for line in ('Name: Alex Date: October 13','Name: _____ Date: _____ Now draw a plant.',
+                     'Name: _____ \u00a0\u00a0 Date: _____ Now draw a plant.',
+                     'Name: _____ \u00a0\u00a0 Name: _____'):
             page=authored_page();page['html']='<p>'+line+'</p>'+page['html'];config=self.config('3rd-4th')
             with self.subTest(line=line),self.assertRaises(ValueError):
                 validate_design(page,config['student_font_pt'],quality=config,expected_title='Garden Design',require_coherent=True)

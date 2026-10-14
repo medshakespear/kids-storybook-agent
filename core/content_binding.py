@@ -17,6 +17,19 @@ TEXT_DECORATIONS = {'padding','padding-top','padding-right','padding-bottom','pa
                     'border-color','border-width','border-style','border-radius'}
 
 
+def combined_metadata_fields(value: str) -> tuple[str, str] | None:
+    """Recognize only two complete blank Name/Date fields, including Unicode spaces."""
+    normalized = ' '.join(value.split()).casefold()
+    match = re.fullmatch(r'(name|date)\s*:\s*[_\s]{3,}\s+(name|date)\s*:\s*[_\s]{3,}', normalized)
+    return (match[1], match[2]) if match and match[1] != match[2] else None
+
+
+def metadata_nodes(fields: tuple[str, str]) -> list:
+    """Create independent canonical fields without consuming nearby writing panels."""
+    return [{'tag':'span','attrs':[('data-content',fields[0])],'children':[]}, ' ',
+            {'tag':'span','attrs':[('data-content',fields[1]),('style','margin-left:4mm')],'children':[]}]
+
+
 def canonical_content_slot(slot: str | None, blocks: dict) -> str | None:
     """Resolve unique declared caption aliases without inventing missing source text."""
     if isinstance(slot,str) and slot not in blocks:
@@ -174,7 +187,11 @@ class CanonicalTextContainers(HTMLParser):
 
     def render(self, node, *, inside_slot: bool = False) -> str:
         """Add a named slot only when the entire text-only container matches one canonical block."""
-        if isinstance(node,str): return html.escape(node,quote=False)
+        if isinstance(node,str):
+            fields = combined_metadata_fields(node) if not inside_slot else None
+            if fields and {'name','date'}.issubset(self.text_blocks):
+                return ''.join(self.render(child) for child in metadata_nodes(fields))
+            return html.escape(node,quote=False)
         if 'comment' in node: return '<!--'+node['comment']+'-->'
         tag,attrs = node['tag'],list(node['attrs'])
         block = canonical_content_slot(dict(attrs).get('data-content'), self.text_blocks)
@@ -186,13 +203,12 @@ class CanonicalTextContainers(HTMLParser):
                 and {'name','date'}.issubset(self.text_blocks)):
             pieces = [self.plain_text(child) for child in node['children']]
             value = ' '.join(''.join(pieces).split()).casefold() if all(p is not None for p in pieces) else ''
-            combined = re.fullmatch(r'(name|date)\s*:\s*[_\s]{3,}\s+(name|date)\s*:\s*[_\s]{3,}',value)
-            if combined and combined[1] != combined[2]:
+            combined = combined_metadata_fields(value)
+            if combined:
                 # Only blank identification fields are metadata. Keep the outer
                 # styling; bind both fields independently so normal deduplication
                 # and canonical filling apply without swallowing student work.
-                children = [{'tag':'span','attrs':[('data-content',combined[1])],'children':[]},' ',
-                            {'tag':'span','attrs':[('data-content',combined[2]),('style','margin-left:4mm')],'children':[]}]
+                children = metadata_nodes(combined)
                 node = dict(node,children=children)
         if not inside_slot and isinstance(block,str) and block.startswith('caption_') and block in self.text_blocks:
             if block in self.seen_captions:
@@ -269,7 +285,11 @@ class CanonicalTextContainers(HTMLParser):
             if len(matches)==1:
                 children.append({'tag':'span','attrs':[('data-content',matches[0])],'children':[]})
             else:
-                children.extend(run)
+                fields = combined_metadata_fields(value)
+                if fields and {'name','date'}.issubset(self.text_blocks):
+                    children.extend(metadata_nodes(fields))
+                else:
+                    children.extend(run)
             run.clear();texts.clear()
 
         for child,piece in zip(node['children'],pieces):

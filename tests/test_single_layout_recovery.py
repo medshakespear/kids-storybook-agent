@@ -39,6 +39,7 @@ class SingleLayoutRecoveryTests(unittest.TestCase):
             message=SimpleNamespace(content=s),finish_reason='stop')]) for s in [json.dumps(original),'{"html":"broken" "x":1}']]
         with patch('core.creative_generator.text_provider_names',return_value=['gemini']), \
              patch('core.creative_generator.text_client',return_value=(api,'test')), \
+             patch('core.small_overflow.recover_paginated_art',return_value=None), \
              patch('core.creative_generator.time.sleep'):
             result=ask_json(layout_contract(14,13,coherent=True),self.validate,'Activity design 4')
         self.assertEqual(result['exercise'],original['exercise'])

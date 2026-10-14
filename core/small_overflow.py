@@ -1,5 +1,31 @@
 """Recover a small vertical spill by resizing illustrative art, never student text/workspace."""
 import re
+import math
+
+
+def recover_paginated_art(markup: str, document, profile: dict) -> str | None:
+    """Reduce an oversized illustration to its measured area floor on a 2-3 page spill.
+
+    Text, diagram labels and response space are unchanged. The caller must render
+    the candidate again and accept it only if every print-quality check passes.
+    """
+    floor=profile.get('visual_area_mm2')
+    if not floor or len(document.pages) not in {2,3}:
+        return None
+    matches=list(re.finditer(r'<img\b[^>]*>',markup,re.I))
+    if len(matches)!=1 or not re.search(r'\bdata-asset\s*=',matches[0][0],re.I):
+        return None  # Never shrink computed SVG labels or guess multi-image geometry.
+    boxes=[b for page in document.pages for b in page._page_box.descendants()
+           if b.element_tag=='img' and hasattr(b,'replacement')]
+    if len(boxes)!=1: return None
+    width=boxes[0].width*25.4/96
+    match=matches[0]
+    height=re.search(r'(?<!-)\bheight\s*:\s*([0-9.]+)mm',match[0],re.I)
+    if width<=0 or not height: return None
+    target=max(35,math.ceil(float(floor)*1.04/width))
+    if target>=float(height[1])-1: return None
+    tag=re.sub(r'(?<!-)\bheight\s*:\s*[0-9.]+mm',f'height:{target}mm',match[0],flags=re.I)
+    return markup[:match.start()]+tag+markup[match.end():]
 
 
 def recover_small_overflow(markup: str, document, profile: dict) -> str | None:

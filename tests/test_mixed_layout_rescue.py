@@ -41,7 +41,10 @@ class MixedLayoutRescueTests(unittest.TestCase):
         for band in ('3rd-4th','5th-6th'):
             config=self.config(band);original=source_page()
             try:
-                validate_design(original,config['student_font_pt'],quality=config,expected_title='Community Planning',require_coherent=True)
+                # Exercise the fallback/profile path when direct art resizing
+                # cannot offer a candidate; production now also has that route.
+                with patch('core.small_overflow.recover_paginated_art',return_value=None):
+                    validate_design(original,config['student_font_pt'],quality=config,expected_title='Community Planning',require_coherent=True)
             except ValueError as exc:
                 source=exc.layout_source
             else:

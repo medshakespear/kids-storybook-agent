@@ -765,3 +765,9 @@ to that same diagram. Surrounding wrappers, source text, additional questions an
 writing panels remain intact. Unknown diagram IDs and malformed image attributes
 still fail validation; the resulting page must pass all normal content and print
 checks before publication.
+
+When a single oversized illustration pushes a sheet onto two or three pages,
+Python can reduce only its height using the rendered width and grade-specific
+visual-area floor. The same text, font sizes and writing areas remain. Computed
+diagrams and multi-image layouts are excluded from this resize, and genuinely
+overfull content still fails rather than being clipped or printed too small.

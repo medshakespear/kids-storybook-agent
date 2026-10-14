@@ -456,8 +456,9 @@ def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: boo
                 except ValueError as exc:
                     last_overflow = str(exc)
                     if not cover and not overflow_recovered:
-                        from core.small_overflow import recover_small_overflow
-                        resized = recover_small_overflow(page['html'], doc, profile)
+                        from core.small_overflow import recover_small_overflow, recover_paginated_art
+                        resized = (recover_paginated_art(page['html'],doc,profile)
+                                   or recover_small_overflow(page['html'], doc, profile))
                         if resized:
                             candidates.append(resized)
                             overflow_recovered = True

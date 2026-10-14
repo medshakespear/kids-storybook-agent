@@ -534,6 +534,10 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     # Each answer and question count is already bounded. Check final sheet geometry
     # during pack preflight rather than imposing a contradictory aggregate character cap.
     if page['visuals']:
+        if exercise['render_mode']=='exact':
+            from core.exact_visual_slots import normalize_exact_visual_slots
+            page['html']=normalize_exact_visual_slots(page['html'],page_visuals(page),
+                config.get('minimum_text_pt',11),config.get('visual_area_mm2',6500))
         from core.image_dimensions import normalize_image_dimensions
         from core.creative_layout import clean_style
         page['html'] = normalize_image_dimensions(page['html'],page_visuals(page),config.get('visual_area_mm2',6500),

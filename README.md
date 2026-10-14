@@ -758,3 +758,10 @@ answers do not qualify. An additional in-place artwork-growth recovery preserves
 all original wrappers, source text, table cells and independent blank panels,
 changing only the illustration and proven image-only frame dimensions. It is
 accepted only after the full readable-font, visual-area and page-fit checks pass.
+
+On computed-puzzle pages, Python restores an omitted reference to the single
+validated diagram at a readable size, or removes only redundant image references
+to that same diagram. Surrounding wrappers, source text, additional questions and
+writing panels remain intact. Unknown diagram IDs and malformed image attributes
+still fail validation; the resulting page must pass all normal content and print
+checks before publication.

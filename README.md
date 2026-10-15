@@ -861,3 +861,21 @@ independent dimensioned work panels prevent this recomposition. Every candidate
 still passes normal semantic, font, artwork, single-page and overlap checks.
 A standalone bullet marker is retained as formatting; unbound instructions and
 sequences of unexplained symbols remain invalid.
+
+Statement-path prerequisites are read from actual bound student text, including
+captions and directions, rather than only the source-card bodies. Endpoint aliases
+such as BEGIN/END and printed connections such as `A → B`, `Checkpoint A -> Checkpoint B`,
+`Next: B` and `move to B` are accepted. Image prompts cannot satisfy these checks.
+An incidental instruction to color an illustration does not mean the route depends
+on that illustration. Content proofreading still independently follows the route
+and verifies its branches and key; these local checks establish printed prerequisites.
+
+When route details are missing, Gemini receives a scoped directions/captions/source
+repair instead of a full page or HTML-only retry. Python retains the original task,
+key, images, HTML and working panels, protects original source facts, and inserts
+slots for added route labels/cards. Directions retain existing numeric values. A direct
+instruction to trace a route in AI artwork may have only that media reference
+replaced locally with the printed cards/connections; unrelated image activities stay
+unchanged. The complete repaired page must pass content binding and PDF preflight.
+This repair clears any preceding layout-only latch, so route additions can actually
+reach the page. Initial statement-path response schemas also require source cards.

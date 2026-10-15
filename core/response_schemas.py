@@ -108,6 +108,12 @@ def exercise_schema(brief: dict, config: dict) -> dict:
                         'Use only for supporting context or additional questions. Keep all source blocks within '
                         'the per-page combined word budget.')}),0,stimulus_capacity(config))
     required = [k for k in properties if k not in {'captions', 'passage', 'stimuli'}]
+    if not exact and brief['mechanic']=='statement_path' and 'stimuli' in properties:
+        properties['stimuli']['minItems']=2
+        properties['stimuli']['description']=('Complete printed checkpoint statements with labels and explicit next-step choices. '
+            'Endpoints and connections may be in these cards, captions or directions; include a visible start and finish. '
+            'Routing must use these printed text cards, never generated image pixels.')
+        required.append('stimuli')
     return obj(properties, required)
 
 

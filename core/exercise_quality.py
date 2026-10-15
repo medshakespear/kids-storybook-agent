@@ -177,11 +177,11 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
             raise ValueError(f'Print the exact planned activity title: {activity_title(expected_title)}. '
                              'Put it visibly in h1 or h2; preserve the exercise and artwork.')
     kinds = {v['kind'] for v in page.get('visuals', [])}
-    from core.maze_intent import has_printed_statement_path
+    from core.maze_intent import has_printed_statement_path,statement_path_issues
     statement_path=has_printed_statement_path(page)
     if page.get('exercise_binding') and page.get('exercise',{}).get('mechanic')=='statement_path' and not statement_path:
-        raise ValueError('Statement-path task needs complete printed source cards with START, FINISH '
-                         'and explicit next-step connections; keep routing out of AI artwork')
+        raise ValueError('Statement-path task needs complete printed source cards and route connections: '
+                         +' '.join(statement_path_issues(page)))
     if re.search(r'\bmaze\b', normalized) and not re.search(r'(draw|design|create).{0,30}(your|an?).{0,15}maze', normalized) and 'maze' not in kinds and not statement_path:
         raise ValueError('A maze task requires an exact visuals kind=maze component, not an AI picture of a path')
     if re.search(r'(find|spot|circle).{0,60}\bdifferences?\b', normalized) and 'differences' not in kinds:

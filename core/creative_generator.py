@@ -393,6 +393,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
     binding_repair_base = None
     manifest_repair_base = None
     exercise_repair_base = None
+    statement_repair_base = None
     exact_repair_base = None
     source_repair_base = None
     caption_repair_base, caption_repair_id = None, None
@@ -445,6 +446,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                                         if plan_repair_field=='mechanic_constraints' else enum(['authored','exact']))
                         schema = obj({'pages': array(obj({'page_number': integer(plan_mode_number,plan_mode_number),
                                                         plan_repair_field: field_schema}),1,1)})
+                    elif statement_repair_base is not None:
+                        from core.statement_path_repair import repair_schema
+                        schema=repair_schema(response_schema)
                     elif exercise_repair_base is not None and response_schema is not None:
                         schema = obj({'exercise': response_schema['properties']['exercise']})
                     elif manifest_repair_base is not None:
@@ -501,6 +505,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         merger = merge_plan_constraints_repair if plan_repair_field=='mechanic_constraints' else merge_plan_mode_repair
                         draft = merger(plan_mode_base,draft,plan_mode_number)
                         scoped_merge = True
+                    elif statement_repair_base is not None:
+                        from core.statement_path_repair import merge_repair
+                        draft=merge_repair(statement_repair_base,draft)
+                        scoped_merge=True
                     elif exercise_repair_base is not None:
                         draft = merge_exercise_repair(exercise_repair_base,draft)
                         scoped_merge = True
@@ -653,6 +661,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         plan_mode_base,plan_mode_number = (validated_draft,int(match[1])) if match else (None,None)
                         plan_repair_field = 'render_mode' if mode_match else 'mechanic_constraints'
                     if 'ONE shared source' in prompt and validated_draft is not None:
+                        statement_repair_base=(validated_draft if str(exc).startswith('Statement-path task needs')
+                            and isinstance(validated_draft.get('exercise'),dict)
+                            and validated_draft['exercise'].get('mechanic')=='statement_path' else None)
                         missing_exercise = (('Return exercise as the shared source' in str(exc)
                                              or 'Exercise recovery must return' in str(exc))
                                             and isinstance(validated_draft,dict)
@@ -690,7 +701,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             binding_repair_base = validated_draft
                         elif not str(exc).startswith('Authored wording repair'):
                             binding_repair_base = None
-                        if answer_match or math_match or prompt_match or caption_match or range_match or exact_repair_base is not None or missing_source or binding_repair_base is not None:
+                        if answer_match or math_match or prompt_match or caption_match or range_match or exact_repair_base is not None or missing_source or binding_repair_base is not None or statement_repair_base is not None:
                             layout_repair_base = None
                         elif (isinstance(validated_draft,dict) and isinstance(validated_draft.get('html'),str)
                               and isinstance(validated_draft.get('exercise'),dict)
@@ -1052,6 +1063,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             'open task. Return one JSON object: {"pages":[{"page_number":'+str(plan_mode_number)+
                             ',"render_mode":"authored"}]}. Use the appropriate single mode, not "exact or '
                             'authored". Existing brief:\n'+json.dumps(brief)+'\nValidation: '+str(exc)}]
+                    elif statement_repair_base is not None:
+                        from core.statement_path_repair import repair_messages
+                        messages=repair_messages(messages[0],statement_repair_base,str(exc))
                     elif prompt_repair_base is not None:
                         from core.response_schemas import prompt_repair_messages
                         messages = prompt_repair_messages(messages[0],prompt_repair_base,prompt_repair_id,str(exc))
@@ -1448,7 +1462,12 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
         referenced = ', '.join(sorted(html_refs)) or 'none'
         raise ValueError(f'Image asset mismatch after deterministic repair: declared IDs [{declared}]; HTML data-asset IDs [{referenced}]')
     if quality is not None and not cover:
-        validate_exercises(design, quality, expected_title)
+        try:
+            validate_exercises(design, quality, expected_title)
+        except ValueError as exc:
+            if prepared_layout is not None:
+                exc.layout_source=prepared_layout
+            raise
     try:
         check_page(design, font, cover=cover)
     except ValueError as exc:

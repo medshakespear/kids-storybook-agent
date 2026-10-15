@@ -430,7 +430,7 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             seen.add(sid)
             from core.student_workbook import source_markup
             blocks['stimulus_'+sid] = source_markup(stimulus,bounded_text(stimulus.get('text'),f'stimulus {sid}',650),config,
-                external_label=sid in external_labels)
+                external_label=sid in external_labels,inline_label=page.get('_inline_source_labels') is True)
         captions = exercise.get('captions', [])
     table_ids = set()
     if exercise['render_mode'] == 'authored' and config.get('table_caption_limit'):
@@ -478,6 +478,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
                              'Do not duplicate visual question numbers; update the question ID and question_ID slot together')
         question['id'] = qid
         reserved.add(qid)
+        from core.calculation_attachment import detach_writing_result
+        if config.get('student_workbook'): detach_writing_result(question)
         from core.prompt_recovery import prompt_character_limit
         prompt = bounded_text(question.get('prompt'), f'question {qid} prompt', prompt_character_limit(config))
         from core.answer_limits import answer_character_limit
@@ -494,7 +496,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         calculation = question.get('calculation')
         from core.exercise_quality import numeric_display_text
         label_text = label_matching_text(prompt)
-        numeric_prompt = numeric_display_text(label_text if label_text is not None else prompt)
+        from core.calculation_attachment import writing_length_text
+        numeric_prompt = numeric_display_text(writing_length_text(label_text if label_text is not None else prompt))
         numeric_facts = re.findall(r'(?<![\w.])(?:\d+(?:\.\d+)?|\.\d+)(?:\s*[+−×÷*/-]\s*(?:\d+(?:\.\d+)?|\.\d+))+(?![\w.])', numeric_prompt)
         if calculation is None:
             from core.printed_arithmetic import standalone_arithmetic
@@ -585,10 +588,14 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         layout = bind_formatted_canonical_text(layout,blocks,separate_protected=True)
         layout = restore_declared_labels(layout,blocks,exercise,config)
     bound_layout = bind_formatted_canonical_text(layout,blocks,separate_protected=bool(config.get('student_workbook')))
-    from core.reading_bindings import restore_reading_slots
+    from core.reading_bindings import restore_reading_slots,restore_source_slots
+    prior_sources=bound_layout
+    bound_layout=restore_source_slots(bound_layout,blocks,exercise,config)
+    sources_changed=bound_layout!=prior_sources
+    if config.get('student_workbook'): layout=bound_layout
     restored=restore_reading_slots(bound_layout,blocks,exercise,config)
-    if restored is not None:
-        layout=restored
+    if restored is not None or sources_changed:
+        layout=restored if restored is not None else bound_layout
         # A restored source heading may now supply the label that the source
         # block would otherwise print itself. Reconcile the pair once, retaining
         # both canonical slots and all original source fields.
@@ -598,7 +605,7 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             sid=stimulus['id']
             if 'stimulus_'+sid in blocks:
                 blocks['stimulus_'+sid]=source_markup(stimulus,
-                    bounded_text(stimulus['text'],f'stimulus {sid}',650),config,external_label=sid in external_labels)
+                    bounded_text(stimulus['text'],f'stimulus {sid}',650),config,external_label=sid in external_labels,inline_label=page.get('_inline_source_labels') is True)
         bound_layout=bind_formatted_canonical_text(layout,blocks,separate_protected=bool(config.get('student_workbook')))
     parser = BoundLayout(blocks)
     parser.feed(bound_layout); parser.close()

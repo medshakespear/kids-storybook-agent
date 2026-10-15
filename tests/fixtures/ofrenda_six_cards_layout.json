@@ -1,0 +1,98 @@
+{
+  "title": "Classifying Remembrance Symbols",
+  "config": {
+    "content_review_batch_size": 3,
+    "context_caption_limit": 24,
+    "extended_response_mm": 50,
+    "items_per_page": 2,
+    "max_operand": 100,
+    "max_result": 1000,
+    "minimum_response_mm": 35,
+    "minimum_response_width_mm": 150,
+    "minimum_text_pt": 12,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "purposeful_activity_layout": false,
+    "stimulus_limit": 8,
+    "student_font_pt": 12,
+    "student_workbook": true,
+    "table_caption_limit": 36,
+    "visual_area_mm2": 8000
+  },
+  "page": {
+    "exercise": {
+      "captions": [],
+      "directions": "Review the six descriptive item cards below. Classify each item into its correct traditional role category and answer the follow-up question.",
+      "goal": "Categorize traditional items by their symbolic roles in honoring ancestors.",
+      "mechanic": "classify statements",
+      "questions": [
+        {
+          "answer": "Guiding Lights: Item 1 (Copal incense), Item 3 (Candles), Item 6 (Cempasuchil petals). Memory Items: Item 2 (Sugar skull), Item 4 (Framed photo), Item 5 (Pan de muerto).",
+          "id": "1",
+          "prompt": "Examine the six item cards above. Classify each numbered item into one of two categories: 'Guiding Lights' (items used to light or scent the path for spirits) or 'Memory Items' (items representing personal remembrance, food, or offerings). Write your sorted items clearly.",
+          "space_mm": 45
+        },
+        {
+          "answer": "Result is 5. Explanation should state why the chosen item honors ancestors.",
+          "calculation": {
+            "answer": "5",
+            "expression": "2*2+1"
+          },
+          "id": "2",
+          "prompt": "Choose either the Cempasuchil flower or the framed photograph. Write a short explanation (2-3 sentences) detailing why this specific item plays an important role in honoring family ancestors during Dia de los Muertos.",
+          "space_mm": 50
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "item_1",
+          "label": "Card 1",
+          "text": "Item 1: Copal incense burned in clay copaleros to purify the air and create a fragrant pathway for returning souls."
+        },
+        {
+          "id": "item_2",
+          "label": "Card 2",
+          "text": "Item 2: Decorated sugar skulls representing the sweetness of life and honoring the memory of departed individuals."
+        },
+        {
+          "id": "item_3",
+          "label": "Card 3",
+          "text": "Item 3: Beeswax candles placed on the altar to provide a flickering flame that guides spirits back to their homes."
+        },
+        {
+          "id": "item_4",
+          "label": "Card 4",
+          "text": "Item 4: Framed photographs placed prominently on the altar to center remembrance on specific family ancestors."
+        },
+        {
+          "id": "item_5",
+          "label": "Card 5",
+          "text": "Item 5: Sweet, traditional pan de muerto bread baked as a nourishing food offering for the traveling souls."
+        },
+        {
+          "id": "item_6",
+          "label": "Card 6",
+          "text": "Item 6: Bright orange cempasuchil (marigold) flower petals scattered to create vibrant trails for visiting spirits."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family: Arial, sans-serif; color: #2C1810; margin: 0 auto; width: 186mm; height: 265mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;\"><div ><h1 data-content=\"title\" style=\"font-size: 16pt; text-align: center; color: #B23B00; margin: 0 0 1mm 0;\">Dia de los Muertos: Exploring Symbols</h1><p data-content=\"name\" style=\"font-size: 12pt; margin: 0 0 1mm 0;\">Name: _______________________________ Date: ___________________</p><p data-content=\"directions\" style=\"font-size: 12pt; font-weight: bold; margin: 0 0 2mm 0; background-color: #FFF3E6; padding: 1.5mm; border-left: 4px solid #E65C00;\">Review the six descriptive item cards below. Classify each item into its correct traditional role category and answer the follow-up question.</p><div style=\"display: flex; gap: 3mm; margin-bottom: 2mm;\"><div style=\"width: 60mm; flex-shrink: 0;\"><img data-asset=\"ofrenda_items\" style=\"width: 60mm; height: 35mm; object-fit: cover; border-radius: 4px;\"></div><div style=\"flex: 1; display: flex; flex-direction: column; gap: 1mm;\"><div data-content=\"stimulus_item_1\" style=\"background-color: #FDF6EC; padding: 1mm 1.5mm; border: 1px solid #E6C280; border-radius: 4px; font-size: 10pt;\"></div><div data-content=\"stimulus_item_2\" style=\"background-color: #FDF6EC; padding: 1mm 1.5mm; border: 1px solid #E6C280; border-radius: 4px; font-size: 10pt;\"></div><div data-content=\"stimulus_item_3\" style=\"background-color: #FDF6EC; padding: 1mm 1.5mm; border: 1px solid #E6C280; border-radius: 4px; font-size: 10pt;\"></div></div></div><div style=\"display: flex; gap: 3mm; margin-bottom: 2mm;\"><div style=\"flex: 1; display: flex; flex-direction: column; gap: 1mm;\"><div data-content=\"stimulus_item_4\" style=\"background-color: #FDF6EC; padding: 1mm 1.5mm; border: 1px solid #E6C280; border-radius: 4px; font-size: 10pt;\"></div><div data-content=\"stimulus_item_5\" style=\"background-color: #FDF6EC; padding: 1mm 1.5mm; border: 1px solid #E6C280; border-radius: 4px; font-size: 10pt;\"></div><div data-content=\"stimulus_item_6\" style=\"background-color: #FDF6EC; padding: 1mm 1.5mm; border: 1px solid #E6C280; border-radius: 4px; font-size: 10pt;\"></div></div><div style=\"width: 60mm; flex-shrink: 0;\"><img data-asset=\"marigold_botanical\" style=\"width: 60mm; height: 35mm; object-fit: cover; border-radius: 4px;\"></div></div></div><div style=\"display: flex; flex-direction: column; gap: 2mm; margin-bottom: 2mm;\"><div data-content=\"question_1\" style=\"font-size: 12pt; line-height: 1.3;\"></div><div style=\"height: 38mm; border: 1px dashed #B23B00; border-radius: 4px; background-color: #FFFAFA;\"></div><div data-content=\"question_2\" style=\"font-size: 12pt; line-height: 1.3;\"></div><div style=\"height: 42mm; border: 1px dashed #B23B00; border-radius: 4px; background-color: #FFFAFA;\"></div></div></div>",
+    "images": [
+      {
+        "id": "ofrenda_items",
+        "prompt": "Flat lay editorial illustration showing traditional Mexican ofrenda artifacts including ceramic copal burner, sugar skulls with colorful icing, framed photograph placeholder, and braided pan de muerto against a warm marigold and charcoal background."
+      },
+      {
+        "id": "marigold_botanical",
+        "prompt": "Botanical watercolor illustration of bright orange cempasuchil marigold flowers with detailed ruffled petals and green stems on a clean, light cream background."
+      }
+    ]
+  },
+  "minimum_font": 12,
+  "visual_area": 8000
+}

@@ -115,3 +115,58 @@ def restore_reading_slots(markup: str, blocks: dict, exercise: dict, config: dic
         additions.append({'tag':'p' if heading else 'div','attrs':[('data-content',slot),('style',style)],'children':[]})
     children,index=anchor;children[index:index]=additions
     return ''.join(literal_html(node) for node in parser.root)
+
+
+def restore_source_slots(markup: str, blocks: dict, exercise: dict, config: dict) -> str:
+    """Restore omitted retained source cards in source order before student questions.
+
+    No source is composed from an ID or answer. Existing partial wording and
+    unknown slots remain for validation. Insert only at normal-flow boundaries;
+    the real page-fit check still applies to every restored word.
+    """
+    if not config.get('student_workbook') or exercise.get('render_mode')!='authored': return markup
+    parser=CanonicalTextContainers(blocks);parser.feed(markup);parser.close()
+    if parser.stack:return markup
+    ordered=['stimulus_'+s['id'] for s in exercise.get('stimuli',[]) if isinstance(s,dict)
+             and isinstance(s.get('id'),str) and 'stimulus_'+s['id'] in blocks]
+
+    def locations():
+        """Re-read anchors after each insertion, avoiding stale sibling indices."""
+        found={};questions=[]
+        def visit(children,parent=None,path=(),inside=False):
+            """Retain ancestors to keep source blocks out of paragraphs and table rows."""
+            for index,node in enumerate(children):
+                if isinstance(node,str) or 'comment' in node:continue
+                slot=canonical_content_slot(dict(node['attrs']).get('data-content'),blocks)
+                ancestry=path+((children,index,parent),)
+                if slot and not inside:
+                    found.setdefault(slot,[]).append(ancestry)
+                    if slot.startswith('question_'):questions.append(ancestry)
+                visit(node['children'],node['tag'],ancestry,inside or bool(slot))
+        visit(parser.root)
+        return found,questions
+
+    def insertion(path,after=False):
+        """Use the nearest normal-flow ancestor without deleting any existing node."""
+        for children,index,parent in reversed(path):
+            if parent in FLOW_PARENTS:return children,index+int(after)
+        return None
+
+    for position,slot in enumerate(ordered):
+        found,questions=locations()
+        if slot in found:continue
+        following=next((key for key in ordered[position+1:] if len(found.get(key,[]))==1),None)
+        previous=next((key for key in reversed(ordered[:position]) if len(found.get(key,[]))==1),None)
+        source=next(s for s in exercise['stimuli'] if 'stimulus_'+s.get('id','')==slot)
+        label=' '.join(str(source.get('label','')).split()).casefold()
+        headings=[found['caption_'+c['id']][0] for c in exercise.get('captions',[])
+                  if label and ' '.join(str(c.get('text','')).split()).casefold()==label
+                  and len(found.get('caption_'+c.get('id',''),[]))==1]
+        anchor=insertion(headings[0],after=True) if len(headings)==1 else (
+            insertion(found[following][0]) if following else (
+                insertion(found[previous][0],after=True) if previous else insertion(questions[0]) if questions else None))
+        if anchor is None:continue
+        children,index=anchor
+        children.insert(index,{'tag':'div','attrs':[('data-content',slot),
+            ('style',f"font-size:{config.get('minimum_text_pt',12)}pt;line-height:1.2;margin:0 0 2mm")],'children':[]})
+    return ''.join(literal_html(n) for n in parser.root)

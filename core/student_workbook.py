@@ -20,9 +20,10 @@ def consolidate_response_panels(markup: str, questions: list, config: dict) -> s
     parser=CanonicalTextContainers({});parser.feed(markup);parser.close()
     if parser.stack: return markup
     heights={'question_'+str(q.get('id')):q.get('space_mm',0) for q in questions}
+    prompts={'question_'+str(q.get('id')):str(q.get('prompt','')) for q in questions}
     changed=False
 
-    def panel_height(node):
+    def panel_height(node, *, allow_paper_tint=False):
         """Recognize only a style-only empty rectangle with explicit millimeter height."""
         if not isinstance(node,dict) or node.get('tag')!='div': return None
         if len(node['attrs'])!=1 or node['attrs'][0][0]!='style': return None
@@ -35,10 +36,15 @@ def consolidate_response_panels(markup: str, questions: list, config: dict) -> s
             if d.type!='declaration' or d.lower_name not in allowed or d.important: return None
             if d.lower_name in values: return None
             values[d.lower_name]=tinycss2.serialize(d.value).strip()
-        # A solid paper-white fill does not create a different task. Retain
-        # colored, transparent, gradient or image backgrounds as authored work.
+        # Paper-white and nearly white stationery fills do not define another
+        # task. Tinted panels qualify only when the prompt does not reference
+        # their color/shape; keep strong colors and transparency as authored work.
         for key in ('background','background-color'):
-            if key in values and parse_color(values[key])!=(1,1,1,1): return None
+            if key not in values:continue
+            color=parse_color(values[key])
+            paper_tint=(allow_paper_tint and isinstance(color,tuple) and len(color)==4
+                        and color[3]==1 and min(color[:3])>=250/255)
+            if color!=(1,1,1,1) and not paper_tint:return None
         if not re.search(r'\b(?:solid|dashed|dotted)\b',values.get('border','')): return None
         sizes=[]
         for key in ('height','min-height'):
@@ -58,11 +64,13 @@ def consolidate_response_panels(markup: str, questions: list, config: dict) -> s
         for offset,index in enumerate(indices[:-1]):
             node=children[index]
             if not isinstance(node,dict) or 'attrs' not in node: continue
-            height=heights.get(dict(node['attrs']).get('data-content'),0)
-            next_index=indices[offset+1];size=panel_height(children[next_index])
+            slot=dict(node['attrs']).get('data-content')
+            height=heights.get(slot,0)
+            tinted=not re.search(r'\b(?:colou?r(?:ed|ful|ing|s)?|pink|red|blue|green|yellow|purple|orange|shades?|tints?|backgrounds?|box(?:es)?|panels?|rectangles?)\b',prompts.get(slot,''),re.I)
+            next_index=indices[offset+1];size=panel_height(children[next_index],allow_paper_tint=tinted)
             if not size or size>height: continue
             # Multiple adjacent surfaces can be intentional multi-part work.
-            if offset+2<len(indices) and panel_height(children[indices[offset+2]]) is not None: continue
+            if offset+2<len(indices) and panel_height(children[indices[offset+2]],allow_paper_tint=tinted) is not None: continue
             removals.append(next_index)
         for index in reversed(removals): del children[index];changed=True
 
@@ -147,7 +155,7 @@ def adjacent_source_labels(markup: str, sources: list, captions: list, config: d
     return found
 
 
-def source_markup(source: dict, text: str, config: dict, *, external_label: bool = False) -> str:
+def source_markup(source: dict, text: str, config: dict, *, external_label: bool = False, inline_label: bool = False) -> str:
     """Print a source label once, using its own prefix or an already-adjacent bound caption."""
     if not config.get('student_workbook'): return html.escape(text)
     label=source.get('label')
@@ -160,7 +168,7 @@ def source_markup(source: dict, text: str, config: dict, *, external_label: bool
     if text.casefold().startswith(label.casefold()+':'):
         body=text[len(label)+1:].lstrip()
     if external_label: return html.escape(body)
-    return '<strong>'+html.escape(label)+'</strong><br/>'+html.escape(body)
+    return '<strong>'+html.escape(label)+'</strong>'+(' ' if inline_label else '<br/>')+html.escape(body)
 
 
 def check_response_width(document, profile: dict) -> None:

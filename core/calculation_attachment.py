@@ -36,3 +36,35 @@ def detach_conceptual_calculation(question: dict) -> None:
     quantity = r'\d|[+×÷*/=]|\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|half|quarter|double|triple|twice|how many|how much|number|amount|quantity|total|sum|difference|count|calculate|solve|percent|fraction|ratio|rate|remaining|remain|left over|more than|less than)\b'
     if conceptual and not re.search(quantity,prompt+' '+answer,re.I):
         question.pop('calculation')
+
+
+def writing_length_text(prompt: str) -> str:
+    """Exclude a requested sentence count from arithmetic detection, preserving the printed prompt."""
+    if not isinstance(prompt,str) or not re.search(r'\b(?:write|explain|explanation|describe|paragraph)\b',prompt,re.I):return prompt
+    return re.sub(r'\(?\b\d+(?:\s*[-–]\s*\d+)?\s+sentences?\b\)?','',prompt,flags=re.I)
+
+
+def detach_writing_result(question: dict) -> None:
+    """Remove an isolated template result from a clearly nonnumeric explanation task.
+
+    Sentence-length requests are writing instructions, not subtraction. Require
+    a matching declared numeric template result and a retained qualitative
+    success criterion; never reinterpret quantitative questions or source facts.
+    """
+    from fractions import Fraction
+    from core.exercise_quality import calculate,normalize_calculation
+    prompt,answer=question.get('prompt'),question.get('answer')
+    calc=question.get('calculation')
+    if not isinstance(prompt,str) or not isinstance(answer,str) or not isinstance(calc,dict):return
+    writing=writing_length_text(prompt)
+    if not re.search(r'\bwrite\b.*\bexplanation\b.*\bwhy\b',writing,re.I):return
+    quantitative=r'\d|[+×÷*/=]|\b(?:calculate|count|total|sum|difference|perimeter|area|ratio|rate|percent|fraction|measurement|quantity|how many|how much|number|amount)\b'
+    if re.search(quantitative,writing,re.I):return
+    match=re.fullmatch(r'Result is (-?\d+(?:\.\d+)?(?:/\d+)?)\.\s+((?:Explanation should|Accept an explanation)\b[\s\S]+)',answer,re.I)
+    if not match or re.search(quantitative,match[2],re.I):return
+    try:
+        value=Fraction(match[1])
+        if value!=Fraction(str(calc.get('answer'))) or value!=calculate(normalize_calculation(calc.get('expression'))):return
+    except (ValueError,TypeError,ZeroDivisionError):return
+    question.pop('calculation')
+    question['answer']=match[2]

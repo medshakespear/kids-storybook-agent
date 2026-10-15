@@ -170,6 +170,40 @@ def bounded_authored_layouts(page: dict, minimum_font: int, visual_area: float):
             result['html']=compact_header+'<table style="width:186mm;table-layout:fixed;border-collapse:collapse"><tr>'+art+context+'</tr></table>'+compact_tail
             yield result
 
+        if config.get('student_workbook') and len(assets)==2 and len(checked['exercise'].get('stimuli',[]))>=4:
+            # A secondary picture beside the header leaves a broad main
+            # artwork/source row and full-width handwriting below. Keep every
+            # source label inline instead of spending one line per label.
+            main_side=math.ceil(math.sqrt(visual_area*0.84))
+            secondary_side=math.ceil(math.sqrt(max(1,visual_area-main_side**2)))
+            compact_contexts=[];directions=[]
+            for context in contexts:
+                tree=CanonicalTextContainers(blocks);tree.feed(context);tree.close()
+                for node in tree.root:
+                    adjust(node,compact=True)
+                    if isinstance(node,dict) and dict(node.get('attrs',[])).get('data-content','').startswith('stimulus_'):
+                        # Six source cards otherwise pay twelve vertical padding
+                        # bands. Keep horizontal inset, borders and every word.
+                        node['attrs']=[(k,v+';padding:0 0.5mm' if k=='style' else v) for k,v in node['attrs']]
+                rendered=''.join(literal_html(node) for node in tree.root)
+                (directions if any('directions' in slots(node) for node in tree.root) else compact_contexts).append(rendered)
+            compact_header=f'<h1 data-content="title" style="font-size:{minimum_font+3}pt;line-height:1.15;color:{accent};margin:0 0 1mm"></h1>'
+            fields=set(metadata)&{'name','date'}
+            if re.search(r'\bDate:\s*_+',page['html']):fields.add('date')
+            compact_header+=' '.join(f'<span data-content="{field}" style="font-size:{minimum_font}pt"></span>' for field in ('name','date') if field in fields)
+            compact_header+=''.join(directions)
+            top=(f'<table style="width:186mm;table-layout:fixed;border-collapse:collapse;margin:0 0 1mm"><tr>'
+                 f'<td style="width:{184-secondary_side}mm;vertical-align:top;padding:0 2mm 0 0">'+compact_header+'</td>'
+                 f'<td style="width:{secondary_side}mm;vertical-align:top;padding:0"><img data-asset="{assets[1]}" style="width:{secondary_side}mm;height:{secondary_side}mm;object-fit:contain"/></td></tr></table>')
+            body=(f'<table style="width:186mm;table-layout:fixed;border-collapse:collapse"><tr>'
+                  f'<td style="width:{main_side+2}mm;vertical-align:top;padding:0 2mm 0 0"><img data-asset="{assets[0]}" style="width:{main_side}mm;height:{main_side}mm;object-fit:contain"/></td>'
+                  f'<td style="width:{184-main_side}mm;vertical-align:top;padding:0">'+''.join(compact_contexts)+'</td></tr></table>')
+            compact_tail=''.join(f'<div data-content="{slot}" style="font-size:{minimum_font}pt;line-height:1.15;margin:1mm 0;padding:0"></div>' for slot in questions)+''.join(workspaces)
+            result=deepcopy(page);result['exercise']=deepcopy(checked['exercise'])
+            result['_inline_source_labels']=True
+            result['html']=top+body+compact_tail
+            yield result
+
         # Full-width text preserves long sources and real data-table readability.
         variants=[artwork(175)+'<div style="'+text_style+'">'+''.join(contexts)+'</div>']
         for art_first in (True,False):

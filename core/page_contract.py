@@ -336,6 +336,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     validate_brief(exercise)
     from core.student_workbook import check_activity
     check_activity(exercise,config)
+    from core.reading_bindings import declare_reading_headings
+    declare_reading_headings(page['html'],exercise,config)
     from core.maze_intent import is_statement_maze
     if exercise['render_mode']=='exact' and exercise['mechanic']=='maze' and is_statement_maze(exercise):
         raise ValueError('Statement-path task cannot use the geometric maze tool: it draws only walls, '
@@ -579,6 +581,21 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             lambda style:clean_style(style,config.get('minimum_text_pt',11)))
     layout = page['html']
     bound_layout = bind_formatted_canonical_text(layout,blocks)
+    from core.reading_bindings import restore_reading_slots
+    restored=restore_reading_slots(bound_layout,blocks,exercise,config)
+    if restored is not None:
+        layout=restored
+        # A restored source heading may now supply the label that the source
+        # block would otherwise print itself. Reconcile the pair once, retaining
+        # both canonical slots and all original source fields.
+        from core.student_workbook import adjacent_source_labels,source_markup
+        external_labels=adjacent_source_labels(layout,exercise.get('stimuli',[]),exercise.get('captions',[]),config)
+        for stimulus in exercise.get('stimuli',[]):
+            sid=stimulus['id']
+            if 'stimulus_'+sid in blocks:
+                blocks['stimulus_'+sid]=source_markup(stimulus,
+                    bounded_text(stimulus['text'],f'stimulus {sid}',650),config,external_label=sid in external_labels)
+        bound_layout=bind_formatted_canonical_text(layout,blocks)
     parser = BoundLayout(blocks)
     parser.feed(bound_layout); parser.close()
     required = set(blocks)-{'name','date'}
@@ -691,7 +708,12 @@ exercise fields. Required title slot: <h1 data-content="title"></h1>; optional n
 Table headers and contextual labels (e.g. Zone ID) must also be exercise.captions with caption_ID slots.
 Diagram identifiers such as Node A, Node B or Point 1 are captions too, not independent HTML text.
 Authored directions slot: <p data-content="directions"></p>.
-Passage, if provided: <div data-content="passage"></div>. Context headings or picture labels use
+Passage, if provided: <div data-content="passage"></div>.
+Every nonempty exercise.passage must have that visible passage slot before its questions;
+never omit it or replace its slot with a stimulus or caption alias. A reading/source heading
+also needs its declared caption id/text, e.g. id:"source_heading",text:"Reading Source" with
+<h2 data-content="caption_source_heading"></h2>. Keep heading and reading text together.
+Context headings or picture labels use
 exercise.captions: [{id:"context",text:"Plants growing together"}] (optional, at most 6 contextual labels plus 8 short diagram identifiers such as Belt A; each text
 <=120 chars). Print each once with <p data-content="caption_context"></p>. Keep captions factual,
 grade-appropriate and short. Instructions and questions still belong in their own fields, never in

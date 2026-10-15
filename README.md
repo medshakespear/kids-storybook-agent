@@ -919,6 +919,15 @@ it supplies that source's heading instead of printing the heading twice. Both
 canonical slots remain required, and every source/caption field stays intact.
 Labels elsewhere on the page never suppress a source's own heading.
 
+Varied workbooks recover an omitted canonical passage and its declared reading
+heading locally, placing the complete text in normal flow before its questions.
+Existing formatted copies are bound first so the reading is printed once. An
+explicit empty reading/source-heading slot may use a neutral section label, or
+the retained label of its directly adjacent source. This does not generate new
+source facts or change answers. Unknown thematic labels, partial independent
+prose, duplicate passages and unrelated missing slots remain validation errors.
+Restored content still has to fit the printed page with full writing space.
+
 Missing organizational table headings have a separate recovery rule. An empty
 `<th data-content="caption_th_feature">` can be bound to `Feature` locally, using
 a small allowlist of neutral headings. A layout retry can also name an existing

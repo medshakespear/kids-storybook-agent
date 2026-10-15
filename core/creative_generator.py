@@ -211,7 +211,7 @@ def merge_exact_wording_repair(original: dict, correction: dict) -> dict:
 
 
 def merge_layout_repair(original: dict, correction: dict) -> dict:
-    """Retain task data while binding previously printed contextual headings as captions."""
+    """Pin task data while binding printed labels or explicitly empty neutral table headings."""
     from core.content_binding import CanonicalTextContainers, CONTAINERS, caption_budget_available, diagram_label
     if not isinstance(correction,dict) or not isinstance(correction.get('html'),str):
         raise ValueError('Layout-only repair must return a complete html fragment')
@@ -263,6 +263,9 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
             collect(child)
     for node in parser.root:
         collect(node)
+    from core.table_captions import empty_table_header_slots,neutral_table_header,prepare_table_captions
+    missing_headers=empty_table_header_slots(original)
+    if missing_headers: missing_headers &= empty_table_header_slots(result,allow_neutral_text=True)
     captions = deepcopy(result['exercise'].get('captions',[]))
     if not isinstance(captions,list):
         raise ValueError('Exercise captions must be a list')
@@ -271,6 +274,12 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
     references = HTMLParser(convert_charrefs=True)
     references.handle_starttag = lambda tag, attrs: referenced_slots.append(dict(attrs).get('data-content'))
     references.feed(result['html']); references.close()
+    repaired_table_ids=set(original.get('_table_caption_ids',[]))
+    if missing_headers:
+        # Binding can fail before the validator retains its measured table
+        # metadata. Read the existing cells from a copy; never mutate their data
+        # or charge genuine table cells against the prose-caption allowance.
+        repaired_table_ids.update(prepare_table_captions(deepcopy(original)))
     for caption in supplied:
         if not isinstance(caption,dict) or not isinstance(caption.get('id'),str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,23}',caption['id']):
             raise ValueError('Layout caption recovery needs a short lowercase caption id')
@@ -293,10 +302,12 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
             result['html'] = re.sub(r'''(\bdata-content\s*=\s*)(["'])(?:caption_)?'''+re.escape(cid)+r'''\2''',
                                     lambda m:m[1]+m[2]+'caption_'+equivalent+m[2],result['html'])
             continue
-        if normalized(text) not in words:
+        missing_neutral_header=cid in missing_headers and neutral_table_header(text)
+        if normalized(text) not in words and not missing_neutral_header:
             raise ValueError('Layout-only repair may add captions only for complete wording already printed in the retained page')
+        if missing_neutral_header: repaired_table_ids.add(cid)
         if not caption_budget_available(captions,text, context_limit=original.get('_caption_context_limit',6),
-                                        table_ids=set(original.get('_table_caption_ids',[]))):
+                                        table_ids=repaired_table_ids):
             limit = original.get('_caption_context_limit',6)
             count = 'six' if limit == 6 else str(limit)
             raise ValueError(f'Exercise captions need at most {count} contextual labels and eight diagram identifiers')
@@ -1125,7 +1136,13 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             'exercise.captions with its EXACT already printed wording and matching slot. '
                             'Example: captions [{id:"context",text:"original label"}] and an empty '
                             'data-content="caption_context" text container. '
-                            'Never add new wording or alter an existing caption. Validation: '+str(exc)+
+                            'Never alter an existing caption or invent facts, source text, table data or answers. '
+                            'For an originally EMPTY <th data-content="caption_ID"> only, you may declare '
+                            'that same ID in exercise.captions with one neutral organizational heading: '
+                            'Feature, Characteristic, Category, Criterion, Item, Detail, Description, Source, '
+                            'Evidence, Observation, Notes, Comparison, Similarities or Differences. Keep the '
+                            'same th slot in the repaired HTML, empty or repeating that neutral heading. This exception never applies to td '
+                            'data cells, nonempty headers or ordinary text containers. Validation: '+str(exc)+
                             '\nOriginal grade/context guidance:\n'+prompt[:3500]+
                             '\nRetained page:\n'+json.dumps(layout_repair_base)}]
                     elif manifest_repair_base is not None:
@@ -1707,7 +1724,9 @@ def generate_creative_pack(theme: str, grade_band: str, grade_config: dict, *, s
                       'identifiers. Retain every value and cell; do not delete data to meet the prose '
                       'caption limit. Use id="row1_c1" and data-content="caption_row1_c1" (prefix only '
                       'the HTML slot, not the caption ID). Every slot must have its matching id/text '
-                      'entry. Keep all table values in canonical captions, not in illustration prompts. '
+                      'entry, including headings: e.g. id="th_feature", text="Feature" pairs with '
+                      '<th data-content="caption_th_feature"></th>. Do not leave headings out of the manifest. '
+                      'Keep all table values in canonical captions, not in illustration prompts. '
                       'Shorten or reflow a large table to fit the page without changing its data.\n'
                       if config.get('table_caption_limit') else '')
     plan_prompt = f'''Design an ORIGINAL illustrated classroom activity pack for {grade_band}.

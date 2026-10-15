@@ -4,13 +4,62 @@ import re
 from core.content_binding import CanonicalTextContainers
 
 TABLE_CAPTION_LIMIT = 36
+NEUTRAL_HEADERS = {
+    'feature':'Feature', 'characteristic':'Characteristic', 'category':'Category',
+    'criterion':'Criterion', 'item':'Item', 'detail':'Detail', 'description':'Description',
+    'source':'Source', 'evidence':'Evidence', 'observation':'Observation', 'notes':'Notes',
+    'comparison':'Comparison', 'similarities':'Similarities', 'differences':'Differences',
+}
+
+
+def neutral_table_header(text: str) -> bool:
+    """Accept only organizational headings, never facts, task instructions or solutions."""
+    return isinstance(text,str) and ' '.join(text.split()).casefold() in NEUTRAL_HEADERS
+
+
+def empty_table_header_slots(page: dict, *, allow_neutral_text: bool = False) -> set[str]:
+    """Locate missing header labels; repaired cells may repeat a neutral heading.
+
+    The default requires an empty original header. The optional repair check also
+    accepts complete neutral wording, including inline formatting, but no media,
+    nested content slots, instructions or source facts.
+    """
+    exercise=page.get('exercise')
+    if not isinstance(exercise,dict) or exercise.get('render_mode')!='authored': return set()
+    parser=CanonicalTextContainers({});parser.feed(page.get('html',''));parser.close()
+    if parser.stack: return set()
+    captions=exercise.get('captions',[])
+    declared={c.get('id') for c in (captions if isinstance(captions,list) else [])
+              if isinstance(c,dict)}
+    known_slots={slot for cid in declared if isinstance(cid,str) for slot in (cid,'caption_'+cid)}
+    found=set()
+
+    def visit(node, in_table=False):
+        """Do not authorize labels in data cells, ordinary headings or nonempty cells."""
+        if isinstance(node,str) or 'comment' in node: return
+        in_table=in_table or node['tag']=='table'
+        slot=dict(node['attrs']).get('data-content')
+        if in_table and node['tag']=='th' and isinstance(slot,str) and slot.startswith('caption_') and slot not in known_slots:
+            cid=slot.removeprefix('caption_')
+            pieces=[parser.plain_text(child) for child in node['children']]
+            empty=all(isinstance(child,str) and not child.strip() for child in node['children'])
+            neutral=(allow_neutral_text and all(p is not None for p in pieces)
+                     and neutral_table_header(''.join(pieces)))
+            if (re.fullmatch(r'[a-z][a-z0-9_]{0,23}',cid) and cid not in declared
+                    and (empty or neutral)):
+                found.add(cid)
+        for child in node['children']: visit(child,in_table)
+
+    for node in parser.root: visit(node)
+    return found
 
 
 def prepare_table_captions(page: dict) -> set[str]:
     """Bind literal table cells and resolve only unambiguous declared caption aliases.
 
-    Empty unknown slots remain errors. No value is inferred from a question, answer,
-    image prompt or discarded model attempt. Actions remain exercise questions.
+    Empty data cells remain errors. An explicit empty header such as th_feature
+    may receive its allowlisted organizational label. No factual value is inferred
+    from a question, answer, image prompt or discarded model attempt.
     """
     exercise = page.get('exercise', {})
     captions = exercise.get('captions', [])
@@ -23,6 +72,7 @@ def prepare_table_captions(page: dict) -> set[str]:
     if parser.stack:
         raise ValueError('Exercise layout tags must be balanced')
     table_ids, changed = set(), False
+    missing_headers=empty_table_header_slots(page)
 
     def declared(slot):
         """Resolve IDs with zero or one caption prefix without guessing a field."""
@@ -41,6 +91,15 @@ def prepare_table_captions(page: dict) -> set[str]:
         in_cell = in_table and (in_cell or node['tag'] in {'td', 'th'})
         slot = attrs.get('data-content')
         cid = declared(slot) if in_cell and not in_slot else None
+        requested=slot.removeprefix('caption_') if isinstance(slot,str) else ''
+        if cid is None and not in_slot and requested in missing_headers:
+            key=re.sub(r'^(?:th|header|column|col)_','',requested)
+            heading=NEUTRAL_HEADERS.get(key)
+            if heading:
+                cid=requested
+                caption={'id':cid,'text':heading}
+                captions.append(caption);by_id[cid]=caption
+                changed=True
         if cid is not None:
             if cid in table_ids and all(parser.plain_text(child) is not None for child in node['children']):
                 # The same header may legitimately appear in two tables. Clone

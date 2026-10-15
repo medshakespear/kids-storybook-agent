@@ -919,6 +919,14 @@ it supplies that source's heading instead of printing the heading twice. Both
 canonical slots remain required, and every source/caption field stays intact.
 Labels elsewhere on the page never suppress a source's own heading.
 
+Missing organizational table headings have a separate recovery rule. An empty
+`<th data-content="caption_th_feature">` can be bound to `Feature` locally, using
+a small allowlist of neutral headings. A layout retry can also name an existing
+empty table-header slot using that allowlist. It must retain that same `th` slot
+and cannot change source text, questions, answers or images. Empty data cells,
+factual headings, ordinary text slots and already-printed headings do not receive
+invented content. Table size and printed-page checks still apply.
+
 If Gemini adds a second empty box directly after an already-bound question,
 the renderer consolidates it only when it is a single plain bordered rectangle
 no taller than that question's existing answer area. A solid opaque white fill

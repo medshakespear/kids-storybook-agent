@@ -142,6 +142,11 @@ class BoundLayout(HTMLParser):
     def handle_data(self, data: str) -> None:
         """Replace slot drafts and bind exact canonical copies without accepting unrelated tasks."""
         if not data.strip():
+            if not self.slot:
+                # Inline labels can rely on literal spaces for separation. Keep
+                # layout whitespace outside slots; redundant slot drafts still
+                # yield entirely to their canonical content.
+                self.parts.append(html.escape(data))
             return
         if data.strip() in {':', ';', ',', '|'}:
             if not self.slot:
@@ -550,6 +555,9 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
                                  f'received {answer!r}. Correct only this question\'s prose answer; '
                                  'retain its verified calculation, printed prompt and response space')
     page['answers'] = ' '.join(answers)
+    from core.numeric_binding import bind_numeric_text
+    page['html']=bind_numeric_text(page['html'],exercise,blocks,context_limit=context_limit,table_ids=table_ids)
+    validate_caption_budget(exercise.get('captions',[]),table_ids=table_ids,context_limit=context_limit)
     # Each answer and question count is already bounded. Check final sheet geometry
     # during pack preflight rather than imposing a contradictory aggregate character cap.
     from core.question_slots import normalize_question_slots

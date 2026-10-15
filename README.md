@@ -879,3 +879,11 @@ replaced locally with the printed cards/connections; unrelated image activities 
 unchanged. The complete repaired page must pass content binding and PDF preflight.
 This repair clears any preceding layout-only latch, so route additions can actually
 reach the page. Initial statement-path response schemas also require source cards.
+
+Standalone printed integers such as `1` and `2` are registered locally as separate
+canonical captions instead of consuming Gemini wording-repair retries. Their
+original position, color, shape and separating whitespace stay intact; repeated
+values remain separate. Existing bound content, questions, answers, illustrations
+and writing space are unchanged. Caption budgets, mathematical verification,
+content proofreading and measured PDF preflight still apply. Unbound instructions
+or arithmetic expressions still need a proper shared-content repair.

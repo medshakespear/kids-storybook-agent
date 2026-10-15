@@ -4,6 +4,66 @@ import math
 import re
 
 
+def consolidate_response_panels(markup: str, questions: list, config: dict) -> str:
+    """Absorb a redundant adjacent blank box into its larger canonical answer box.
+
+    Student questions already print their requested writing area. Only a single,
+    empty, border-only sibling whose explicit height is no larger than that area
+    is redundant. Named panels, media, wording, groups of work panels, oversized
+    panels and legacy pages remain untouched.
+    """
+    if not config.get('student_workbook'): return markup
+    from core.content_binding import CanonicalTextContainers
+    from core.print_grid import literal_html
+    import tinycss2
+    parser=CanonicalTextContainers({});parser.feed(markup);parser.close()
+    if parser.stack: return markup
+    heights={'question_'+str(q.get('id')):q.get('space_mm',0) for q in questions}
+    changed=False
+
+    def panel_height(node):
+        """Recognize only a style-only empty rectangle with explicit millimeter height."""
+        if not isinstance(node,dict) or node.get('tag')!='div': return None
+        if len(node['attrs'])!=1 or node['attrs'][0][0]!='style': return None
+        if any(not isinstance(c,str) or c.strip() for c in node['children']): return None
+        declarations=tinycss2.parse_declaration_list(node['attrs'][0][1],skip_comments=True,skip_whitespace=True)
+        allowed={'height','min-height','border','border-radius','margin','margin-top','margin-bottom','margin-left','margin-right'}
+        values={}
+        for d in declarations:
+            if d.type!='declaration' or d.lower_name not in allowed or d.important: return None
+            if d.lower_name in values: return None
+            values[d.lower_name]=tinycss2.serialize(d.value).strip()
+        if not re.search(r'\b(?:solid|dashed|dotted)\b',values.get('border','')): return None
+        sizes=[]
+        for key in ('height','min-height'):
+            if key in values:
+                match=re.fullmatch(r'(\d+(?:\.\d+)?)mm',values[key])
+                if not match: return None
+                sizes.append(float(match[1]))
+        return max(sizes) if sizes and min(sizes)>0 else None
+
+    def visit(children):
+        """Consolidate direct siblings only; never move or infer an independent task."""
+        nonlocal changed
+        for node in children:
+            if isinstance(node,dict) and 'children' in node: visit(node['children'])
+        indices=[i for i,n in enumerate(children) if not isinstance(n,str) or n.strip()]
+        removals=[]
+        for offset,index in enumerate(indices[:-1]):
+            node=children[index]
+            if not isinstance(node,dict) or 'attrs' not in node: continue
+            height=heights.get(dict(node['attrs']).get('data-content'),0)
+            next_index=indices[offset+1];size=panel_height(children[next_index])
+            if not size or size>height: continue
+            # Multiple adjacent surfaces can be intentional multi-part work.
+            if offset+2<len(indices) and panel_height(children[indices[offset+2]]) is not None: continue
+            removals.append(next_index)
+        for index in reversed(removals): del children[index];changed=True
+
+    visit(parser.root)
+    return ''.join(literal_html(n) for n in parser.root) if changed else markup
+
+
 def check_activity(exercise: dict, config: dict) -> None:
     """Keep varied grades 3-6 focused on contextual tasks rather than geometric fillers."""
     if not config.get('student_workbook'): return

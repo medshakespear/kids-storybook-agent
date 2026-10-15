@@ -9,7 +9,7 @@ from core.print_grid import literal_html
 
 
 def bounded_authored_layouts(page: dict, minimum_font: int, visual_area: float):
-    """Offer three layouts of the same content, never smaller fonts or writing panels.
+    """Offer bounded layouts of the same content, never smaller fonts or writing panels.
 
     Gemini's valid composition remains preferred. These fallback candidates are
     for mixed authored pages only, after content verification. Real WeasyPrint
@@ -40,7 +40,7 @@ def bounded_authored_layouts(page: dict, minimum_font: int, visual_area: float):
             own=dict(node['attrs']).get('data-content')
             return ({own} if own else set())|set().union(*(slots(c) for c in node['children']))
 
-        def adjust(node):
+        def adjust(node, compact=False):
             """Remove text width/height clamps, preserving cell relationships and styles."""
             if isinstance(node,str) or 'comment' in node: return
             blocked={'width','min-width','max-width','height','min-height','max-height',
@@ -51,14 +51,20 @@ def bounded_authored_layouts(page: dict, minimum_font: int, visual_area: float):
                     value=';'.join(d for d in (value or '').split(';')
                                    if d.split(':',1)[0].strip().lower() not in blocked
                                    and not d.split(':',1)[0].strip().lower().startswith(('margin','padding')))
-                    value+=f';font-size:{minimum_font}pt;line-height:1.2;margin:0 0 1.5mm;padding:1mm'
-                    if node['tag']=='table': value+=';width:100%;table-layout:fixed'
+                    value+=f';font-size:{minimum_font}pt;line-height:{1.15 if compact else 1.2};margin:0 0 {0 if compact else 1.5}mm;padding:{0.5 if compact else 1}mm'
+                    if node['tag']=='table': value+=';width:100%;table-layout:'+('auto' if compact else 'fixed')
                 attrs.append((key,value))
             if not any(k=='style' for k,_ in attrs):
-                attrs.append(('style',f'font-size:{minimum_font}pt;line-height:1.2;margin:0 0 1.5mm;padding:1mm'+
-                    (';width:100%;table-layout:fixed' if node['tag']=='table' else '')))
+                attrs.append(('style',f'font-size:{minimum_font}pt;line-height:{1.15 if compact else 1.2};margin:0 0 {0 if compact else 1.5}mm;padding:{0.5 if compact else 1}mm'+
+                    (';width:100%;table-layout:'+('auto' if compact else 'fixed') if node['tag']=='table' else '')))
+            if compact and node['tag'] in {'table','td','th'}:
+                # Auto columns must measure complete words, not break a proper
+                # name or heading mid-word merely to favor another column.
+                attrs=[(k,v+';overflow-wrap:normal' if k=='style' else v) for k,v in attrs]
+            if compact and node['tag'] in {'table','thead','tbody','tfoot','tr'}:
+                attrs=[(k,v+';padding:0' if k=='style' else v) for k,v in attrs]
             node['attrs']=attrs
-            for child in node['children']: adjust(child)
+            for child in node['children']: adjust(child,compact)
 
         def collect(node):
             """Collect every required slot, asset, table and independent blank work surface."""
@@ -134,6 +140,35 @@ def bounded_authored_layouts(page: dict, minimum_font: int, visual_area: float):
             if len(assets)==1:
                 return f'<img data-asset="{assets[0]}" style="width:{side}mm;height:{side}mm;object-fit:contain"/>'
             return '<table style="border-collapse:collapse;border-spacing:0"><tbody>'+''.join(rows)+'</tbody></table>'
+
+        if config.get('student_workbook') and len(assets)==1:
+            # Use the full printable width. Nested margins and equal-width data
+            # columns can otherwise consume the same height as the illustration.
+            # Keep real rows/cells/spans, all wording and both answer heights.
+            compact_contexts=[];directions=[];preface=[];table_contexts=[]
+            for context in contexts:
+                tree=CanonicalTextContainers(blocks);tree.feed(context);tree.close()
+                for node in tree.root: adjust(node,compact=True)
+                rendered=''.join(literal_html(n) for n in tree.root)
+                if any('directions' in slots(n) for n in tree.root): directions.append(rendered)
+                else:
+                    compact_contexts.append(rendered)
+                    (table_contexts if any(isinstance(n,dict) and n.get('tag')=='table' for n in tree.root) else preface).append(rendered)
+            if table_contexts:
+                # A source paragraph wraps into half as many lines at full
+                # width. Put it above the art/table pair; do not squeeze three
+                # real data columns and a paragraph into one narrow tall panel.
+                directions.extend(preface);compact_contexts=table_contexts
+            side=math.ceil(math.sqrt(visual_area))
+            art=f'<td style="width:{side+2}mm;vertical-align:top;padding:0 2mm 0 0"><img data-asset="{assets[0]}" style="width:{side}mm;height:{side}mm;object-fit:contain"/></td>'
+            context=f'<td style="width:{186-side-2}mm;vertical-align:top;padding:0">'+''.join(compact_contexts)+'</td>'
+            compact_header=f'<h1 data-content="title" style="font-size:{minimum_font+3}pt;line-height:1.15;color:{accent};background-color:{wash};padding:1mm;margin:0 0 1mm"></h1>'
+            compact_header+=' '.join(f'<span data-content="{field}" style="font-size:{minimum_font}pt"></span>' for field in ('name','date') if field in metadata)
+            compact_header+=''.join(directions)
+            compact_tail=''.join(f'<div data-content="{slot}" style="font-size:{minimum_font}pt;line-height:1.15;margin:1mm 0;padding:0"></div>' for slot in questions)+''.join(workspaces)
+            result=deepcopy(page);result['exercise']=deepcopy(checked['exercise'])
+            result['html']=compact_header+'<table style="width:186mm;table-layout:fixed;border-collapse:collapse"><tr>'+art+context+'</tr></table>'+compact_tail
+            yield result
 
         # Full-width text preserves long sources and real data-table readability.
         variants=[artwork(175)+'<div style="'+text_style+'">'+''.join(contexts)+'</div>']

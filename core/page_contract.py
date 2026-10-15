@@ -556,6 +556,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
                                  f'received {answer!r}. Correct only this question\'s prose answer; '
                                  'retain its verified calculation, printed prompt and response space')
     page['answers'] = ' '.join(answers)
+    from core.student_workbook import consolidate_response_panels
+    page['html']=consolidate_response_panels(page['html'],questions,config)
     from core.numeric_binding import bind_numeric_text
     page['html']=bind_numeric_text(page['html'],exercise,blocks,context_limit=context_limit,table_ids=table_ids)
     validate_caption_budget(exercise.get('captions',[]),table_ids=table_ids,context_limit=context_limit)

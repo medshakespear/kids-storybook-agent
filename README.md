@@ -915,6 +915,15 @@ normally below the source/art region. Writing boxes have subtle 8mm rules; drawi
 boxes remain blank. These settings apply only to varied activities, leaving the
 reading/QCM branch unchanged. Labels and source bodies render in one bound card.
 
+If Gemini adds a second empty box directly after an already-bound question,
+the renderer consolidates it only when it is a single border-only rectangle
+no taller than that question's existing answer area. The full canonical writing
+space remains. Labeled, oversized, multiple or independent work panels are kept.
+The local fallback can put a large illustration beside the source and its real
+reference table, using the full printable width and content-sized table columns.
+All rows, cell relationships, wording and answer heights remain intact; actual
+font size, visual area, writing width and one-page fit are still checked.
+
 Varied content review now uses groups of up to three activities. Every question
 requires an independently stated solution and explicit source-support, skill-match
 and answer-key verdicts; source accuracy and accidental answer leakage are also

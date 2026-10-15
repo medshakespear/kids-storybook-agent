@@ -1,0 +1,101 @@
+{
+  "title": "Mapping the Ofrenda",
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "h_item",
+          "text": "Ofrenda Item"
+        },
+        {
+          "id": "h_symbol",
+          "text": "Traditional Name"
+        },
+        {
+          "id": "h_meaning",
+          "text": "Cultural Purpose & Meaning"
+        },
+        {
+          "id": "r1_item",
+          "text": "Marigold Flowers"
+        },
+        {
+          "id": "r1_symbol",
+          "text": "Cempasúchil"
+        },
+        {
+          "id": "r1_meaning",
+          "text": "Bright color and scent guide souls home."
+        },
+        {
+          "id": "r2_item",
+          "text": "Lit Candles"
+        },
+        {
+          "id": "r2_symbol",
+          "text": "Velas"
+        },
+        {
+          "id": "r2_meaning",
+          "text": "Provide light to illuminate the pathway."
+        },
+        {
+          "id": "r3_item",
+          "text": "Sweet Bread"
+        },
+        {
+          "id": "r3_symbol",
+          "text": "Pan de Muerto"
+        },
+        {
+          "id": "r3_meaning",
+          "text": "Offers nourishment after a long journey."
+        },
+        {
+          "id": "r4_item",
+          "text": "Fresh Water"
+        },
+        {
+          "id": "r4_symbol",
+          "text": "Agua"
+        },
+        {
+          "id": "r4_meaning",
+          "text": "Satiates the thirst of visiting spirits."
+        }
+      ],
+      "directions": "Study the ofrenda illustration and the reference table. Then answer the two questions below using complete sentences.",
+      "goal": "Identify and classify the traditional items placed on an ofrenda and explain their symbolic purpose.",
+      "mechanic": "classify statements",
+      "questions": [
+        {
+          "answer": "Families use cempasúchil flowers and lit candles so their bright colors, strong scents, and glowing light can guide and illuminate the pathway for visiting spirits to find their way home.",
+          "id": "1",
+          "prompt": "Examine the ofrenda items table above. Why do families place strong-scented cempasúchil flowers (marigolds) and lit candles on the altar during Día de los Muertos?",
+          "space_mm": 45
+        },
+        {
+          "answer": "Accept any reasonable explanation showing how the chosen item offers hospitality, nourishment, or comfort to welcome traveling ancestral spirits.",
+          "id": "2",
+          "prompt": "Choose one item from the table (such as Pan de Muerto or fresh water) and explain in your own words how its symbolic meaning honors ancestors returning for the celebration.",
+          "space_mm": 50
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "ofrenda_intro",
+          "label": "Altar Traditions",
+          "text": "An ofrenda is a carefully arranged altar created during Día de los Muertos to welcome visiting spirits of ancestors. Every item placed upon the tiers holds a specific traditional meaning rooted in cultural remembrance, helping families honor and remember loved ones."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family: Arial, sans-serif; width: 186mm; margin: 0 auto; color: #222222; font-size: 12pt;\"><h1 data-content=\"title\" style=\"font-size: 16pt; text-align: center; color: #b22222; margin: 0 0 2mm 0;\">Day of the Dead: Mapping the Ofrenda</h1><div style=\"display: flex; justify-content: space-between; margin-bottom: 2mm; font-weight: bold; font-size: 11pt;\"><span>Name: _____________________________________</span><span>Date: ______________</span></div><p data-content=\"directions\" style=\"font-weight: bold; margin-bottom: 2mm; font-size: 11pt;\">Study the ofrenda illustration and the reference table. Then answer the two questions below using complete sentences.</p><div style=\"display: flex; gap: 4mm; align-items: flex-start; margin-bottom: 3mm;\"><div style=\"flex: 1;\"><div data-content=\"stimulus_ofrenda_intro\" style=\"background-color: #fff8dc; border: 1px solid #deb887; padding: 2.5mm; border-radius: 4px; line-height: 1.25; font-size: 11pt;\"></div></div><div style=\"width: 85mm; flex-shrink: 0;\"><img data-asset=\"altar_illustration\" style=\"width: 85mm; height: 50mm; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;\"/></div></div><table style=\"width: 100%; border-collapse: collapse; margin-bottom: 3mm; font-size: 10.5pt;\"><thead><tr style=\"background-color: #ff8c00; color: #ffffff;\"><th style=\"border: 1px solid #ccc; padding: 1mm; text-align: left;\" data-content=\"caption_h_item\"></th><th style=\"border: 1px solid #ccc; padding: 1mm; text-align: left;\" data-content=\"caption_h_symbol\"></th><th style=\"border: 1px solid #ccc; padding: 1mm; text-align: left;\" data-content=\"caption_h_meaning\"></th></tr></thead><tbody><tr><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r1_item\"></td><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r1_symbol\"></td><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r1_meaning\"></td></tr><tr><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r2_item\"></td><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r2_symbol\"></td><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r2_meaning\"></td></tr><tr><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r3_item\"></td><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r3_symbol\"></td><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r3_meaning\"></td></tr><tr><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r4_item\"></td><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r4_symbol\"></td><td style=\"border: 1px solid #ccc; padding: 1mm;\" data-content=\"caption_r4_meaning\"></td></tr></tbody></table><div data-content=\"question_1\" style=\"margin-bottom: 2mm; font-size: 11pt;\"></div><div style=\"border: 1px dashed #999; min-height: 18mm; margin-bottom: 3mm; border-radius: 4px;\"></div><div data-content=\"question_2\" style=\"margin-bottom: 2mm; font-size: 11pt;\"></div><div style=\"border: 1px dashed #999; min-height: 22mm; border-radius: 4px;\"></div></div>",
+    "images": [
+      {
+        "id": "altar_illustration",
+        "prompt": "A vibrant Oaxacan wood-carving style illustration of a multi-tiered Day of the Dead altar decorated with marigold flowers, lit candles, framed photographs, colorful paper banners, and sweet bread loaves in warm marigold orange, rich magenta, deep indigo, and leaf green."
+      }
+    ]
+  }
+}

@@ -30,8 +30,11 @@ def repair_messages(system: dict, page: dict, error: str) -> list[dict]:
         'connections must yield one complete route consistent with the retained questions and key. '
         'Print all candidate branches and their conditions, including distractors; do not print '
         'only the solved route, identify correct choices for students, or expose the answer key. '
-        'Use directions only to clarify text-based routing, not to add student actions. Illustrations '
-        'may accompany the activity, but never supply its exact route. Aim for concise added text '
+        'Use directions only to clarify text-based routing, not to add student actions. '
+        'Keep the complete original directions verbatim; '
+        'append concise routing clarification if needed rather than replacing the instructions. '
+        'Illustrations may accompany the activity, but never supply its exact route or add a '
+        'spot-the-difference task. Aim for concise added text '
         'to preserve one-page layout. Prefer short endpoint/branch clauses on the existing cards '
         'over separate repeated source cards. Never duplicate an old card under a new ID. '
         'Keep route-only captions brief; do not add an introduction or extra practice. '
@@ -85,7 +88,9 @@ def merge_repair(original: dict, correction: dict) -> dict:
     if isinstance(supplied.get('directions'),str) and supplied['directions'].strip():
         from core.prompt_recovery import numeric_values
         proposed=supplied['directions'].strip()
-        if not numeric_values(exercise.get('directions',''))-numeric_values(proposed):
+        retained=printed_route_reference(exercise.get('directions',''))
+        if (normalize(retained) in normalize(printed_route_reference(proposed))
+                and not numeric_values(exercise.get('directions',''))-numeric_values(proposed)):
             exercise['directions']=proposed
     # Fix only explicit routing references, not incidental coloring/image tasks.
     exercise['directions']=printed_route_reference(exercise.get('directions',''))

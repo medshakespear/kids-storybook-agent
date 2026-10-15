@@ -896,3 +896,12 @@ whole, and every independent writing panel keeps its dimensions. The fallback
 requires printed endpoints and connections first; it never invents a route or key.
 Every candidate still passes the normal content, font, visual-area, one-page,
 bounds and overlap checks. A successful original Gemini layout is kept as authored.
+
+Picture-difference checks read student task fields rather than image-generation
+briefs or text joined across unrelated fields. Comparing written facts, opinions,
+claims, passages or numeric quantities does not require a picture-difference
+graphic. Generic spot-the-difference tasks and explicit picture comparisons still
+require the exact component, including when appended to a statement path. Scoped
+route repairs retain the complete original directions and may add routing
+clarification; a replacement activity is ignored. Content proofreading continues
+to check every route, source and answer independently.

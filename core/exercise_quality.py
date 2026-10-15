@@ -184,7 +184,8 @@ def validate_exercises(page: dict, config: dict, expected_title: str | None = No
                          +' '.join(statement_path_issues(page)))
     if re.search(r'\bmaze\b', normalized) and not re.search(r'(draw|design|create).{0,30}(your|an?).{0,15}maze', normalized) and 'maze' not in kinds and not statement_path:
         raise ValueError('A maze task requires an exact visuals kind=maze component, not an AI picture of a path')
-    if re.search(r'(find|spot|circle).{0,60}\bdifferences?\b', normalized) and 'differences' not in kinds:
+    from core.difference_intent import requires_exact_differences
+    if requires_exact_differences(page) and 'differences' not in kinds:
         raise ValueError('Spot-the-difference tasks require an exact visuals kind=differences component with both rows')
     checks = page.get('calculations', [])
     if not isinstance(checks, list) or len(checks) > 16:
@@ -290,6 +291,9 @@ def proofread_pack(pack: dict, ask, repair) -> None:
             'START to FINISH; flag absent choices, missing links, ambiguous branches or a key that '
             'does not follow the printed route. A geometric star maze does not contain semantic '
             'fact/opinion checkpoints merely because captions mention them. '
+            'Comparing written facts, opinions, claims or passages is a text reasoning task, '
+            'not a picture spot-the-difference puzzle. Do not require a differences graphic '
+            'for that comparison; still check the sources, reasoning and answer key. '
             'if original_answer_conditions are supplied, verify concise answers preserve their essential '
             'solutions and success conditions; flag any omitted required condition or changed value. '
             'compare the planned activity with the shared exercise and actually printed task. Flag substituted '

@@ -15,6 +15,7 @@ def restore_declared_labels(markup: str, blocks: dict, exercise: dict, config: d
     assets = []
     containers = []
     metadata = {}
+    source_anchors = {}
 
     def visit(children, inside=False, parent_tag=None):
         """Record only anchors outside canonical text slots."""
@@ -25,6 +26,8 @@ def restore_declared_labels(markup: str, blocks: dict, exercise: dict, config: d
             slot = canonical_content_slot(attrs.get('data-content'), blocks)
             if slot:
                 used.add(slot)
+                if not inside and parent_tag in {None,'div','section','td','li'}:
+                    source_anchors.setdefault(slot,[]).append((children,node))
                 if slot in {'name','date'} and not inside:
                     metadata.setdefault(slot, []).append(node)
             if not inside and not slot:
@@ -68,9 +71,15 @@ def restore_declared_labels(markup: str, blocks: dict, exercise: dict, config: d
             anchor = (parser.root, 0)
         elif cid.endswith('_label'):
             subject = cid[:-6]
+            sources = source_anchors.get('stimulus_'+subject, [])
+            if not sources and subject.endswith('_paragraph'):
+                sources = source_anchors.get('passage', [])
+            if len(sources)==1:
+                children,node=sources[0]
+                anchor=(children,children.index(node))
             candidates = [(children, node) for children, node, asset in assets
                           if subject and subject in re.split(r'[_-]', asset)]
-            if len(candidates) == 1:
+            if anchor is None and len(candidates) == 1:
                 children, node = candidates[0]
                 anchor = (children, children.index(node) + 1)
         if anchor is not None:

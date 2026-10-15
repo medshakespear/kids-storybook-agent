@@ -721,6 +721,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                                   ('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small', 'Exact visual labels would be too small',
                                    'Put ALL printed wording', 'Unknown or repeated exercise content slot',
                                    'Bind this entire text container', 'Use a complete data-content slot',
+                                   'Use a simple 1-4 equal-column grid', 'Printable grid',
                                    'Exercise layout tags must be balanced',
                                    'Use every required exercise content slot')))):
                             layout_repair_base = validated_draft
@@ -1394,7 +1395,17 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
     design['html'] = normalize_print_markup(design['html'])
     design['html'] = balance_print_fragment(design['html'])
     from core.print_grid import normalize_print_grid
-    design['html'] = normalize_print_grid(design['html'])
+    try:
+        design['html'] = normalize_print_grid(design['html'],allow_weighted=bool((quality or {}).get('student_workbook')))
+    except ValueError as exc:
+        if (quality or {}).get('stimulus_limit'):
+            # CSS fails before content compilation. Keep the same pinned source
+            # and grade profile so the retry can repair HTML only, not redesign
+            # the exercise or replace its answer key and illustrations.
+            exc.layout_source={key:deepcopy(design[key]) for key in ('html','images','exercise') if key in design}
+            exc.layout_source.update(_recovery_config=deepcopy(quality),_recovery_title=expected_title,
+                _caption_context_limit=quality.get('context_caption_limit',24))
+        raise
     if quality is not None:
         design['html'] = reveal_print_content(design['html'])
     if require_coherent and not cover:

@@ -1,4 +1,4 @@
-"""Translate simple equal-column CSS grids into measured printable tables."""
+"""Translate bounded inline CSS grids into measured printable tables."""
 import html
 import re
 import tinycss2
@@ -24,15 +24,15 @@ def equal_columns(value: str) -> int | None:
     return None
 
 
-def normalize_print_grid(markup: str) -> str:
-    """Preserve ordered cells while translating a simple inline grid to a fixed table."""
+def normalize_print_grid(markup: str, *, allow_weighted: bool = False) -> str:
+    """Preserve ordered cells in print tables; optionally support weighted tracks and forward spans."""
     if not re.search(r'grid-template-columns|display\s*:\s*(?:inline-)?grid',markup,re.I): return markup
     parser=CanonicalTextContainers({});parser.feed(markup);parser.close()
     if parser.stack: raise ValueError('Exercise layout tags must be balanced')
     changed=False
 
     def visit(node):
-        """Transform only explicit equal-track grids; leave unsupported CSS for validation."""
+        """Transform explicit tracks without reordering cells or accepting named/positioned areas."""
         nonlocal changed
         if isinstance(node,str) or 'comment' in node: return
         for child in node['children']: visit(child)
@@ -43,7 +43,14 @@ def normalize_print_grid(markup: str) -> str:
         values={d.lower_name:tinycss2.serialize(d.value).strip() for d in declarations}
         grid=values.get('display','').lower() in {'grid','inline-grid'}
         if not grid and 'grid-template-columns' not in values: return
-        columns=equal_columns(values.get('grid-template-columns',''))
+        tracks=values.get('grid-template-columns','')
+        columns=equal_columns(tracks)
+        weights=[1.0]*columns if columns else []
+        if columns is None and allow_weighted:
+            tokens=tracks.split()
+            if 1<=len(tokens)<=4 and all(re.fullmatch(r'(?:[1-9]\d*(?:\.\d+)?|0?\.\d+)fr',t) for t in tokens):
+                weights=[float(t[:-2]) for t in tokens]
+                if all(0<w<=100 for w in weights): columns=len(weights)
         unsupported={k for k in values if k.startswith('grid-') and k!='grid-template-columns'}
         if not grid or columns is None or unsupported or attrs.get('data-content'):
             raise ValueError('Use a simple 1-4 equal-column grid or a normal print table; complex grid placement needs an explicit layout repair')
@@ -55,18 +62,53 @@ def normalize_print_grid(markup: str) -> str:
         row=values.get('row-gap',gap[0]);col=values.get('column-gap',gap[-1])
         if not all(re.fullmatch(r'(?:0|\d+(?:\.\d+)?mm)',v) for v in (row,col)):
             raise ValueError('Printable grid gap must use positive mm dimensions')
+        spans=[]
+        for cell in cells:
+            declarations_cell=tinycss2.parse_declaration_list(dict(cell['attrs']).get('style','') or '',skip_comments=True,skip_whitespace=True)
+            if any(d.type!='declaration' for d in declarations_cell):
+                raise ValueError('Printable grid cells need valid inline styles')
+            positions={d.lower_name:tinycss2.serialize(d.value).strip() for d in declarations_cell if d.lower_name.startswith('grid-')}
+            span=1
+            if positions:
+                column=positions.get('grid-column','auto')
+                matched=re.fullmatch(r'span\s+([1-4])',column)
+                if not allow_weighted or set(positions)-{'grid-column'} or not (column in {'auto','1 / -1','1/-1'} or matched):
+                    raise ValueError('Use a simple 1-4 equal-column grid or a normal print table; complex grid placement needs an explicit layout repair')
+                span=int(matched[1]) if matched else columns if column!='auto' else 1
+                if span>columns: raise ValueError('Printable grid span exceeds its column count')
+                style_cell=tinycss2.serialize([d for d in declarations_cell if not d.lower_name.startswith('grid-')])
+                cell['attrs']=[(k,v) for k,v in cell['attrs'] if k!='style']+[('style',style_cell)]
+            spans.append(span)
         kept=[d for d in declarations if d.lower_name not in {'display','grid-template-columns','gap','row-gap','column-gap'}]
         attrs['style']=tinycss2.serialize(kept)+';display:block'
         node['attrs']=list(attrs.items())
-        rows=[]
-        for offset in range(0,len(cells),columns):
-            group=cells[offset:offset+columns]
-            group=group+[None]*(columns-len(group))
-            rows.append({'tag':'tr','attrs':[],'children':[
-                {'tag':'td','attrs':[('style','vertical-align:top;padding:0')],
-                 'children':[] if c is None else [c]} for c in group]})
+        rows=[];current=[];occupied=0
+
+        def add_cell(cell, span):
+            """Retain source order and allocate proportional widths without absolute placement."""
+            nonlocal occupied
+            width=sum(weights[occupied:occupied+span])/sum(weights)*100
+            cell_attrs=[('style',f'vertical-align:top;padding:0;width:{width:.6f}%')]
+            if span>1: cell_attrs.append(('colspan',str(span)))
+            current.append({'tag':'td','attrs':cell_attrs,'children':[] if cell is None else [cell]})
+            occupied+=span
+
+        def finish_row():
+            """Pad only the unused final tracks; keep every original cell intact."""
+            nonlocal current,occupied
+            if not current:return
+            if occupied<columns:add_cell(None,columns-occupied)
+            rows.append({'tag':'tr','attrs':[],'children':current})
+            current=[];occupied=0
+
+        for cell,span in zip(cells,spans):
+            if occupied+span>columns:finish_row()
+            add_cell(cell,span)
+            if occupied==columns:finish_row()
+        finish_row()
+        layout = 'auto' if len(set(weights))>1 else 'fixed'
         node['children']=[{'tag':'table','attrs':[('style',
-            f'width:100%;table-layout:fixed;border-spacing:{col} {row}')],
+            f'width:100%;table-layout:{layout};border-spacing:{col} {row}')],
             'children':[{'tag':'tbody','attrs':[],'children':rows}]}]
         changed=True
 

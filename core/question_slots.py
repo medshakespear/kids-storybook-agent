@@ -5,8 +5,8 @@ from core.content_binding import CanonicalTextContainers
 from core.print_grid import literal_html
 
 
-def normalize_question_slots(markup: str, blocks: dict) -> str:
-    """Rebind only an unambiguous typo, or detach an extra entirely blank placeholder.
+def normalize_question_slots(markup: str, blocks: dict, *, deduplicate_empty: bool = False) -> str:
+    """Rebind an unambiguous typo; optionally detach repeated empty canonical placeholders.
 
     Meaningful unmatched wording, ambiguous mappings, graphics and nested content
     stay untouched for strict validation. Explicit blank writing panels are never
@@ -64,6 +64,19 @@ def normalize_question_slots(markup: str, blocks: dict) -> str:
             key=targets[0]
             node['attrs']=[(k,key if k=='data-content' else v) for k,v in node['attrs']]
             missing.remove(key);changed=True
+    if deduplicate_empty:
+        for slot in declared:
+            copies=[node for node,key in nodes if key==slot]
+            if len(copies)<2: continue
+            # Only redundant empty placeholders qualify. A prefilled duplicate
+            # could be a different student action and must remain a strict error.
+            occupied=[node for node in copies if any(not isinstance(c,str) or c.strip() for c in node['children'])]
+            if occupied: continue
+            keeper=copies[0]
+            for node in copies:
+                if node is keeper or any(not isinstance(c,str) or c.strip() for c in node['children']): continue
+                node['attrs']=[(k,v) for k,v in node['attrs'] if k!='data-content']
+                changed=True
     if not missing:
         for node,slot in unknown:
             if dict(node['attrs']).get('data-content')!=slot or not all(blank(child) for child in node['children']):

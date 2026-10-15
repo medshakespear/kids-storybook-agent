@@ -376,6 +376,8 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
             value = ' '.join(''.join(pieces).split()) if all(p is not None for p in pieces) else ''
             if (value.casefold() in {'zone id','zone id:'} or tip_heading(value) or goal_heading(value)
                     or evidence_heading(value) or source_heading(value) or definition_label(value) or diagram_label(value)
+                    or (node['tag'] in {'h2','h3','h4','h5','h6'} and len(value)<=80
+                        and re.fullmatch(r'[A-Za-z][A-Za-z :’\x27-]{0,65}\b(?:Design Challenge|Design Studio|Design Workshop)',value))
                     or value.casefold() == activity_label):
                 candidates.append((node,value))
                 return
@@ -408,7 +410,8 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
                   'source_label' if source_heading(text) else
                   'definition_label' if definition_label(text) else
                   'evidence_label' if evidence_heading(text) else
-                  'diagram_label' if diagram_label(text) else 'zone_label')
+                  'diagram_label' if diagram_label(text) else
+                  'design_heading' if re.search(r'Design (?:Challenge|Studio|Workshop)$',text) else 'zone_label')
         cid = next(f'{prefix}_{i}' for i in range(1,len(used)+2) if f'{prefix}_{i}' not in used)
         captions = list(captions)+[{'id':cid,'text':text}]
         exercise['captions'] = captions

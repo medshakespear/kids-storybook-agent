@@ -55,6 +55,12 @@ def repair_declared_result(page: dict, question_id: str) -> dict | None:
         # numbers inside success criteria are not assumed to be answers.
         prefix = answer[:token.start()].strip()
         leading = token is tokens[0] and re.fullmatch(r'(?:(?:answer|result)(?:\s+is)?\s*[:=]?\s*|(?:about|approximately)\s+)?[$£€]?\s*',prefix,re.I)
+        # A single declarative result sentence identifies its result just as
+        # clearly as a leading '40 shapes'. Never rewrite acceptance criteria,
+        # comparative claims, conditions or a multi-number explanation.
+        declarative = (len(tokens)==1 and re.fullmatch(
+            r'(?:the\s+)?(?:total(?:\s+(?:number|amount|count))?|sum|difference|product|quotient|perimeter|area)'
+            r'(?:\s+of\s+[A-Za-z][A-Za-z ,\x27-]{0,80})?\s+is\s*', prefix, re.I))
         percent = bool(re.match(r'\s*%',answer[token.end():]))
         close = value==actual
         if '.' in raw and '/' not in raw:
@@ -69,7 +75,7 @@ def repair_declared_result(page: dict, question_id: str) -> dict | None:
                 equation_result = normalize_calculation(prefix[:-1].strip()) == expression
             except (ValueError, TypeError):
                 pass
-        if (leading and (len(tokens)==1 or value in {supplied,actual})) or equation_result or (percent and close):
+        if (leading and (len(tokens)==1 or value in {supplied,actual})) or declarative or equation_result or (percent and close):
             candidates.append((token,value))
     if len(candidates)!=1:
         return None  # Multi-step or ambiguous prose still needs semantic repair.
@@ -79,6 +85,7 @@ def repair_declared_result(page: dict, question_id: str) -> dict | None:
     result = deepcopy(page)
     target = next(q for q in result['exercise']['questions'] if str(q.get('id'))==question_id)
     formatted = format_result(actual,prompt)
-    target['calculation'] = {**calculation,'expression':expression,'answer':formatted}
+    if supplied != actual:
+        target['calculation'] = {**calculation,'expression':expression,'answer':formatted}
     target['answer'] = answer[:token.start()]+formatted+answer[token.end():]
     return result

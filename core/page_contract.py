@@ -569,7 +569,7 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     # Each answer and question count is already bounded. Check final sheet geometry
     # during pack preflight rather than imposing a contradictory aggregate character cap.
     from core.question_slots import normalize_question_slots
-    page['html']=normalize_question_slots(page['html'],blocks)
+    page['html']=normalize_question_slots(page['html'],blocks,deduplicate_empty=bool(config.get('student_workbook')))
     if page['visuals']:
         if exercise['render_mode']=='exact':
             from core.exact_visual_slots import normalize_exact_visual_slots
@@ -581,8 +581,9 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             lambda style:clean_style(style,config.get('minimum_text_pt',11)))
     layout = page['html']
     from core.label_bindings import restore_declared_labels
-    layout = bind_formatted_canonical_text(layout,blocks,separate_protected=bool(config.get('student_workbook')))
-    layout = restore_declared_labels(layout,blocks,exercise,config)
+    if config.get('student_workbook'):
+        layout = bind_formatted_canonical_text(layout,blocks,separate_protected=True)
+        layout = restore_declared_labels(layout,blocks,exercise,config)
     bound_layout = bind_formatted_canonical_text(layout,blocks,separate_protected=bool(config.get('student_workbook')))
     from core.reading_bindings import restore_reading_slots
     restored=restore_reading_slots(bound_layout,blocks,exercise,config)

@@ -418,6 +418,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         limit = stimulus_capacity(config)
         if len(stimuli)>limit:
             raise ValueError(f'Use at most {limit} short source/scenario blocks per activity; keep the combined text within the single-page budget')
+        from core.student_workbook import adjacent_source_labels
+        external_labels=adjacent_source_labels(page['html'],stimuli,exercise.get('captions',[]),config)
         seen = set()
         for stimulus in stimuli:
             sid = stimulus.get('id') if isinstance(stimulus,dict) else None
@@ -425,7 +427,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
                 raise ValueError('Source stimulus IDs must be distinct short lowercase identifiers')
             seen.add(sid)
             from core.student_workbook import source_markup
-            blocks['stimulus_'+sid] = source_markup(stimulus,bounded_text(stimulus.get('text'),f'stimulus {sid}',650),config)
+            blocks['stimulus_'+sid] = source_markup(stimulus,bounded_text(stimulus.get('text'),f'stimulus {sid}',650),config,
+                external_label=sid in external_labels)
         captions = exercise.get('captions', [])
     table_ids = set()
     if exercise['render_mode'] == 'authored' and config.get('table_caption_limit'):

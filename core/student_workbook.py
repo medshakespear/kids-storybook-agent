@@ -104,8 +104,45 @@ def response_box(question: dict, height: float, config: dict) -> str:
     return f'<span style="display:block;height:{height:g}mm;border:0.4mm solid #809AA6;margin-top:3mm;border-radius:3mm">{lines}</span>'
 
 
-def source_markup(source: dict, text: str, config: dict) -> str:
-    """Keep a source label and complete wording in one bound container, never separate cells."""
+def adjacent_source_labels(markup: str, sources: list, captions: list, config: dict) -> set:
+    """Find a source label already printed in its immediately preceding caption slot.
+
+    Only direct siblings with matching canonical wording qualify. A label on a
+    different card or in a separate column cannot suppress a source's own label.
+    Both content slots and all shared source/caption fields remain required.
+    """
+    if not config.get('student_workbook'): return set()
+    from core.content_binding import CanonicalTextContainers
+    parser=CanonicalTextContainers({});parser.feed(markup);parser.close()
+    if parser.stack: return set()
+    labels={}
+    for source in sources:
+        label=source.get('label') if isinstance(source,dict) else None
+        if isinstance(label,str) and label.strip() and isinstance(source.get('id'),str):
+            labels['stimulus_'+source['id']]=' '.join(label.split()).casefold()
+    caption_labels={'caption_'+c['id']:' '.join(c['text'].split()).casefold()
+        for c in (captions if isinstance(captions,list) else []) if isinstance(c,dict) and isinstance(c.get('id'),str)
+        and isinstance(c.get('text'),str)}
+    found=set()
+
+    def visit(children):
+        """Inspect adjacent bound containers without interpreting unbound model wording."""
+        peers=[c for c in children if not isinstance(c,str) or c.strip()]
+        for previous,current in zip(peers,peers[1:]):
+            if not isinstance(previous,dict) or not isinstance(current,dict): continue
+            before=dict(previous.get('attrs',[])).get('data-content')
+            after=dict(current.get('attrs',[])).get('data-content')
+            if after in labels and caption_labels.get(before)==labels[after]:
+                found.add(after.removeprefix('stimulus_'))
+        for child in children:
+            if isinstance(child,dict) and 'children' in child: visit(child['children'])
+
+    visit(parser.root)
+    return found
+
+
+def source_markup(source: dict, text: str, config: dict, *, external_label: bool = False) -> str:
+    """Print a source label once, using its own prefix or an already-adjacent bound caption."""
     if not config.get('student_workbook'): return html.escape(text)
     label=source.get('label')
     if not isinstance(label,str) or not label.strip():
@@ -116,6 +153,7 @@ def source_markup(source: dict, text: str, config: dict) -> str:
     body=text
     if text.casefold().startswith(label.casefold()+':'):
         body=text[len(label)+1:].lstrip()
+    if external_label: return html.escape(body)
     return '<strong>'+html.escape(label)+'</strong><br/>'+html.escape(body)
 
 

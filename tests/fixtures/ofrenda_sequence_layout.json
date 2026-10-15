@@ -1,0 +1,72 @@
+{
+  "title": "Sequencing the Ofrenda Preparation",
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "card_a_label",
+          "text": "Step Card A"
+        },
+        {
+          "id": "card_b_label",
+          "text": "Step Card B"
+        },
+        {
+          "id": "card_c_label",
+          "text": "Step Card C"
+        },
+        {
+          "id": "card_d_label",
+          "text": "Step Card D"
+        }
+      ],
+      "directions": "Read the scrambled preparation steps below. Sequence them in correct chronological order and rewrite the full process.",
+      "goal": "Students sequence four mixed-up procedural steps for preparing an ofrenda and rewrite the full chronological process.",
+      "mechanic": "sequence",
+      "questions": [
+        {
+          "answer": "Correct chronological sequence: Card C (cleaning space), Card A (laying cloth and papel picado), Card D (placing photos and candles), Card B (adding favorite foods and water).",
+          "id": "1",
+          "prompt": "Examine the four preparation steps above. Write the correct order numbers (1 to 4) in sequence to show how a family sets up the memorial altar correctly from start to finish.",
+          "space_mm": 35
+        },
+        {
+          "answer": "Accept student paragraphs that accurately describe cleaning the space, decorating with textiles and banners, positioning photographs with glowing candles, and offering traditional foods and water.",
+          "id": "2",
+          "prompt": "Now, rewrite the complete four-step process in your own words as a sequential paragraph, explaining why each stage is important for welcoming returning family members.",
+          "space_mm": 55
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "card_a",
+          "label": "Step Card A",
+          "text": "Spread a clean table cloth across the altar surface and hang colorful papel picado paper banners above to catch the gentle evening breezes."
+        },
+        {
+          "id": "card_b",
+          "label": "Step Card B",
+          "text": "Place fresh pan de muerto, bowls of warm mole, and a glass of fresh water on the altar so visiting spirits can enjoy their favorite aromas."
+        },
+        {
+          "id": "card_c",
+          "label": "Step Card C",
+          "text": "Carefully sweep and clean the wooden table where the memorial altar will stand, clearing away dust to prepare a respectful welcoming space."
+        },
+        {
+          "id": "card_d",
+          "label": "Step Card D",
+          "text": "Set framed photographs of beloved ancestors in the center, flanked by glowing beeswax candles and bright orange marigold flower petals."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family:Arial, sans-serif; width:186mm; height:265mm; margin:0 auto; color:#2C3E50; box-sizing:border-box; padding:4mm;\"><h1 data-content=\"title\" style=\"font-size:16pt; color:#D35400; text-align:center; margin:0 0 2px 0;\">Day of the Dead: Ofrenda Preparation</h1><div style=\"display:flex; justify-content:space-between; font-size:12pt; margin-bottom:4px;\"><p data-content=\"name\" style=\"margin:0;\">Name: ______________________</p><p style=\"margin:0;\">Date: _______________</p></div><p data-content=\"directions\" style=\"font-size:12pt; font-weight:bold; margin:0 0 4px 0; color:#1B4F72;\"></p><div style=\"display:flex; gap:4px; margin-bottom:4px;\"><div style=\"flex:1; background:#FDF2E9; border:1px solid #D35400; border-radius:4px; padding:4px;\"><p style=\"font-weight:bold; color:#D35400; margin:0 0 2px 0; font-size:11pt;\" data-content=\"caption_card_a_label\"></p><div data-content=\"stimulus_card_a\" style=\"font-size:11pt; line-height:1.2;\"></div></div><div style=\"flex:1; background:#FDF2E9; border:1px solid #D35400; border-radius:4px; padding:4px;\"><p style=\"font-weight:bold; color:#D35400; margin:0 0 2px 0; font-size:11pt;\" data-content=\"caption_card_b_label\"></p><div data-content=\"stimulus_card_b\" style=\"font-size:11pt; line-height:1.2;\"></div></div></div><div style=\"display:flex; gap:4px; margin-bottom:4px;\"><div style=\"flex:1; background:#FDF2E9; border:1px solid #D35400; border-radius:4px; padding:4px;\"><p style=\"font-weight:bold; color:#D35400; margin:0 0 2px 0; font-size:11pt;\" data-content=\"caption_card_c_label\"></p><div data-content=\"stimulus_card_c\" style=\"font-size:11pt; line-height:1.2;\"></div></div><div style=\"flex:1; background:#FDF2E9; border:1px solid #D35400; border-radius:4px; padding:4px;\"><p style=\"font-weight:bold; color:#D35400; margin:0 0 2px 0; font-size:11pt;\" data-content=\"caption_card_d_label\"></p><div data-content=\"stimulus_card_d\" style=\"font-size:11pt; line-height:1.2;\"></div></div></div><div style=\"text-align:center; margin-bottom:4px;\"><img data-asset=\"ofrenda_prep\" style=\"width:150mm; height:58mm; object-fit:cover; border-radius:4px; border:1px solid #D35400;\"/></div><div data-content=\"question_1\" style=\"margin-bottom:4px; font-size:12pt;\"></div><div data-content=\"question_2\" style=\"font-size:12pt;\"></div></div>",
+    "images": [
+      {
+        "id": "ofrenda_prep",
+        "prompt": "An educational illustration showing traditional Mexican Day of the Dead preparations, with marigold flowers, framed photographs, candles, and colorful papel picado banners arranged on a wooden table. Warm marigold orange, rich plum, and leaf green tones."
+      }
+    ]
+  }
+}

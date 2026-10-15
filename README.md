@@ -913,7 +913,11 @@ and **50mm for rewrites, paragraphs, plans and drawings**. Larger authored space
 remain larger. Actual answer boxes must be at least **150mm wide** after rendering,
 normally below the source/art region. Writing boxes have subtle 8mm rules; drawing
 boxes remain blank. These settings apply only to varied activities, leaving the
-reading/QCM branch unchanged. Labels and source bodies render in one bound card.
+reading/QCM branch unchanged. Labels remain attached to their own source bodies.
+If an identical bound caption immediately precedes a source in the same parent,
+it supplies that source's heading instead of printing the heading twice. Both
+canonical slots remain required, and every source/caption field stays intact.
+Labels elsewhere on the page never suppress a source's own heading.
 
 If Gemini adds a second empty box directly after an already-bound question,
 the renderer consolidates it only when it is a single border-only rectangle

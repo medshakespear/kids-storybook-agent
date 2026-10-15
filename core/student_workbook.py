@@ -8,7 +8,7 @@ def consolidate_response_panels(markup: str, questions: list, config: dict) -> s
     """Absorb a redundant adjacent blank box into its larger canonical answer box.
 
     Student questions already print their requested writing area. Only a single,
-    empty, border-only sibling whose explicit height is no larger than that area
+    empty, plain bordered sibling whose explicit height is no larger than that area
     is redundant. Named panels, media, wording, groups of work panels, oversized
     panels and legacy pages remain untouched.
     """
@@ -16,6 +16,7 @@ def consolidate_response_panels(markup: str, questions: list, config: dict) -> s
     from core.content_binding import CanonicalTextContainers
     from core.print_grid import literal_html
     import tinycss2
+    from tinycss2.color3 import parse_color
     parser=CanonicalTextContainers({});parser.feed(markup);parser.close()
     if parser.stack: return markup
     heights={'question_'+str(q.get('id')):q.get('space_mm',0) for q in questions}
@@ -27,12 +28,17 @@ def consolidate_response_panels(markup: str, questions: list, config: dict) -> s
         if len(node['attrs'])!=1 or node['attrs'][0][0]!='style': return None
         if any(not isinstance(c,str) or c.strip() for c in node['children']): return None
         declarations=tinycss2.parse_declaration_list(node['attrs'][0][1],skip_comments=True,skip_whitespace=True)
-        allowed={'height','min-height','border','border-radius','margin','margin-top','margin-bottom','margin-left','margin-right'}
+        allowed={'height','min-height','border','border-radius','margin','margin-top','margin-bottom','margin-left','margin-right',
+                 'background','background-color'}
         values={}
         for d in declarations:
             if d.type!='declaration' or d.lower_name not in allowed or d.important: return None
             if d.lower_name in values: return None
             values[d.lower_name]=tinycss2.serialize(d.value).strip()
+        # A solid paper-white fill does not create a different task. Retain
+        # colored, transparent, gradient or image backgrounds as authored work.
+        for key in ('background','background-color'):
+            if key in values and parse_color(values[key])!=(1,1,1,1): return None
         if not re.search(r'\b(?:solid|dashed|dotted)\b',values.get('border','')): return None
         sizes=[]
         for key in ('height','min-height'):

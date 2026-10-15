@@ -1,0 +1,54 @@
+{
+  "title": "Traditions of Remembrance",
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "altar_focus",
+          "text": "Community Altar Comparison"
+        }
+      ],
+      "directions": "Read the two sources carefully, then answer the questions below using specific details from the texts.",
+      "goal": "Compare two short descriptive texts about community altar building and family remembrance.",
+      "mechanic": "compare sources",
+      "questions": [
+        {
+          "answer": "Source A highlights family photos and lit candles for remembrance, while Source B focuses on food offerings like fruit, water, and sugar skulls.",
+          "id": "1",
+          "prompt": "Based on Source A and Source B, what is one main difference between how the two altars are decorated or prepared?",
+          "space_mm": 45
+        },
+        {
+          "answer": "Families place these items to welcome and refresh visiting souls with things they enjoyed in life.",
+          "id": "2",
+          "prompt": "Why do families place specific items like water and favorite foods on their ofrendas during Dia de los Muertos?",
+          "space_mm": 45
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "altar_a",
+          "label": "Source A",
+          "text": "Source A: The Martinez family builds their home altar with glowing candles and framed black-and-white photographs of their grandparents. Bright orange marigolds line the base to guide visiting spirits with their warm scent."
+        },
+        {
+          "id": "altar_b",
+          "label": "Source B",
+          "text": "Source B: In the town square, the community ofrenda features sweet sugar skulls, fresh sweet bread, and cups of fresh water. These offerings are carefully prepared to refresh and welcome traveling souls."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family:sans-serif;width:186mm;height:265mm;box-sizing:border-box;color:#2c2c2c;display:flex;flex-direction:column;justify-content:space-between;padding:4mm 0;\"><div style=\"text-align:center;margin-bottom:2px;\"><span data-content=\"caption_altar_focus\" style=\"font-size:12pt;font-weight:bold;color:#3D7587;text-transform:uppercase;letter-spacing:1px;\"></span></div><h1 data-content=\"title\" style=\"font-size:18pt;color:#d95d03;text-align:center;margin-top:0;margin-bottom:2px;\">Dia de los Muertos: Traditions of Remembrance</h1><p data-content=\"directions\" style=\"font-size:12pt;font-weight:bold;text-align:center;margin-top:0;margin-bottom:4px;color:#1a365d;\">Read the two sources carefully, then answer the questions below using specific details from the texts.</p><div style=\"display:flex;gap:8px;margin-bottom:4px;\"><div style=\"flex:1;background:#fff8f0;border:1.5px solid #d95d03;border-radius:6px;padding:6px;\"><div style=\"width:100%;height:45mm;margin-bottom:4px;\"><img data-asset=\"altar_one\" style=\"width:100%;height:45mm;object-fit:cover;border-radius:4px;\"/></div><div data-content=\"stimulus_altar_a\" style=\"font-size:12pt;line-height:1.2;\"></div></div><div style=\"flex:1;background:#fff8f0;border:1.5px solid #d95d03;border-radius:6px;padding:6px;\"><div style=\"width:100%;height:45mm;margin-bottom:4px;\"><img data-asset=\"altar_two\" style=\"width:100%;height:45mm;object-fit:cover;border-radius:4px;\"/></div><div data-content=\"stimulus_altar_b\" style=\"font-size:12pt;line-height:1.2;\"></div></div></div><div style=\"margin-bottom:4px;background:#f9f9f9;padding:6px;border-radius:6px;border:1px solid #ccc;\"><div data-content=\"question_1\" style=\"font-size:12pt;margin-bottom:2px;\"></div><div style=\"height:35mm;border:1px dashed #999;border-radius:4px;background:#fff;\"></div></div><div style=\"background:#f9f9f9;padding:6px;border-radius:6px;border:1px solid #ccc;\"><div data-content=\"question_2\" style=\"font-size:12pt;margin-bottom:2px;\"></div><div style=\"height:35mm;border:1px dashed #999;border-radius:4px;background:#fff;\"></div></div></div>",
+    "images": [
+      {
+        "id": "altar_one",
+        "prompt": "A brightly decorated family altar featuring marigold flowers, lit candles, framed photographs, and colorful papel picado banners."
+      },
+      {
+        "id": "altar_two",
+        "prompt": "A community offering table adorned with sugar skulls, bowls of fruit, water pitchers, and vibrant orange flower petals arranged in patterns."
+      }
+    ]
+  }
+}

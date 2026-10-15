@@ -920,8 +920,10 @@ canonical slots remain required, and every source/caption field stays intact.
 Labels elsewhere on the page never suppress a source's own heading.
 
 If Gemini adds a second empty box directly after an already-bound question,
-the renderer consolidates it only when it is a single border-only rectangle
-no taller than that question's existing answer area. The full canonical writing
+the renderer consolidates it only when it is a single plain bordered rectangle
+no taller than that question's existing answer area. A solid opaque white fill
+is accepted, including equivalent hex or RGB colors; colored, translucent,
+gradient and image backgrounds are retained. The full canonical writing
 space remains. Labeled, oversized, multiple or independent work panels are kept.
 The local fallback can put a large illustration beside the source and its real
 reference table, using the full printable width and content-sized table columns.

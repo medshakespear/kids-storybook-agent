@@ -112,6 +112,9 @@ def exercise_schema(brief: dict, config: dict) -> dict:
         properties['stimuli']['minItems']=2
         properties['stimuli']['description']=('Complete printed checkpoint statements with labels and explicit next-step choices. '
             'Endpoints and connections may be in these cards, captions or directions; include a visible start and finish. '
+            'Print every candidate branch and condition without marking the solved route. '
+            'Prefer 4-6 concise cards including route clauses; avoid repeating cards in captions. '
+            'Budget a readable card grid above a large illustration beside short response boxes. '
             'Routing must use these printed text cards, never generated image pixels.')
         required.append('stimuli')
     return obj(properties, required)

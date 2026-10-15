@@ -887,3 +887,12 @@ values remain separate. Existing bound content, questions, answers, illustration
 and writing space are unchanged. Caption budgets, mathematical verification,
 content proofreading and measured PDF preflight still apply. Unbound instructions
 or arithmetic expressions still need a proper shared-content repair.
+
+Statement paths that overflow after their route details are repaired receive a
+bounded card-grid fallback before another Gemini design request. It places complete
+checkpoint cards in reading order and shares a row between a substantial square
+illustration and the retained question/response blocks. Real source tables stay
+whole, and every independent writing panel keeps its dimensions. The fallback
+requires printed endpoints and connections first; it never invents a route or key.
+Every candidate still passes the normal content, font, visual-area, one-page,
+bounds and overlap checks. A successful original Gemini layout is kept as authored.

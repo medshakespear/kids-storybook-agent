@@ -523,6 +523,8 @@ def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float
     exact_with_art=exact_artwork_layout(page,minimum_font,visual_area)
     if exact_with_art is not None:
         yield exact_with_art
+    from core.statement_path_layout import statement_path_layouts
+    yield from statement_path_layouts(page,minimum_font,visual_area)
     from core.card_layout import source_card_layouts
     yield from source_card_layouts(page,minimum_font,visual_area)
     from core.bounded_layout import bounded_authored_layouts

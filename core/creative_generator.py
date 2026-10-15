@@ -1797,6 +1797,10 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                 'and every next-step choice; provide a unique, independently verified fact-only route '
                 'in the answer key and one short evidence-based reflection. Keep complete statements '
                 'beside their own labels. Use HTML panels/tables with clear printed next-step labels; '
+                'Prefer 4-6 short checkpoint cards in a readable two-column grid. Put START/FINISH '
+                'and branch clauses beside the existing statements instead of repeating statements '
+                'in extra captions. Budget the large illustration beside the two short response '
+                'boxes, rather than stacking it below every source card and above all responses; '
                 'no raw SVG, no data-visual maze and no exact-answer routes based on AI artwork. '
                 'Include purposeful illustrative art and practical response space within the page budget.')
         page = ask_json(prompt, lambda raw: validate_design(raw, font, quality=config, expected_title=brief['title'], require_coherent=True, brief=brief), f'Activity design {number}',

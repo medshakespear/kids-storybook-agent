@@ -32,7 +32,12 @@ def repair_messages(system: dict, page: dict, error: str) -> list[dict]:
         'only the solved route, identify correct choices for students, or expose the answer key. '
         'Use directions only to clarify text-based routing, not to add student actions. Illustrations '
         'may accompany the activity, but never supply its exact route. Aim for concise added text '
-        'to preserve one-page layout. Python retains the original HTML, artwork, question actions, '
+        'to preserve one-page layout. Prefer short endpoint/branch clauses on the existing cards '
+        'over separate repeated source cards. Never duplicate an old card under a new ID. '
+        'Keep route-only captions brief; do not add an introduction or extra practice. '
+        'Python can reflow complete cards into columns and place art beside response boxes '
+        'after measured print checks; it cannot discard source facts or shrink working space. '
+        'Python retains the original HTML, artwork, question actions, '
         'answers and response space, normalizes only explicit AI-media routing references to the '
         'printed cards, and inserts slots for genuinely new labels/cards. '
         'Missing requirements: '+error+'\nRetained shared exercise:\n'+json.dumps(page['exercise'])}]

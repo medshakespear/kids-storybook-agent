@@ -21,6 +21,8 @@ def generate_varied_pack(theme, grade_band, grade_config, *, source_context=None
     profile['context_caption_limit'] = 24
     profile['stimulus_limit'] = 8
     profile['items_per_page'] = 2
+    profile.update(student_workbook=True,minimum_response_mm=35,extended_response_mm=50,
+                   minimum_response_width_mm=150,content_review_batch_size=3)
     context = (source_context or '') + '''
 WORKBOOK TYPE: mixed, original student exercises, not a reading/QCM collection.
 Invent meaningful tasks for this specific theme and grade. Possible inspirations include
@@ -58,6 +60,20 @@ on exact pages; budget its height together with captions and all response areas.
 Fact/opinion or reading-checkpoint paths are authored statement_path activities. Print every
 candidate statement, label and next-step connection, and a complete unique route in the key.
 The geometric exact maze has only walls and stars; it cannot host statement checkpoints.
+For this student workbook use ONLY authored contextual activities. Do not plan generic shape
+sorting, shadow matching, counting, geometric puzzles or statement-path/checkpoint mazes.
+Teach the requested skill directly through varied text, evidence, editing, investigations,
+data and original written/drawn responses. A fact/opinion activity must use actual statements.
+Each source has id, label and text. Python prints label and text together in stimulus_ID;
+never print a separate empty Card A/Source A column or repeat the label in captions.
+Keep combined sources short: aim for 70 words in grades 3-4, 100 in grades 5-6.
+Use at most two focused questions. Allow at least 35mm height per short written answer and
+50mm for paragraphs, rewriting, plans or drawings. Answers need full width (at least 150mm),
+normally below the source/illustration region. Never put writing in a narrow side column.
+Do not print Fact/Opinion classifications, correct matches or indicator-word solutions in
+student source cards unless explicitly marked as a worked example separate from the questions.
+Ask for all items or any stated number consistently. Check science instruments and units.
+Quantities and measurements must come from printed data, never exact features of AI artwork.
 No teacher guide. No answers on student pages. One consolidated final answer key.
 '''
     pack = generate_creative_pack(theme, grade_band, config, source_context=context,

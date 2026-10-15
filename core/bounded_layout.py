@@ -138,8 +138,9 @@ def bounded_authored_layouts(page: dict, minimum_font: int, visual_area: float):
         # Full-width text preserves long sources and real data-table readability.
         variants=[artwork(175)+'<div style="'+text_style+'">'+''.join(contexts)+'</div>']
         for art_first in (True,False):
-            art_cell='<td style="width:112mm;padding:0 2mm 0 0;vertical-align:top">'+artwork(110)+'</td>'
-            text_cell='<td style="width:63mm;padding:0;vertical-align:top">'+''.join(contexts)+'</td>'
+            art_width=math.ceil(math.sqrt(visual_area*1.04))+2 if config.get('student_workbook') and len(assets)==1 else 112
+            art_cell=f'<td style="width:{art_width}mm;padding:0 2mm 0 0;vertical-align:top">'+artwork(art_width-2)+'</td>'
+            text_cell=f'<td style="width:{175-art_width}mm;padding:0;vertical-align:top">'+''.join(contexts)+'</td>'
             variants.append('<table style="width:175mm;table-layout:fixed;border-collapse:collapse"><tr>'+
                             (art_cell+text_cell if art_first else text_cell+art_cell)+'</tr></table>')
         for body in variants:

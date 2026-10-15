@@ -453,6 +453,9 @@ def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: boo
                 doc = HTML(string=markup, url_fetcher=data_only_fetcher).render()
                 try:
                     check_document(doc, 1)
+                    if not cover:
+                        from core.student_workbook import check_response_width
+                        check_response_width(doc,profile)
                 except ValueError as exc:
                     last_overflow = str(exc)
                     if not cover and not overflow_recovered:

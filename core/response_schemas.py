@@ -107,6 +107,12 @@ def exercise_schema(brief: dict, config: dict) -> dict:
             'text':text(650,'Short complete source excerpt or scenario, never parallel computed-puzzle instructions. '
                         'Use only for supporting context or additional questions. Keep all source blocks within '
                         'the per-page combined word budget.')}),0,stimulus_capacity(config))
+        if config.get('student_workbook'):
+            properties['stimuli']['items']['properties']['label']=text(48,'Printed source label, e.g. Card A. Python keeps it attached to the body. Do not repeat it as a separate caption.')
+            properties['stimuli']['items']['required'].append('label')
+    if config.get('student_workbook'):
+        properties['questions']['items']['properties']['space_mm']['minimum']=35
+        properties['questions']['description']='One or two focused questions. Use at least 35mm answer height; at least 50mm for paragraphs, rewrites, plans or drawings. All answers full width below the art/source region.'
     required = [k for k in properties if k not in {'captions', 'passage', 'stimuli'}]
     if not exact and brief['mechanic']=='statement_path' and 'stimuli' in properties:
         properties['stimuli']['minItems']=2
@@ -141,7 +147,7 @@ def mechanic_constraints_schema(mechanic: str) -> dict:
     return obj(properties, list(implied))
 
 
-def plan_schema(count: int) -> dict:
+def plan_schema(count: int, *, authored_only: bool = False) -> dict:
     """Bind optional matching/sorting options to their actual planned tool."""
     common = {'title':text(80), 'learning_goal':text(650), 'activity_concept':text(650),
               'layout_brief':text(650)}
@@ -149,12 +155,15 @@ def plan_schema(count: int) -> dict:
     authored = {**common, 'render_mode':enum(['authored']),
                 'mechanic':text(50,'Original creative action label. Use statement_path for factual/opinion or reading-checkpoint routes; geometric exact mazes contain only walls and stars.')}
     branches.append(obj(authored))
+    if authored_only:
+        authored['mechanic']=text(50,'Direct contextual student action: compare sources, edit a claim, interpret data, classify statements, investigate or write. No statement_path, geometric maze or generic shape puzzles.')
+        branches=[obj(authored)]
     for kinds in [['matching'], ['sort'], ['maze','count','balance','pattern','differences']]:
         fields = {**common, 'render_mode':enum(['exact']), 'mechanic':enum(kinds)}
         required = list(fields)
         if len(kinds) == 1:
             fields['mechanic_constraints'] = mechanic_constraints_schema(kinds[0])
-        branches.append(obj(fields,required))
+        if not authored_only: branches.append(obj(fields,required))
     return obj({**{k: text(n) for k, n in {'title': 80, 'overview': 350, 'art_direction': 650,
                                          'character_description': 350, 'cover_brief': 800}.items()},
                 'pages': array({'anyOf':branches},count,count)})

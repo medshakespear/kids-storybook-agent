@@ -53,6 +53,15 @@ def mixed_ask(prompt, validate, label, *args, **kwargs):
                          'images':[{'id':'scene','prompt':'An original flourishing school garden, teal and coral. No lettering.'}]})
     if label == 'Exercise proofreading':
         return validate({'pages':[{'page_number':n,'issues':[]} for n in range(1,11)]})
+    if label == 'Workbook content review':
+        import json
+        pages=json.loads(prompt.split('Activities:\n',1)[1])
+        return validate({'pages':[{'page_number':p['page_number'],'source_accuracy':True,
+            'no_answer_leak':True,'reason':'The garden task has sufficient information and a relevant answer.',
+            'issues':[],'question_checks':[{'id':q['id'],'source_support':True,'skill_match':True,
+                'answer_correct':True,'solution':TASKS[p['page_number']-1][1],
+                'reason':'The solution addresses the complete printed garden task.'}
+                for q in p['exercise']['questions']]} for p in pages]})
     number=int(label.rsplit(' ',1)[1])
     page=authored_page(mechanic=ACTIONS[number-1])
     page['exercise']['goal']='Investigate a school garden.'

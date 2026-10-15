@@ -8,7 +8,9 @@ def build_layout_diagnostic(page: dict, label: str, font: int, area: float, atte
     if not isinstance(config,dict): config={}
     allowed=('student_font_pt','minimum_text_pt','visual_area_mm2','items_per_page',
              'stimulus_limit','context_caption_limit','table_caption_limit',
-             'purposeful_activity_layout','max_result','max_operand','operations')
+             'purposeful_activity_layout','max_result','max_operand','operations',
+             'student_workbook','minimum_response_mm','extended_response_mm',
+             'minimum_response_width_mm','content_review_batch_size')
     raw_images=page.get('images') or []
     if not isinstance(raw_images,list): raw_images=[]
     images=[{key:deepcopy(image[key]) for key in ('id','prompt') if key in image}

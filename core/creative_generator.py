@@ -1195,7 +1195,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
             len(layout_recovery_failures))
     raise failure from None
 
-def validate_plan(raw: dict, count: int, *, require_coherent: bool = False, require_variety: bool = False) -> dict:
+def validate_plan(raw: dict, count: int, *, require_coherent: bool = False, require_variety: bool = False, student_workbook: bool = False) -> dict:
     """Validate bounded art direction and distinct activity concepts without a type menu."""
     if not isinstance(raw, dict):
         raise ValueError('Plan must be an object')
@@ -1214,6 +1214,9 @@ def validate_plan(raw: dict, count: int, *, require_coherent: bool = False, requ
         if require_coherent:
             try:
                 validate_brief(page,planning=True)
+                if student_workbook:
+                    from core.student_workbook import check_activity
+                    check_activity(page,{'student_workbook':True})
             except ValueError as exc:
                 raise ValueError(f'Planned page {number} ({page["title"]!r}): {exc}') from None
     for key in ('title', 'activity_concept', 'layout_brief'):
@@ -1448,7 +1451,8 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
         design['quality_profile'] = {
             'visual_area_mm2': quality.get('visual_area_mm2', 6500),
             'minimum_text_pt': quality.get('minimum_text_pt', 11),
-            'model_authored_flow': bool(quality.get('stimulus_limit'))}
+            'model_authored_flow': bool(quality.get('stimulus_limit')),
+            'minimum_response_width_mm':quality.get('minimum_response_width_mm',0)}
     else:
         images, design['html'] = _consolidate_image_manifest(design, cover=cover)
     design['images'] = images
@@ -1645,6 +1649,14 @@ def density_guidance(config: dict) -> str:
     """Budget initial reading pages without truncating authored content or changing tasks."""
     floor = config.get('minimum_text_pt',config.get('student_font_pt',11))
     if config.get('stimulus_limit'):
+        if config.get('student_workbook'):
+            return ('Student page budget: title/directions <=25mm; combined sources <=70 words for grades 3-4 '
+                'or <=100 for grades 5-6. Place substantial square art beside SHORT labeled sources. '
+                'Then put one or two questions across the FULL page width, each >=150mm wide, '
+                '35mm answer height for short writing, 50mm for rewrites/paragraphs/plans/drawings. '
+                'Use two questions only when the whole page fits with those heights. Do not shrink text '
+                'or writing. Labels and source bodies belong to ONE stimulus_ID container. '
+                'Target <=235mm total height including prompts and padding; use whitespace for handwriting. ')
         size = 90 if floor >= 12 else 78
         words = 90 if floor >= 12 else 120
         return (f'Mixed-page height budget: heading and directions <=30mm; meaningful main illustration '
@@ -1761,8 +1773,8 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
         book_title = _text(book_title, 'book_title', 52)
         plan_prompt += '\nThe exact requested workbook title is: '+json.dumps(book_title)+'. Use it verbatim.'
     from core.response_schemas import plan_schema, design_schema
-    plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True, require_variety=require_variety),
-                    'Creative plan', 6000, response_schema=plan_schema(count))
+    plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True, require_variety=require_variety,student_workbook=config.get('student_workbook',False)),
+                    'Creative plan', 6000, response_schema=plan_schema(count,authored_only=config.get('student_workbook',False)))
     if book_title is not None:
         plan['title'] = book_title
     context = json.dumps({k: plan[k] for k in ('title', 'art_direction', 'character_description')})
@@ -1775,7 +1787,9 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                      'Do not draw a logo or repeat the store name. Override the full-page height: '
                      'YOUR cover fragment must be at most 215mm high; aim for 205mm including all spacing.'
                      + (' Override subtitle guidance: print only the exact title and grade label, no overview or description. '
-                        'Use large artwork and colorful rounded panels.' if require_variety else ''),
+                        'Use large artwork and colorful rounded panels. Illustration prompts must depict a '
+                        'themed scene or objects, not a book cover, learning journal, poster or writing. '
+                        'Render all titles as HTML; keep illustrated props blank.' if require_variety else ''),
                      lambda raw: validate_design(raw, font, cover=True, quality=config), 'Cover design',
                      response_schema=design_schema(cover=True))
         brief = plan['pages'][number - 1]
@@ -1842,14 +1856,21 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
         """Constrain proofreading output separately from the design response schema."""
         from core.response_schemas import audit_schema
         return ask_json(prompt,validate,label,tokens,response_schema=audit_schema(count))
-    proofread_pack(pack, ask_audit, repair_content)
+    def review_content():
+        """Review every varied-workbook question without changing QCM generation."""
+        if config.get('student_workbook'):
+            from core.workbook_review import review_varied_pack
+            review_varied_pack(pack,ask_json,repair_content,config.get('content_review_batch_size',3))
+        else:
+            proofread_pack(pack, ask_audit, repair_content)
+    review_content()
     try:
         preflight_pack(pack, config)
     except ValueError as exc:
         if not str(exc).startswith('Final answer sheet cannot fit'):
             raise
         compact_shared_answers(pack,config)
-        proofread_pack(pack, ask_audit, repair_content)
+        review_content()
         preflight_pack(pack,config)
     return pack
 

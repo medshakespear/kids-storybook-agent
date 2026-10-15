@@ -506,8 +506,9 @@ and works with a link, description, event or undated reading topic:
   reading/comprehension pairs. Its content and layout pipeline stays unchanged.
 - **Mixed exercises — Gemini design** (`varied_activities`): Gemini plans ten
   activities and authors each page's HTML/CSS composition, palette and panels.
-  Plans must include at least five different student actions and at least half
-  contextual authored activities. Possible tasks include short-text comparison,
+  Plans must include at least five different contextual authored student actions.
+  Generic geometric fillers and checkpoint mazes are excluded from new varied
+  student workbooks. Possible tasks include short-text comparison,
   vocabulary, process sequencing, table interpretation, applied math, writing,
   investigations and design challenges, selected for the topic and grade.
 
@@ -515,7 +516,8 @@ Both produce 12-page A4 PDFs: a cover with the real store logo, ten student page
 and one final answer key. Mixed mode preserves Gemini's page compositions instead
 of replacing them with the legacy canonical worksheet layout. Python still binds
 questions and answers from one shared specification, checks arithmetic and print
-bounds, renders exact diagrams when needed, and assembles the PDF with WeasyPrint.
+bounds, and assembles the PDF with WeasyPrint. Exact diagram tools remain available
+to the legacy creative pipeline; varied student workbooks use contextual sources.
 Cloudflare supplies illustration assets. Gemini image review remains disabled.
 The content review checks for unsolvable tasks, incorrect keys, repeated activities,
 cultural generalizations and fabricated primary sources. Invented source excerpts
@@ -905,3 +907,19 @@ require the exact component, including when appended to a statement path. Scoped
 route repairs retain the complete original directions and may add routing
 clarification; a replacement activity is ignored. Content proofreading continues
 to check every route, source and answer independently.
+
+New varied workbooks reserve **at least 35mm of height for short written answers**
+and **50mm for rewrites, paragraphs, plans and drawings**. Larger authored spaces
+remain larger. Actual answer boxes must be at least **150mm wide** after rendering,
+normally below the source/art region. Writing boxes have subtle 8mm rules; drawing
+boxes remain blank. These settings apply only to varied activities, leaving the
+reading/QCM branch unchanged. Labels and source bodies render in one bound card.
+
+Varied content review now uses groups of up to three activities. Every question
+requires an independently stated solution and explicit source-support, skill-match
+and answer-key verdicts; source accuracy and accidental answer leakage are also
+checked. Negative verdicts force a repair even if the model supplies `issues: []`.
+Only affected activities are rechecked, once. Remaining substantive failures block
+publication. AI review reduces errors but does not certify pedagogical or factual
+accuracy; review the resulting PDF before listing it for sale. Image review stays
+disabled, and prompts now explicitly request blank paper/book/sign props.

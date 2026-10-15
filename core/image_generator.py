@@ -35,6 +35,8 @@ def _image_prompt(story: dict, page: dict, style: str, limit: int = 2048) -> str
                 'unless the SCENE explicitly requests them. Isolated objects and environment-only assets must remain '
                 'strictly solitary with no characters in foreground or background. '
                 'No words, letters, numbers, logos, borders, labels or answer marks. '
+                'Use completely blank book covers, paper, posters, signs and screens; never draw a title, '
+                'learning-journal heading, fake lettering or pseudo-writing on any prop. '
                 'One composition, no panels. Full subject visible with generous white margins, no cropping.')
         # Activity assets are self-contained. Injecting the pack-wide character
         # description into every request can leak recurring cast into object-only

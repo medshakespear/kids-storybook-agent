@@ -334,6 +334,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     if not isinstance(exercise, dict):
         raise ValueError('Return exercise as the shared source of task content, visuals and answers')
     validate_brief(exercise)
+    from core.student_workbook import check_activity
+    check_activity(exercise,config)
     from core.maze_intent import is_statement_maze
     if exercise['render_mode']=='exact' and exercise['mechanic']=='maze' and is_statement_maze(exercise):
         raise ValueError('Statement-path task cannot use the geometric maze tool: it draws only walls, '
@@ -422,7 +424,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             if not isinstance(sid,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,23}',sid) or sid in seen:
                 raise ValueError('Source stimulus IDs must be distinct short lowercase identifiers')
             seen.add(sid)
-            blocks['stimulus_'+sid] = html.escape(bounded_text(stimulus.get('text'),f'stimulus {sid}',650))
+            from core.student_workbook import source_markup
+            blocks['stimulus_'+sid] = source_markup(stimulus,bounded_text(stimulus.get('text'),f'stimulus {sid}',650),config)
         captions = exercise.get('captions', [])
     table_ids = set()
     if exercise['render_mode'] == 'authored' and config.get('table_caption_limit'):
@@ -474,13 +477,11 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         prompt = bounded_text(question.get('prompt'), f'question {qid} prompt', prompt_character_limit(config))
         from core.answer_limits import answer_character_limit
         answer = bounded_text(question.get('answer'), f'question {qid} answer/criterion', answer_character_limit(config))
-        space = question.get('space_mm',0)
-        if type(space) not in {int,float} or not 0<=space<=80:
-            raise ValueError('Exercise response space_mm must be 0-80; keep drawing/writing space usable')
+        from core.student_workbook import response_height,response_box
+        space = response_height(question,config)
         # Every task prompt is printed exactly once; response areas travel with their question.
         content = f'{qid}. {html.escape(prompt)}'
-        if space:
-            content += f'<span style="display:block;height:{space:g}mm;border:0.4mm solid #809AA6;margin-top:3mm;border-radius:3mm"></span>'
+        content += response_box(question,space,config)
         blocks['question_'+qid] = content
         answers.append(f'{qid}. {answer}')
         from core.calculation_attachment import detach_conceptual_calculation, label_matching_text

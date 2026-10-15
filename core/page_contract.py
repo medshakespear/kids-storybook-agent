@@ -580,7 +580,10 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         page['html'] = normalize_image_dimensions(page['html'],page_visuals(page),config.get('visual_area_mm2',6500),
             lambda style:clean_style(style,config.get('minimum_text_pt',11)))
     layout = page['html']
-    bound_layout = bind_formatted_canonical_text(layout,blocks)
+    from core.label_bindings import restore_declared_labels
+    layout = bind_formatted_canonical_text(layout,blocks,separate_protected=bool(config.get('student_workbook')))
+    layout = restore_declared_labels(layout,blocks,exercise,config)
+    bound_layout = bind_formatted_canonical_text(layout,blocks,separate_protected=bool(config.get('student_workbook')))
     from core.reading_bindings import restore_reading_slots
     restored=restore_reading_slots(bound_layout,blocks,exercise,config)
     if restored is not None:
@@ -595,7 +598,7 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             if 'stimulus_'+sid in blocks:
                 blocks['stimulus_'+sid]=source_markup(stimulus,
                     bounded_text(stimulus['text'],f'stimulus {sid}',650),config,external_label=sid in external_labels)
-        bound_layout=bind_formatted_canonical_text(layout,blocks)
+        bound_layout=bind_formatted_canonical_text(layout,blocks,separate_protected=bool(config.get('student_workbook')))
     parser = BoundLayout(blocks)
     parser.feed(bound_layout); parser.close()
     required = set(blocks)-{'name','date'}

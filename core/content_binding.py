@@ -124,9 +124,10 @@ def validate_caption_budget(captions: list, *, table_ids: set[str] | None = None
 class CanonicalTextContainers(HTMLParser):
     """Inspect complete text-only containers without dropping graphics, work areas or extra tasks."""
 
-    def __init__(self, blocks: dict[str,str]):
+    def __init__(self, blocks: dict[str,str], *, separate_protected: bool = False):
         """Capture canonical plain text and retain the original HTML structure."""
         super().__init__(convert_charrefs=True)
+        self.separate_protected = separate_protected
         self.root = []
         self.stack = []
         self.primary_headings = []
@@ -220,6 +221,25 @@ class CanonicalTextContainers(HTMLParser):
         attrs = [(key, block if key == 'data-content' else value) for key, value in attrs]
         if not inside_slot and block is None and TAG_ALIASES.get(tag,tag) in CONTAINERS:
             node = self.separate_canonical_prefix(node)
+        if (self.separate_protected and not inside_slot and block in self.text_blocks and not block.startswith('question_')
+                and any(self.plain_text(child) is None for child in node['children'])):
+            # Keep media, nested slots and independent work panels outside text
+            # bindings. Only replace own wording if it is empty or an exact copy.
+            pieces = [self.plain_text(child) for child in node['children']]
+            own = ' '.join(''.join(p for p in pieces if p is not None).split()).casefold()
+            if not own or own == self.text_blocks[block]:
+                attrs = [(k,v) for k,v in attrs if k != 'data-content']
+                children = []; inserted = False
+                for child, piece in zip(node['children'], pieces):
+                    if piece is None:
+                        children.append(child)
+                    elif not inserted:
+                        children.append({'tag':'span','attrs':[('data-content',block)],'children':[]})
+                        inserted = True
+                if not inserted:
+                    children.insert(0, {'tag':'span','attrs':[('data-content',block)],'children':[]})
+                node = dict(node, attrs=attrs, children=children)
+                block = None
         duplicate_caption = False
         if (not inside_slot and block is None and TAG_ALIASES.get(tag,tag) in CONTAINERS
                 and {'name','date'}.issubset(self.text_blocks)):
@@ -323,9 +343,9 @@ class CanonicalTextContainers(HTMLParser):
         return dict(node,children=children)
 
 
-def bind_formatted_canonical_text(layout: str, blocks: dict[str,str]) -> str:
+def bind_formatted_canonical_text(layout: str, blocks: dict[str,str], *, separate_protected: bool = False) -> str:
     """Bind whole formatted copies locally; leave unrelated wording for strict validation."""
-    parser = CanonicalTextContainers(blocks)
+    parser = CanonicalTextContainers(blocks, separate_protected=separate_protected)
     parser.feed(layout)
     parser.close()
     if parser.stack: raise ValueError('Exercise layout tags must be balanced')

@@ -519,6 +519,8 @@ def retained_artwork_growth(page: dict, minimum_font: int, visual_area: float) -
 
 def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float):
     """Try bounded lossless compositions with sufficient art before another model rewrite."""
+    from core.work_templates import template_layout_recovery
+    yield from template_layout_recovery(page,minimum_font,visual_area)
     from core.exact_artwork_layout import exact_artwork_layout
     exact_with_art=exact_artwork_layout(page,minimum_font,visual_area)
     if exact_with_art is not None:

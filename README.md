@@ -519,6 +519,15 @@ questions and answers from one shared specification, checks arithmetic and print
 bounds, and assembles the PDF with WeasyPrint. Exact diagram tools remain available
 to the legacy creative pipeline; varied student workbooks use contextual sources.
 Cloudflare supplies illustration assets. Gemini image review remains disabled.
+Mixed-workbook drawing materials are rendered locally when the student must complete
+an unfinished half or use a blank banner. Supported symmetry subjects are skulls,
+butterflies, leaves, hearts and pumpkins: reference motifs appear on the left;
+the right decorative half stays blank. Papel-picado/banner design gets a large
+white outline and fold guide. These work assets bypass Cloudflare entirely.
+Preflight uses the real template pixels and enforces usable print dimensions
+(150×110 mm for symmetry, 168×95.2 mm for banners), including the final PDF.
+Decorative artwork still uses the configured image provider; no image AI checker
+or extra API key is added. Existing PDFs must be regenerated to use the fix.
 The content review checks for unsolvable tasks, incorrect keys, repeated activities,
 cultural generalizations and fabricated primary sources. Invented source excerpts
 and scenarios must explicitly be labeled fictional. Human review before sale is

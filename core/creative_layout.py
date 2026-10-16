@@ -155,9 +155,10 @@ def reveal_print_content(markup: str) -> str:
 class PrintFragment(HTMLParser):
     """Rebuild a printable fragment; only declared asset IDs can become images."""
 
-    def __init__(self, assets: dict[str, str], preview: bool = False, visuals: dict | None = None, minimum_font: float = 11):
+    def __init__(self, assets: dict[str, str], preview: bool = False, visuals: dict | None = None, minimum_font: float = 11, local_templates: dict | None = None):
         """Track allowed images, nesting, and all image references."""
         super().__init__(convert_charrefs=True)
+        self.local_templates = local_templates or {}
         self.assets, self.preview = assets, preview
         self.minimum_font = minimum_font
         self.visuals, self.used_visuals = visuals or {}, set()
@@ -196,7 +197,12 @@ class PrintFragment(HTMLParser):
                 if asset not in self.assets:
                     raise ValueError('Image must reference a declared data-asset ID')
                 self.used.add(asset)
-                if self.preview:
+                if asset in self.local_templates:
+                    from core.blank_templates import template_png
+                    kind=self.local_templates[asset]
+                    source='data:image/png;base64,'+base64.b64encode(template_png(kind)).decode()
+                    attributes.append('data-work-template="'+html.escape(kind,quote=True)+'"')
+                elif self.preview:
                     source = 'data:image/svg+xml;base64,' + base64.b64encode(b'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="#e5f2f4"/></svg>').decode()
                 else:
                     source = 'data:image/png;base64,' + base64.b64encode(Path(self.assets[asset]).read_bytes()).decode()
@@ -251,7 +257,8 @@ def fragment(page: dict, preview: bool = False) -> str:
     """Sanitize one authored page and require all declared artwork to be used."""
     assets = {a['id']: a.get('path', '') for a in page['images']}
     visuals = page_visuals(page)
-    parser = PrintFragment(assets, preview, visuals, page.get('quality_profile', {}).get('minimum_text_pt', 11))
+    parser = PrintFragment(assets, preview, visuals, page.get('quality_profile', {}).get('minimum_text_pt', 11),
+                           {a['id']:a['local_template'] for a in page['images'] if a.get('local_template')})
     parser.feed(page['html'])
     parser.close()
     # Browsers safely auto-close trailing emphasis markup. Do the same only for
@@ -456,6 +463,8 @@ def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: boo
                     if not cover:
                         from core.student_workbook import check_response_width
                         check_response_width(doc,profile)
+                        from core.work_templates import check_template_geometry
+                        check_template_geometry(doc)
                 except ValueError as exc:
                     last_overflow = str(exc)
                     if not cover and not overflow_recovered:
@@ -554,6 +563,8 @@ def preflight_pack(pack: dict, config: dict) -> None:
         fit_answer_key(pack,config)
         doc = HTML(string=pack_markup(pack, config, preview=True), url_fetcher=data_only_fetcher).render()
         check_document(doc, len(pack['pages']) + 2)
+        from core.work_templates import check_template_geometry
+        check_template_geometry(doc)
 
 
 def build_creative_pdf(pack: dict, config: dict, output_path: str | Path) -> Path:
@@ -563,6 +574,8 @@ def build_creative_pdf(pack: dict, config: dict, output_path: str | Path) -> Pat
             fit_answer_key(pack,config)
         doc = HTML(string=pack_markup(pack, config), url_fetcher=data_only_fetcher).render()
         check_document(doc, len(pack['pages']) + 2)
+        from core.work_templates import check_template_geometry
+        check_template_geometry(doc)
         target = Path(output_path)
         target.parent.mkdir(parents=True, exist_ok=True)
         doc.write_pdf(str(target))

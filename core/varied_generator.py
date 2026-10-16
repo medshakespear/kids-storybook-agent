@@ -74,6 +74,15 @@ Do not print Fact/Opinion classifications, correct matches or indicator-word sol
 student source cards unless explicitly marked as a worked example separate from the questions.
 Ask for all items or any stated number consistently. Check science instruments and units.
 Quantities and measurements must come from printed data, never exact features of AI artwork.
+BLANK WORK MATERIALS: For a half-pattern symmetry activity, use an outline of a skull,
+butterfly, leaf, heart or pumpkin; Python prints a large sharp template with reference motifs
+on the left and a genuinely blank decorative right half. Ask students to mirror the LEFT
+patterns into the blank RIGHT half. Do not ask Cloudflare to leave a half unfinished.
+Banner/papel-picado design tasks get a large, white, locally drawn blank banner with a fold
+guide, not an AI picture of paper or a pre-cut completed design. Reserve the template its
+own full-width image slot: symmetry 150x110mm; banner 168x95.2mm. Refer to the large blank
+template on this page rather than an unspecified box above/below. Template prompts must
+name their subject clearly. Decorative AI artwork may remain as separately declared assets.
 No teacher guide. No answers on student pages. One consolidated final answer key.
 '''
     pack = generate_creative_pack(theme, grade_band, config, source_context=context,

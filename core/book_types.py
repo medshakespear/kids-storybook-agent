@@ -3,7 +3,7 @@
 DEFAULT_BOOK_TYPE = 'reading_qcm'
 BOOK_TYPES = {
     'reading_qcm': 'Reading passages + QCM',
-    'varied_activities': 'Mixed exercises — Gemini design',
+    'varied_activities': 'Simple varied exercises',
 }
 
 

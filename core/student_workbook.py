@@ -124,7 +124,8 @@ def response_box(question: dict, height: float, config: dict) -> str:
     if config.get('student_workbook') and question.get('_template_response_asset'):return ''
     if not height: return ''
     lines=''
-    drawing=re.search(r'\b(?:draw|sketch|illustrate|diagram|poster|collage)\b',question.get('prompt',''),re.I)
+    drawing=(not config.get('simple_exercises_only') and
+             re.search(r'\b(?:draw|sketch|illustrate|diagram|poster|collage)\b',question.get('prompt',''),re.I))
     if config.get('student_workbook') and not drawing:
         lines=''.join('<span style="display:block;height:8mm;border-bottom:0.2mm solid #CCD7DF;margin:0 2mm"></span>'
             for _ in range(max(0,int((height-4)//8))))

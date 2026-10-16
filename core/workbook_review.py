@@ -1,8 +1,53 @@
 """Review small groups of activities with an independent solution for every task."""
 import json
+from copy import deepcopy
 
-from core.exercise_quality import student_text
 from core.task_visuals import answer_text
+from core.workbook_checks import classification_leaks,printed_words
+
+
+def blind_pages(pages: list[dict]) -> list[dict]:
+    """Remove all authored answers/calculations before asking an independent solver."""
+    result=[]
+    for page in pages:
+        exercise={k:deepcopy(v) for k,v in page['exercise'].items()
+                  if k in {'render_mode','mechanic','directions','passage','captions','stimuli'}}
+        exercise['questions']=[{'id':q['id'],'prompt':q['prompt']} for q in page['exercise']['questions']]
+        result.append({'page_number':page['page_number'],'title':page['title'],
+                       'exercise':exercise,'student_content':page['student_content']})
+    return result
+
+
+def independent_schema(pages: list[dict]) -> dict:
+    """Ask for solvability and an independent answer without a key-correctness guess."""
+    from core.response_schemas import obj,array,text,integer
+    check=obj({'id':text(3),'source_support':{'type':'boolean'},'skill_match':{'type':'boolean'},
+        'grade_match':{'type':'boolean'},'solution':text(650),'reason':text(650)})
+    row=obj({'page_number':integer(1,100),'source_accuracy':{'type':'boolean'},
+        'no_answer_leak':{'type':'boolean'},'reason':text(650),
+        'question_checks':array(check,1,2),'issues':array(text(650),0,6)})
+    return obj({'pages':array(row,len(pages),len(pages))})
+
+
+def validate_independent(raw: dict, pages: list[dict]) -> dict:
+    """Retain blind solutions and make unsupported/weak tasks mandatory correction issues."""
+    adapted=deepcopy(raw)
+    if not isinstance(adapted,dict) or not isinstance(adapted.get('pages'),list):
+        raise ValueError('Independent review must return pages')
+    for row in adapted['pages']:
+        if not isinstance(row,dict):raise ValueError('Independent review needs page records')
+        checks=row.get('question_checks')
+        if not isinstance(checks,list):raise ValueError('Independent review needs every question check')
+        for check in checks:
+            if not isinstance(check,dict) or type(check.get('grade_match')) is not bool:
+                raise ValueError('Independent review needs an explicit grade_match verdict')
+            check['answer_correct']=True  # No authored key is present in this phase.
+    issues=validate_review(adapted,pages)
+    for row in adapted['pages']:
+        for check in row['question_checks']:
+            if not check['grade_match']:issues[row['page_number']].append(f'Question {check["id"]}: grade mismatch: {check["reason"]}')
+            check.pop('answer_correct',None)
+    return {'pages':adapted['pages'],'required_issues':issues}
 
 
 def review_schema(pages: list[dict]) -> dict:
@@ -53,6 +98,7 @@ def validate_review(raw: dict, pages: list[dict]) -> dict:
 
 def review_varied_pack(pack: dict, ask, repair, batch_size: int = 3) -> None:
     """Solve contextual activities in bounded batches; repair affected pages once."""
+    pack.pop('content_checks',None)
     pending=list(range(1,len(pack['pages'])+1))
     for attempt in range(2):
         failed={}
@@ -61,32 +107,45 @@ def review_varied_pack(pack: dict, ask, repair, batch_size: int = 3) -> None:
             for n in pending[offset:offset+batch_size]:
                 page=pack['pages'][n-1]
                 pages.append({'page_number':n,'title':page['title'],'planned_intent':page.get('planned_intent'),
-                    'exercise':page['exercise'],'student_content':student_text(page),'answer_key':answer_text(page)})
-            prompt=('Review student workbook activities for '+pack['grade_band']+'. This is TEXT curriculum review, not image review. '
-                'Independently SOLVE EVERY question from the printed sources before comparing its answer key. '
-                'Return one page review and one question_checks record per question. Include a concrete solution '
-                'and reason, plus source_support, skill_match and answer_correct booleans. '
-                'Check the complete learning action: a working shape sort or picture matcher does not teach '
-                'fact/opinion classification or matching claims to evidence. Flag unrelated fillers. '
-                'Check source science, instrument/unit consistency (rain gauge: rainfall; barometer: air pressure), '
-                'factual accuracy, mixed fact/opinion statements, ambiguous task counts such as all three when '
-                'five words qualify, and whether evidence is actually printed. Labels must identify '
-                'their own source text. Do not infer source identities from internal IDs or array order. '
-                'Set no_answer_leak=false if sources already print classifications, correct matching pairs or '
-                'word-hunt solutions students must discover, unless a separate worked example. '
-                'Do not assess AI image pixels or assume exact teeth/counts/measurements from generated art. '
-                'Quantitative data must be printed. Check every part of multipart questions and allow '
-                'reasonable open-answer criteria. Issues [] requires positive verdicts AND independent '
-                'solutions; do not approve on appearance or mathematical metadata alone. '
-                'Give precise correction issues, not stylistic preferences. Do not shrink writing space. '
-                'Return JSON pages with page_number, source_accuracy, no_answer_leak, reason, '
-                'question_checks and issues. Activities:\n'+json.dumps(pages))
+                    'exercise':page['exercise'],'student_content':printed_words(page['html']),'answer_key':answer_text(page)})
+            public=blind_pages(pages)
+            from core.simple_exercises import exercise_guidance
+            independent_prompt=('Solve these student activities WITHOUT an authored answer key. '
+                'Use ONLY their printed sources and questions. Never fill gaps from artwork or prior knowledge. '
+                'If two sources do not support two shared details, flag source_support=false instead of inventing them. '
+                'Vocabulary questions must refer to the actual objects and words in the passage. '
+                'Solve all mathematics independently, checking operation, units and explicit rounding. '
+                'Use the same printed card letters for sequences. For open questions give a concrete criterion. '
+                'Check grade_match against this guidance: '+exercise_guidance(pack['grade_band'])+' '
+                'Check source_accuracy and whether the source/text table gives away student answers. '
+                'Flag unsupported safety guarantees, false science, unattributed fictional quotes, '
+                'or cultural generalizations. Sources labeled fictional still need internally consistent information. '
+                'Do not inspect image pixels. Return page_number, source_accuracy, no_answer_leak, reason, '
+                'issues and question_checks with id, source_support, skill_match, grade_match, solution, reason. '
+                'Activities:\n'+json.dumps(public))
+            independent=ask(independent_prompt,lambda raw:validate_independent(raw,public),
+                'Workbook independent solutions',5000,response_schema=independent_schema(public))
+            prompt=('Compare the existing answer keys with these independently obtained solutions and '
+                'the actual printed sources. Do not assume the authored key is correct. Check EVERY clause '
+                'of every answer, not just its numeric value. An answer must not invent shared traditions, '
+                'objects, locations, events or explanations absent from the source. If the source is insufficient, '
+                'repair the question/source together; do not invent a plausible answer. A numeric calculation '
+                'must solve the printed word problem. Use printed card letters in sequence keys. '
+                'A fact/opinion reasoning column must not reveal the requested classification. '
+                'Flag missing evidence and mismatched tasks. Do not require one wording for valid open answers. '
+                'This is text review; do not inspect AI image pixels. Return one page/question verdict each '
+                'with source_accuracy, no_answer_leak, source_support, skill_match and answer_correct. '
+                'Include a concrete independent solution and reason. Preserve response space. '
+                'Independent solutions:\n'+json.dumps(independent['pages'])+'\nActivities:\n'+json.dumps(pages))
             verdict=ask(prompt,lambda raw:validate_review(raw,pages),'Workbook content review',
                 5000,response_schema=review_schema(pages))
-            failed.update({n:issues for n,issues in verdict.items() if issues})
+            for page in pages:
+                n=page['page_number']
+                issues=verdict[n]+independent['required_issues'][n]+classification_leaks(pack['pages'][n-1])
+                if issues:failed[n]=list(dict.fromkeys(issues))
         if not failed:
             pack['content_checks']={'status':'passed','pages':len(pack['pages']),'repair_rounds':attempt,
-                'method':'independent_question_solutions_and_source_skill_key_review'}
+                'method':'blind_solutions_then_source_and_answer_comparison'}
             return
         if attempt:
             raise ValueError('Workbook content still needs correction: '+'; '.join(

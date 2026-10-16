@@ -16,14 +16,14 @@ from tests.test_plan_mechanics import plan_for
 
 
 ACTIONS = ['compare_texts', 'sequence_process', 'interpret_data', 'vocabulary', 'applied_math',
-           'design_shelter', 'explain_cause', 'persuasive_writing', 'classify_conditions', 'plan_investigation']
+           'compare_conditions', 'explain_cause', 'persuasive_writing', 'classify_conditions', 'plan_investigation']
 TASKS = [
     ('Compare two methods for watering a garden. Write one benefit of each.', 'Accept two distinct methods and an accurate benefit of each.'),
     ('Write three steps for planting a seed in a sensible order.', 'Place a seed in suitable soil, water it and provide suitable light.'),
     ('A seedling grew 2 cm in week one and 5 cm in week two. Which week showed more growth? Explain.', 'Week two; its 5 cm growth is greater than the 2 cm growth in week one.'),
     ('Write a sentence using observe to mean noticing and recording information.', 'Accept a sentence using observe to mean noticing and recording information.'),
-    ('A class has 24 seeds and plants 8 seeds. How many seeds remain?', '16 seeds remain.'),
-    ('Draw a plant shelter. Label how water and sunlight can reach the plant.', 'Accept a shelter design showing access for water and sunlight.'),
+    ('A class has 4 packets of 24 seeds and plants 38 seeds. How many seeds remain?', '58 seeds remain.'),
+    ('One seedling receives water daily; another receives none. Which condition provides the water plants need?', 'The seedling watered daily receives the water plants need.'),
     ('Explain why a plant in a dark cupboard might grow differently from one near a window.', 'The cupboard provides less light, which can affect growth.'),
     ('Write two reasons your class should care for a school garden.', 'Accept two relevant reasons supported with explanations.'),
     ('Sort these needs into plant needs and classroom tools: water, sunlight, ruler, notebook.', 'Plant needs: water, sunlight. Classroom tools: ruler, notebook.'),
@@ -53,13 +53,13 @@ def mixed_ask(prompt, validate, label, *args, **kwargs):
                          'images':[{'id':'scene','prompt':'An original flourishing school garden, teal and coral. No lettering.'}]})
     if label == 'Exercise proofreading':
         return validate({'pages':[{'page_number':n,'issues':[]} for n in range(1,11)]})
-    if label == 'Workbook content review':
+    if label in {'Workbook content review','Workbook independent solutions'}:
         import json
         pages=json.loads(prompt.split('Activities:\n',1)[1])
         return validate({'pages':[{'page_number':p['page_number'],'source_accuracy':True,
             'no_answer_leak':True,'reason':'The garden task has sufficient information and a relevant answer.',
             'issues':[],'question_checks':[{'id':q['id'],'source_support':True,'skill_match':True,
-                'answer_correct':True,'solution':TASKS[p['page_number']-1][1],
+                'answer_correct':True,'grade_match':True,'solution':TASKS[p['page_number']-1][1],
                 'reason':'The solution addresses the complete printed garden task.'}
                 for q in p['exercise']['questions']]} for p in pages]})
     number=int(label.rsplit(' ',1)[1])
@@ -68,7 +68,7 @@ def mixed_ask(prompt, validate, label, *args, **kwargs):
     page['exercise']['directions']='Use the information provided. Complete the garden challenge below.'
     page['exercise']['questions'][0].update(prompt=TASKS[number-1][0],answer=TASKS[number-1][1],space_mm=35)
     if number==5:
-        page['exercise']['questions'][0]['calculation']={'expression':'24-8','answer':16}
+        page['exercise']['questions'][0]['calculation']={'expression':'4*24-38','answer':58}
     page['html']=page['html'].replace('#FFF7DE', ['#FFF7DE','#EAF3FC','#F2E8FA'][number%3])
     return validate(page)
 
@@ -148,7 +148,7 @@ class BookTypeTests(unittest.TestCase):
                 self.assertEqual(len({p['exercise']['mechanic'] for p in pack['pages']}),10)
                 self.assertIn('width:175mm;height:75mm',pack['pages'][0]['html'])
                 self.assertNotIn('_canonical_presentation',pack['pages'][0])
-                self.assertEqual(pack['pages'][4]['calculations'][0]['expression'],'24-8')
+                self.assertEqual(pack['pages'][4]['calculations'][0]['expression'],'4*24-38')
                 self.assertNotIn('path',pack['pages'][0]['images'][0])
 
 
@@ -203,7 +203,7 @@ class WebBookTypeTests(unittest.TestCase):
                 self.assertEqual(records[0]['book_type'],'varied_activities')
                 self.assertEqual(read_state()['generated'][0]['book_type'],'varied_activities')
                 with patch.object(web,'list_books',return_value=records):
-                    self.assertIn(b'Mixed exercises',web.app.test_client().get('/').data)
+                    self.assertIn(b'Simple varied exercises',web.app.test_client().get('/').data)
 
     def test_background_jobs_retain_type_and_reject_unknown_types(self):
         client=web.app.test_client()

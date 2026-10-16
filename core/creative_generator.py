@@ -1222,7 +1222,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
             len(layout_recovery_failures))
     raise failure from None
 
-def validate_plan(raw: dict, count: int, *, require_coherent: bool = False, require_variety: bool = False, student_workbook: bool = False) -> dict:
+def validate_plan(raw: dict, count: int, *, require_coherent: bool = False, require_variety: bool = False, student_workbook: bool = False, simple_exercises_only: bool = False) -> dict:
     """Validate bounded art direction and distinct activity concepts without a type menu."""
     if not isinstance(raw, dict):
         raise ValueError('Plan must be an object')
@@ -1244,6 +1244,9 @@ def validate_plan(raw: dict, count: int, *, require_coherent: bool = False, requ
                 if student_workbook:
                     from core.student_workbook import check_activity
                     check_activity(page,{'student_workbook':True})
+                if simple_exercises_only:
+                    from core.simple_exercises import check_simple_activity
+                    check_simple_activity(page,planning=True)
             except ValueError as exc:
                 raise ValueError(f'Planned page {number} ({page["title"]!r}): {exc}') from None
     for key in ('title', 'activity_concept', 'layout_brief'):
@@ -1418,6 +1421,11 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
     if quality is not None:
         design['html'] = reveal_print_content(design['html'])
     if require_coherent and not cover:
+        if (quality or {}).get('simple_exercises_only'):
+            from core.simple_exercises import check_simple_activity
+            check_simple_activity(design.get('exercise',{}))
+            if isinstance(design.get('images'),list) and any(a.get('local_template') for a in design['images'] if isinstance(a,dict)):
+                raise ValueError('Simple workbook activities cannot contain drawing templates')
         from core.source_art_manifest import expand_source_art
         expand_source_art(design,quality or {})
         from core.work_templates import prepare_work_template
@@ -1828,7 +1836,12 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
         book_title = _text(book_title, 'book_title', 52)
         plan_prompt += '\nThe exact requested workbook title is: '+json.dumps(book_title)+'. Use it verbatim.'
     from core.response_schemas import plan_schema, design_schema
-    plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True, require_variety=require_variety,student_workbook=config.get('student_workbook',False)),
+    simple_guidance=''
+    if config.get('simple_exercises_only'):
+        from core.simple_exercises import exercise_guidance
+        simple_guidance=exercise_guidance(grade_band)
+        plan_prompt+='\nFINAL REQUIREMENTS (override earlier craft/design suggestions): '+simple_guidance
+    plan = ask_json(plan_prompt, lambda raw: validate_plan(raw, count, require_coherent=True, require_variety=require_variety,student_workbook=config.get('student_workbook',False),simple_exercises_only=config.get('simple_exercises_only',False)),
                     'Creative plan', 6000, response_schema=plan_schema(count,authored_only=config.get('student_workbook',False)))
     if book_title is not None:
         plan['title'] = book_title
@@ -1857,7 +1870,7 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
                   'additional questions use distinct labels 2 or higher. Do not repeat the puzzle task.\n'
                   + density_guidance(config)+'\n'+activity_quality_guidance(grade_band)+'\n'
                   f'Other planned layouts (make this page distinct): {json.dumps([p["layout_brief"] for p in plan["pages"]])}\n'
-                  + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance + caption_guidance
+                  + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance + caption_guidance + simple_guidance
                   + '\nFINAL PAGE BUDGET: '+density_guidance(config) + f'\nThe title slot will print: {brief["title"]}.')
         if brief['mechanic']=='statement_path':
             prompt+= ('\nSTATEMENT-PATH TASK: This is an authored reasoning activity, not a geometric '
@@ -1899,7 +1912,8 @@ not exact. Canonical names for the exact tools are listed above. No teacher guid
             f'Correct these concrete exercise defects: {json.dumps(issues)}. '
             'Preserve the learning goal, meaningful visuals and response space. Return a complete page.\n'
             + layout_contract(font, config.get('minimum_text_pt', 11), coherent=True) + table_guidance + caption_guidance
-            + '\nFINAL PAGE BUDGET: '+density_guidance(config) + '\nPlanned brief: ' + json.dumps(brief) + '\nPrevious shared specification/layout: ' + json.dumps(source),
+            + '\nFINAL PAGE BUDGET: '+density_guidance(config) + '\nPlanned brief: ' + json.dumps(brief) + '\nPrevious shared specification/layout: ' + json.dumps(source)
+            + '\nFINAL SIMPLE-EXERCISE REQUIREMENTS: '+simple_guidance,
             lambda raw: validate_design(raw, font, quality=config, expected_title=previous['title'], require_coherent=True, brief=brief),
             f'Exercise repair {number}', 6500, response_schema=design_schema(brief,config))
         repaired = compact_answers(repaired, number)

@@ -113,6 +113,8 @@ def exercise_schema(brief: dict, config: dict) -> dict:
     if config.get('student_workbook'):
         properties['questions']['items']['properties']['space_mm']['minimum']=35
         properties['questions']['description']='One or two focused questions. Use at least 35mm answer height; at least 50mm for paragraphs, rewrites, plans or drawings. All answers full width below the art/source region.'
+        if config.get('simple_exercises_only'):
+            properties['questions']['description']='One or two simple written questions: reading, vocabulary, matching text, sequencing, tables or grade-appropriate math. No drawing, templates or crafting. All data must be printed; keep response-space measurements out of the prompt. At least 35mm for short answers and 50mm for longer explanations, full width below the source region.'
     required = [k for k in properties if k not in {'captions', 'passage', 'stimuli'}]
     if not exact and brief['mechanic']=='statement_path' and 'stimuli' in properties:
         properties['stimuli']['minItems']=2

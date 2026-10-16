@@ -16,11 +16,13 @@ from core.workbook_review import review_varied_pack,validate_review
 from tests.test_plan_mechanics import plan_for
 
 
-def workbook_config(band):
-    """Read the real opt-in profile rather than duplicating its configuration constants."""
+def workbook_config(band, *, simple=False):
+    """Read production settings; legacy geometry fixtures may still exercise art layouts."""
     with patch('core.varied_generator.generate_creative_pack',return_value={'pages':[]}) as generate:
         generate_varied_pack('Fact and Opinion',band,load_grade_config())
-    return generate.call_args.args[2][band]
+    profile=generate.call_args.args[2][band]
+    if not simple:profile.pop('simple_exercises_only',None)
+    return profile
 
 
 def evidence_page(narrow=False):
@@ -120,7 +122,7 @@ class WorkbookReviewTests(unittest.TestCase):
         return {'pages':[{'page_number':p['page_number'],'source_accuracy':True,'no_answer_leak':True,
             'reason':'The sources support the complete task.','issues':[],
             'question_checks':[{'id':q['id'],'source_support':True,'skill_match':True,
-                'answer_correct':True,'solution':'A: measurable rainfall; B: preference. Rewrite using the Monday measurement.',
+                'answer_correct':True,'grade_match':True,'solution':'A: measurable rainfall; B: preference. Rewrite using the Monday measurement.',
                 'reason':'Measurement is checkable; enjoyment is personal.'} for q in p['exercise']['questions']]} for p in pages]}
 
     def test_negative_verdicts_cannot_be_hidden_by_an_empty_issues_list(self):
@@ -153,7 +155,7 @@ class WorkbookReviewTests(unittest.TestCase):
             self.assertEqual(number,2);self.assertIn('five opinion indicators',issues[0]);fixed=True
             return deepcopy(page)
         review_varied_pack(pack,ask,repair)
-        self.assertEqual(calls,[[1,2,3],[4],[2]])
+        self.assertEqual(calls,[[1,2,3],[1,2,3],[4],[4],[2],[2]])
         self.assertEqual(pack['content_checks']['repair_rounds'],1)
 
     def test_repeated_semantic_failure_blocks_publication(self):

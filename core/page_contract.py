@@ -585,6 +585,9 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
                                  f'expected {actual} from {calculation["expression"]!r}, '
                                  f'received {answer!r}. Correct only this question\'s prose answer; '
                                  'retain its verified calculation, printed prompt and response space')
+        if config.get('simple_exercises_only'):
+            from core.simple_exercises import check_grade_math
+            check_grade_math(question,exercise,config.get('grade_band',''))
     page['answers'] = ' '.join(answers)
     from core.student_workbook import consolidate_response_panels
     page['html']=consolidate_response_panels(page['html'],questions,config)

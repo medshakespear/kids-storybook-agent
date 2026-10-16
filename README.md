@@ -504,13 +504,15 @@ and works with a link, description, event or undated reading topic:
 
 - **Reading passages + QCM** (`reading_qcm`, default): the existing five illustrated
   reading/comprehension pairs. Its content and layout pipeline stays unchanged.
-- **Mixed exercises — Gemini design** (`varied_activities`): Gemini plans ten
-  activities and authors each page's HTML/CSS composition, palette and panels.
-  Plans must include at least five different contextual authored student actions.
-  Generic geometric fillers and checkpoint mazes are excluded from new varied
-  student workbooks. Possible tasks include short-text comparison,
-  vocabulary, process sequencing, table interpretation, applied math, writing,
-  investigations and design challenges, selected for the topic and grade.
+- **Simple varied exercises** (`varied_activities`): ten useful written activities
+  with clear directions, short source texts, vocabulary, text matching, sequencing,
+  fact/opinion with evidence, small tables and word problems. Gemini authors the
+  content and colorful layouts. Drawing, templates, coloring, crafting and design
+  projects are excluded at planning and page validation. Choose the grade band:
+  grades 3–4 use age-appropriate multi-digit arithmetic, multiplication/exact
+  division and short word problems; grades 5–6 use deeper multi-step work,
+  multi-digit operations, fractions or decimals. Standalone single-digit sums
+  and basic upper-grade fact drills are rejected.
 
 Reading/QCM books produce 12-page A4 PDFs. Mixed books contain ten activities,
 a cover with the real store logo and one final answer key, normally 12 pages.
@@ -527,15 +529,16 @@ questions and answers from one shared specification, checks arithmetic and print
 bounds, and assembles the PDF with WeasyPrint. Exact diagram tools remain available
 to the legacy creative pipeline; varied student workbooks use contextual sources.
 Cloudflare supplies illustration assets. Gemini image review remains disabled.
-Mixed-workbook drawing materials are rendered locally when the student must complete
-an unfinished half or use a blank banner. Supported symmetry subjects are skulls,
-butterflies, leaves, hearts and pumpkins: reference motifs appear on the left;
-the right decorative half stays blank. Papel-picado/banner design gets a large
-white outline and fold guide. These work assets bypass Cloudflare entirely.
-Preflight uses the real template pixels and enforces usable print dimensions
-(150×110 mm for symmetry, 168×95.2 mm for banners), including the final PDF.
-Decorative artwork still uses the configured image provider; no image AI checker
-or extra API key is added. Existing PDFs must be regenerated to use the fix.
+Legacy creative-layout utilities still support local drawing materials, but the
+web's simple varied-workbook mode does not generate or accept template/drawing tasks.
+Existing PDFs are retained unchanged; regenerate a workbook to use the new policy.
+Answer review uses two bounded text-only stages per small batch: first solve the
+printed questions without access to the authored answers or calculation metadata,
+then compare those independent solutions and the sources with every clause of the
+key. Insufficient source evidence, grade mismatch or a conflicting key triggers
+one scoped content repair and a fresh review of affected pages. Local checks also
+flag student classification tables whose response/reason cells reveal categories.
+AI image review remains disabled. No additional API provider or key is needed.
 The content review checks for unsolvable tasks, incorrect keys, repeated activities,
 cultural generalizations and fabricated primary sources. Invented source excerpts
 and scenarios must explicitly be labeled fictional. Human review before sale is

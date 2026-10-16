@@ -1,0 +1,73 @@
+{
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "source_heading",
+          "text": "Classroom Bulletin Board Plan"
+        },
+        {
+          "id": "th_statement",
+          "text": "Statement"
+        },
+        {
+          "id": "th_type",
+          "text": "Fact or Opinion"
+        },
+        {
+          "id": "th_evidence",
+          "text": "Supporting Phrase from Text"
+        },
+        {
+          "id": "row1_statement",
+          "text": "Our classroom bulletin board is scheduled for completion on October twenty-ninth."
+        },
+        {
+          "id": "row2_statement",
+          "text": "Working together on seasonal displays is the most fun activity of the entire school year."
+        },
+        {
+          "id": "row3_statement",
+          "text": "Students divided tasks so that every group planned two paper decorations."
+        }
+      ],
+      "directions": "Read the source text and complete the table to classify facts and opinions, then solve the math problem below.",
+      "goal": "Students will distinguish between factual statements and opinions using evidence from the printed source.",
+      "mechanic": "classify",
+      "questions": [
+        {
+          "answer": "1. Fact, supporting phrase: scheduled for completion on October twenty-ninth. 2. Opinion, supporting phrase: most fun activity of the entire school year. 3. Fact, supporting phrase: every group planned two paper decorations.",
+          "id": "1",
+          "prompt": "Classify the three statements in the table provided as either Fact or Opinion. Write your classification and copy the exact supporting phrase from the text.",
+          "space_mm": 45
+        },
+        {
+          "answer": "8 paper decorations",
+          "calculation": {
+            "answer": "8",
+            "expression": "4*2"
+          },
+          "id": "2",
+          "prompt": "If there are 4 planning groups in the classroom, and each group creates 2 paper decorations as stated in the text, how many total paper decorations will be made for the display?",
+          "space_mm": 35
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "bulletin_bulletin_text",
+          "label": "Bulletin Board Notes",
+          "text": "Our classroom bulletin board is scheduled for completion on October twenty-ninth. Working together on seasonal displays is the most fun activity of the entire school year. Students divided tasks so that every group planned two paper decorations. Team members communicated respectfully to coordinate their autumn color choices."
+        }
+      ]
+    },
+    "html": "<table style=\"width:175mm;table-layout:fixed;margin:1mm 0 2mm\"><tr ><td style=\"width:100mm;padding:0;vertical-align:top\"><p data-content=\"name\" style=\"margin:0;font-size:12pt\"></p></td><td style=\"width:75mm;padding:0;vertical-align:top\"><p data-content=\"date\" style=\"margin:0;font-size:12pt\"></p></td></tr></table><section style=\"font-family: Arial, sans-serif; color: #2C223B; margin: 0; padding: 4px; box-sizing: border-box; width: 186mm; max-width: 186mm;\"><table style=\"width:186mm;table-layout:fixed;margin:0 0 2px 0\"><tr ><td style=\"width:110mm;padding:0;vertical-align:top\"></td><td style=\"width:76mm;padding:0;vertical-align:top\"></td></tr></table><h1 data-content=\"title\" style=\"font-size: 16pt; font-weight: bold; color: #D96B27; margin: 0 0 2px 0; text-align: center;\">Halloween Bulletin Board</h1><p data-content=\"directions\" style=\"font-size: 12pt; font-weight: bold; margin: 0 0 4px 0; text-align: center;\">Read the source text and complete the table to classify facts and opinions, then solve the math problem below.</p><div style=\"display: flex; flex-direction: row; gap: 8px; margin-bottom: 4px; align-items: center;\"><div style=\"flex: 1; background-color: #FAF6EE; border: 1px solid #D1C7BD; border-radius: 6px; padding: 6px;\"><h2 data-content=\"caption_source_heading\" style=\"font-size: 12pt; margin: 0 0 2px 0; color: #4A3B5C;\">Classroom Bulletin Board Plan</h2><div data-content=\"stimulus_bulletin_bulletin_text\" style=\"font-size: 11pt; line-height: 1.2; margin: 0;\"></div></div><div style=\"width: 75mm; height: 42mm; flex-shrink: 0;\"><img data-asset=\"bulletin_art\" style=\"width: 75mm; height: 42mm; object-fit: cover; border-radius: 6px;\"></div></div><table style=\"width: 100%; border-collapse: collapse; margin-bottom: 4px; font-size: 11pt;\"><tr style=\"background-color: #4A3B5C; color: #FFFFFF;\"><th style=\"padding: 3px; border: 1px solid #4A3B5C; width: 44%; text-align: left;\" data-content=\"caption_th_statement\">Statement</th><th style=\"padding: 3px; border: 1px solid #4A3B5C; width: 16%; text-align: center;\" data-content=\"caption_th_type\">Fact or Opinion</th><th style=\"padding: 3px; border: 1px solid #4A3B5C; width: 40%; text-align: left;\" data-content=\"caption_th_evidence\">Supporting Phrase from Text</th></tr><tr ><td style=\"padding: 3px; border: 1px solid #D1C7BD; vertical-align: top;\" data-content=\"caption_row1_statement\">Our classroom bulletin board is scheduled for completion on October twenty-ninth.</td><td style=\"padding: 3px; border: 1px solid #D1C7BD; text-align: center; vertical-align: middle; height: 16mm;\"></td><td style=\"padding: 3px; border: 1px solid #D1C7BD; vertical-align: top;\"></td></tr><tr ><td style=\"padding: 3px; border: 1px solid #D1C7BD; vertical-align: top;\" data-content=\"caption_row2_statement\">Working together on seasonal displays is the most fun activity of the entire school year.</td><td style=\"padding: 3px; border: 1px solid #D1C7BD; text-align: center; vertical-align: middle; height: 16mm;\"></td><td style=\"padding: 3px; border: 1px solid #D1C7BD; vertical-align: top;\"></td></tr><tr ><td style=\"padding: 3px; border: 1px solid #D1C7BD; vertical-align: top;\" data-content=\"caption_row3_statement\">Students divided tasks so that every group planned two paper decorations.</td><td style=\"padding: 3px; border: 1px solid #D1C7BD; text-align: center; vertical-align: middle; height: 16mm;\"></td><td style=\"padding: 3px; border: 1px solid #D1C7BD; vertical-align: top;\"></td></tr></table><div data-content=\"question_1\" style=\"margin-bottom: 4px; font-size: 11pt;\"></div><div data-content=\"question_2\" style=\"font-size: 11pt;\"></div></section>",
+    "images": [
+      {
+        "id": "bulletin_art",
+        "prompt": "An inviting digital illustration in an autumn palette of orange, midnight purple, deep slate blue, and warm cream. A group of diverse elementary students collaborate on a classroom wall display, pinning colorful paper leaves and paper art onto a large board. Warm lighting, detailed textures, expressive gestures, completely text-free."
+      }
+    ]
+  },
+  "title": "Fact or Opinion Check"
+}

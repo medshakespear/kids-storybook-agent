@@ -1078,3 +1078,12 @@ This reduces unwanted AI lettering; it does not inspect generated pixels or
 guarantee perfect artwork. Gemini image checkers remain disabled. Redeploy both
 Railway services and generate a new workbook to use these changes; existing PDFs
 are not rewritten.
+
+Matching layouts may group already-declared headings or descriptions in ordinary
+containers. A wrongly source-named wrapper is recovered locally only if it owns
+at least two distinct complete declared captions and no independent source text,
+image or response surface. Empty unknown source placeholders still require real
+source content; the renderer never invents facts from IDs. Blank combined
+`Name: Date:` labels now bind as optional metadata even without underscores.
+The bounded continuation fallback recognizes blank metadata tables and invisible
+empty header rows, preserving real reference tables and full-width answer areas.

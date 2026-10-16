@@ -41,6 +41,59 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
     sources={s['id']:s for s in normalized if isinstance(s,dict) and s.get('id') in seen}
     captions=deepcopy(exercise.get('captions',[]))
 
+    def caption_group(node):
+        """Unwrap a source-named layout group only when complete declared captions own it.
+
+        No source is invented or removed. Real declared sources take precedence;
+        empty unknown placeholders, partial wording, media, response surfaces and
+        undeclared text remain errors for the existing source/content validators.
+        """
+        if not isinstance(captions,list):return None
+        declared={'caption_'+c['id']:c['text'] for c in captions if isinstance(c,dict)
+                  and isinstance(c.get('id'),str) and isinstance(c.get('text'),str)}
+        by_text={}
+        for slot,value in declared.items():by_text.setdefault(' '.join(value.split()).casefold(),[]).append(slot)
+        tentative=deepcopy(node);used=[]
+
+        def inspect(child):
+            """Bind complete unique caption copies; preserve all grouping layout markup."""
+            if isinstance(child,str):
+                if not child.strip():return child
+                matches=by_text.get(' '.join(child.split()).casefold(),[])
+                if len(matches)!=1:raise ValueError('Independent group wording')
+                used.append(matches[0])
+                return {'tag':'span','attrs':[('data-content',matches[0])],'children':[]}
+            if 'comment' in child or child['tag'] not in {'div','section','p','span','h2','h3','h4','ul','ol','li','table','tbody','tr','td','th','strong','b','em','br'}:
+                raise ValueError('Independent group content')
+            attrs=dict(child['attrs']);slot=attrs.get('data-content')
+            if slot:
+                from core.content_binding import canonical_content_slot
+                slot=canonical_content_slot(slot,declared)
+                if slot not in declared:raise ValueError('Unknown group member')
+                pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in child['children']]
+                if any(p is None for p in pieces):raise ValueError('Nontext caption content')
+                printed=' '.join(''.join(pieces).split()).casefold()
+                if printed and printed!=' '.join(declared[slot].split()).casefold():raise ValueError('Partial caption copy')
+                child['attrs']=[(k,slot if k=='data-content' else v) for k,v in child['attrs']]
+                used.append(slot)
+                return child
+            pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in child['children']]
+            value=' '.join(''.join(pieces).split()).casefold() if all(p is not None for p in pieces) else ''
+            matches=by_text.get(value,[])
+            if value and len(matches)==1:
+                child['attrs'].append(('data-content',matches[0]));used.append(matches[0]);child['children']=[]
+                return child
+            if re.search(r'(?:^|;)\s*(?:min-|max-)?height\s*:',attrs.get('style',''),re.I):
+                raise ValueError('Independent group workspace')
+            child['children']=[inspect(c) for c in child['children']]
+            return child
+
+        try:tentative['children']=[inspect(c) for c in tentative['children']]
+        except ValueError:return None
+        if len(used)<2 or len(used)!=len(set(used)):return None
+        tentative['attrs']=[(k,v) for k,v in tentative['attrs'] if k!='data-content']
+        return tentative
+
     def label_slot(node, sid):
         """Bind an explicit source-heading alias only to an already declared label.
 
@@ -97,6 +150,11 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
         node['attrs']=attrs
         for child in node['children']:
             visit(child)
+        slot=dict(node['attrs']).get('data-content','') or ''
+        if slot.startswith('stimulus_') and source_id(slot) not in seen:
+            group=caption_group(node)
+            if group is not None:
+                node.update(group);changed=True
 
     def render(node):
         """Serialize the retained tree literally, preserving all graphics and work areas."""

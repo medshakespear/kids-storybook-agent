@@ -102,6 +102,20 @@ def continuation_layout(page: dict, font: int, visual_area: float):
             if node['tag']=='img':assets.append(attrs.get('data-asset'));return
             owned=content_slots(node)
             if node['tag']=='table':
+                # The deterministic simple-workbook header is a blank metadata
+                # table, not a reference-data table. Collect its fields normally
+                # so it cannot disable the bounded continuation fallback.
+                from core.workbook_checks import printed_words
+                markup=literal_html(node)
+                if (not owned and not printed_words(markup) and len(re.findall(r'<tr\b',markup))==1
+                        and not re.search(r'<(?:img|th)\b|(?:min-|max-)?height\s*:|(?:border|background)[\w-]*\s*:',markup,re.I)):
+                    # Moving metadata can leave a structurally empty header row.
+                    # It has no printed cells, graphics or writing surface.
+                    return
+                if (owned and set(owned)<={'name','date'} and not printed_words(markup)
+                        and not re.search(r'<img\b|(?:min-|max-)?height\s*:',markup,re.I)):
+                    for child in node['children']:collect(child)
+                    return
                 if not owned or any(s in {'title','name','date','directions'} or s.startswith('question_') for s in owned) or re.search(r'<img\b',literal_html(node)):
                     raise ValueError('Retain mixed table relationships')
                 seen.extend(owned);references.append(reference_markup(node));return

@@ -21,7 +21,7 @@ TEXT_DIMENSIONS={'width','height','min-width','max-width','min-height','max-heig
 def combined_metadata_fields(value: str) -> tuple[str, str] | None:
     """Recognize only two complete blank Name/Date fields, including Unicode spaces."""
     normalized = ' '.join(value.split()).casefold()
-    match = re.fullmatch(r'(name|date)\s*:\s*[_\s]{3,}\s+(name|date)\s*:\s*[_\s]{3,}', normalized)
+    match = re.fullmatch(r'(name|date)\s*:\s*[_\s]*(name|date)\s*:\s*[_\s]*', normalized)
     return (match[1], match[2]) if match and match[1] != match[2] else None
 
 

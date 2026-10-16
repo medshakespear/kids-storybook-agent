@@ -648,6 +648,13 @@ independent graphics do not. The label stays beside its source and is printed
 once, including inside simple heading/inline wrappers. This avoids requesting a
 fabricated extra passage while keeping source text and answer space unchanged.
 
+For two or four explicitly illustrated source cards, a measured fallback can keep
+each existing image paired with its source in a two-column print layout. A caption
+that repeats that same card's complete source text or label is consolidated into
+the source presentation. Distinct caption wording and independent work panels
+are never discarded. All images remain, their combined area meets the grade's
+visual target, and full-width response boxes keep their requested heights.
+
 Authored pages with unbound contextual prose receive a text-binding repair rather
 than an HTML-only repair. A complete existing explanatory paragraph can become
 `exercise.passage`; it is not shortened into a 120-character caption. Existing

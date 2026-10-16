@@ -1,0 +1,123 @@
+{
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "label_1",
+          "text": "Step A"
+        },
+        {
+          "id": "text_1",
+          "text": "Clean and arrange the wooden tiers of the altar in a quiet space in the home."
+        },
+        {
+          "id": "label_2",
+          "text": "Step B"
+        },
+        {
+          "id": "text_2",
+          "text": "Place framed photographs of beloved family members and light glowing candles."
+        },
+        {
+          "id": "label_3",
+          "text": "Step C"
+        },
+        {
+          "id": "text_3",
+          "text": "Lay down bright orange marigold flower petals to guide spirits with their scent."
+        },
+        {
+          "id": "label_4",
+          "text": "Step D"
+        },
+        {
+          "id": "text_4",
+          "text": "Add traditional foods like sweet bread, fresh fruit, and water as offerings."
+        }
+      ],
+      "directions": "Examine the four procedural cards below. Number them from 1 to 4 in the correct chronological order, then answer the writing prompt below.",
+      "goal": "Sequence the traditional steps of setting up a family ofrenda in chronological order.",
+      "mechanic": "sequencing",
+      "questions": [
+        {
+          "answer": "Correct sequence order: Step A is 1, Step B is 2, Step C is 3, Step D is 4.",
+          "id": "1",
+          "prompt": "Read the four scrambled steps above (A, B, C, D). Write the correct chronological order numbers (1 to 4) next to each step to show how an ofrenda is built.",
+          "space_mm": 40
+        },
+        {
+          "answer": "Accept explanations stating that cleaning prepares a respectful, sacred foundation and physical structure before placing precious remembrance items.",
+          "id": "2",
+          "prompt": "Explain in two complete sentences why cleaning the altar space and setting up the wooden tiers is always the very first step before adding candles or photos.",
+          "space_mm": 50
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "step_one",
+          "label": "Step A",
+          "text": "Clean and arrange the wooden tiers of the altar in a quiet space in the home."
+        },
+        {
+          "id": "step_two",
+          "label": "Step B",
+          "text": "Place framed photographs of beloved family members and light glowing candles."
+        },
+        {
+          "id": "step_three",
+          "label": "Step C",
+          "text": "Lay down bright orange marigold flower petals to guide spirits with their scent."
+        },
+        {
+          "id": "step_four",
+          "label": "Step D",
+          "text": "Add traditional foods like sweet bread, fresh fruit, and water as offerings."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family:sans-serif; width:186mm; height:265mm; box-sizing:border-box; color:#2c1810; display:flex; flex-direction:column; justify-content:space-between; padding:4mm;\"><div ><h1 data-content=\"title\" style=\"font-size:18pt; font-weight:bold; color:#d96b27; text-align:center; margin-bottom:1mm;\">Dia de los Muertos: Building an Ofrenda</h1><div style=\"display:flex; justify-content:space-between; font-size:12pt; margin-bottom:2mm;\"><p data-content=\"name\" style=\"margin:0;\">Name: ______________________</p><p data-content=\"date\" style=\"margin:0;\">Date: ______________</p></div><p data-content=\"directions\" style=\"font-size:12pt; font-weight:bold; margin-bottom:2mm;\">Examine the four procedural cards below. Number them from 1 to 4 in correct chronological order, then answer the writing prompts.</p><div style=\"margin-bottom:2mm;display:block\"><table style=\"width:100%;table-layout:fixed;border-spacing:2mm 1mm\"><tbody ><tr ><td style=\"vertical-align:top;padding:0;width:50.000000%\"><div style=\"display:flex; align-items:center; background-color:#fff8f0; border:1px solid #d96b27; border-radius:4px; padding:1.5mm; gap:2mm;\"><span data-content=\"stimulus_step_one\"></span><img data-asset=\"img_step1\" style=\"width:28mm; height:28mm; object-fit:cover; border-radius:3px;\"><div style=\"flex-grow:1;\"><h3 style=\"margin:0 0 1pt 0; font-size:11pt; color:#800020;\" data-content=\"caption_label_1\"></h3><p style=\"margin:0; font-size:12pt; line-height:1.15;\" data-content=\"caption_text_1\"></p></div></div></td><td style=\"vertical-align:top;padding:0;width:50.000000%\"><div style=\"display:flex; align-items:center; background-color:#fff8f0; border:1px solid #d96b27; border-radius:4px; padding:1.5mm; gap:2mm;\"><span data-content=\"stimulus_step_two\"></span><img data-asset=\"img_step2\" style=\"width:28mm; height:28mm; object-fit:cover; border-radius:3px;\"><div style=\"flex-grow:1;\"><h3 style=\"margin:0 0 1pt 0; font-size:11pt; color:#800020;\" data-content=\"caption_label_2\"></h3><p style=\"margin:0; font-size:12pt; line-height:1.15;\" data-content=\"caption_text_2\"></p></div></div></td></tr><tr ><td style=\"vertical-align:top;padding:0;width:50.000000%\"><div style=\"display:flex; align-items:center; background-color:#fff8f0; border:1px solid #d96b27; border-radius:4px; padding:1.5mm; gap:2mm;\"><span data-content=\"stimulus_step_three\"></span><img data-asset=\"img_step3\" style=\"width:28mm; height:28mm; object-fit:cover; border-radius:3px;\"><div style=\"flex-grow:1;\"><h3 style=\"margin:0 0 1pt 0; font-size:11pt; color:#800020;\" data-content=\"caption_label_3\"></h3><p style=\"margin:0; font-size:12pt; line-height:1.15;\" data-content=\"caption_text_3\"></p></div></div></td><td style=\"vertical-align:top;padding:0;width:50.000000%\"><div style=\"display:flex; align-items:center; background-color:#fff8f0; border:1px solid #d96b27; border-radius:4px; padding:1.5mm; gap:2mm;\"><span data-content=\"stimulus_step_four\"></span><img data-asset=\"img_step4\" style=\"width:28mm; height:28mm; object-fit:cover; border-radius:3px;\"><div style=\"flex-grow:1;\"><h3 style=\"margin:0 0 1pt 0; font-size:11pt; color:#800020;\" data-content=\"caption_label_4\"></h3><p style=\"margin:0; font-size:12pt; line-height:1.15;\" data-content=\"caption_text_4\"></p></div></div></td></tr></tbody></table></div></div><div style=\"display:flex; flex-direction:column; gap:2mm; margin-bottom:2mm;\"><div data-content=\"question_1\" style=\"font-size:12pt; background:#fff; border:1px dashed #d96b27; padding:2mm; border-radius:4px; min-height:35mm;\"></div><div data-content=\"question_2\" style=\"font-size:12pt; background:#fff; border:1px dashed #d96b27; padding:2mm; border-radius:4px; min-height:45mm;\"></div></div></div>",
+    "images": [
+      {
+        "id": "img_step1",
+        "prompt": "Line art style illustration showing a clean wooden tiered table surface ready for decoration during Day of the Dead preparations."
+      },
+      {
+        "id": "img_step2",
+        "prompt": "Line art style illustration of framed family photographs and glowing candles placed carefully on an altar shelf."
+      },
+      {
+        "id": "img_step3",
+        "prompt": "Line art style illustration of vibrant orange marigold flower petals being gently scattered to create a welcoming path."
+      },
+      {
+        "id": "img_step4",
+        "prompt": "Line art style illustration of traditional sweet bread pan de muerto and favorite foods arranged neatly as offerings."
+      }
+    ]
+  },
+  "title": "Sequencing the Process: Building an Ofrenda",
+  "config": {
+    "content_review_batch_size": 3,
+    "context_caption_limit": 24,
+    "extended_response_mm": 50,
+    "items_per_page": 2,
+    "max_operand": 100,
+    "max_result": 1000,
+    "minimum_response_mm": 35,
+    "minimum_response_width_mm": 150,
+    "minimum_text_pt": 12,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "purposeful_activity_layout": false,
+    "stimulus_limit": 8,
+    "student_font_pt": 12,
+    "student_workbook": true,
+    "table_caption_limit": 36,
+    "visual_area_mm2": 8000
+  }
+}

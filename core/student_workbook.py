@@ -109,6 +109,7 @@ def response_height(question: dict, config: dict) -> float:
 
 def response_box(question: dict, height: float, config: dict) -> str:
     """Draw full-height writing boxes with subtle handwriting lines; keep drawing areas blank."""
+    if config.get('student_workbook') and question.get('_template_response_asset'):return ''
     if not height: return ''
     lines=''
     drawing=re.search(r'\b(?:draw|sketch|illustrate|diagram|poster|collage)\b',question.get('prompt',''),re.I)

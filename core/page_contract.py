@@ -486,6 +486,16 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         answer = bounded_text(question.get('answer'), f'question {qid} answer/criterion', answer_character_limit(config))
         from core.student_workbook import response_height,response_box
         space = response_height(question,config)
+        response_asset=question.get('_template_response_asset')
+        if response_asset:
+            from core.work_templates import on_template_drawing
+            template=page.get('work_template',{})
+            if (not config.get('student_workbook') or template.get('asset_id')!=response_asset
+                    or not on_template_drawing(prompt)
+                    or not str(template.get('kind','')).endswith('_symmetry')
+                    or not any(a.get('id')==response_asset and a.get('local_template')==template['kind']
+                               for a in page.get('images',[]))):
+                raise ValueError('On-template response needs its declared local drawing surface')
         # Every task prompt is printed exactly once; response areas travel with their question.
         content = f'{qid}. {html.escape(prompt)}'
         content += response_box(question,space,config)

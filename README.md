@@ -655,6 +655,13 @@ the source presentation. Distinct caption wording and independent work panels
 are never discarded. All images remain, their combined area meets the grade's
 visual target, and full-width response boxes keep their requested heights.
 
+When a symmetry question explicitly tells students to mirror motifs **on the
+blank half of the template**, that full-size template is its drawing response
+surface. Python avoids adding a second unrelated drawing box for that same task.
+Written explanations, math responses and separately authored practice panels keep
+their own space. A compact fallback places short guide text beside the 150 x
+110 mm template; printed-size, page-fit and content checks still apply.
+
 Authored pages with unbound contextual prose receive a text-binding repair rather
 than an HTML-only repair. A complete existing explanatory paragraph can become
 `exercise.passage`; it is not shortened into a 120-character caption. Existing

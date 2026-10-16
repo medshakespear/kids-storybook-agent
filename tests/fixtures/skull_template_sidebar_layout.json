@@ -1,0 +1,72 @@
+{
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "guide_title",
+          "text": "Bilateral Symmetry Challenge"
+        }
+      ],
+      "directions": "Examine the decorative motifs on the left side of the skull outline and mirror them accurately onto the blank right half.",
+      "goal": "Students practice bilateral symmetry by completing the missing decorative half of a ceremonial skull.",
+      "mechanic": "draw",
+      "questions": [
+        {
+          "answer": "Accept student drawings showing accurate bilateral symmetry reflecting the left-side motifs onto the right side.",
+          "id": "1",
+          "prompt": "On the blank right side of the skull template above, mirror the marigold petals and curved lines shown on the left half.",
+          "space_mm": 55
+        },
+        {
+          "answer": "The artisan carves 24 sugar skulls in total.",
+          "calculation": {
+            "answer": "24",
+            "expression": "4*6"
+          },
+          "id": "2",
+          "prompt": "If a traditional artisan carves 4 large sugar skulls each hour and works for 6 hours, how many sugar skulls does the artisan carve in total? Show your calculation.",
+          "space_mm": 40
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "guide_text",
+          "label": "Guide Text",
+          "text": "Study the decorative marigold petals, curves, and geometric lines on the left half of the skull. Carefully mirror each motif onto the blank right side so that both halves match perfectly."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family: Arial, sans-serif; color: #2B2118; width: 186mm; height: 265mm; margin: 0 auto; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 4mm;\"><div ><h1 data-content=\"title\" style=\"font-size: 16pt; font-weight: bold; text-align: center; color: #8B3213; margin: 0 0 2mm 0;\">Day of the Dead: Symmetry and Tradition</h1><p data-content=\"name\" style=\"font-size: 12pt; margin: 0 0 2mm 0;\">Name: _______________________________</p><p data-content=\"directions\" style=\"font-size: 12pt; font-weight: bold; margin: 0 0 2mm 0; color: #1F3A2A;\">Examine the decorative motifs on the left side of the skull outline and mirror them accurately onto the blank right half.</p><div style=\"display: flex; flex-direction: row; gap: 4mm; margin-bottom: 2mm; align-items: flex-start;\"><div ><img data-asset=\"skull_template\" style=\"border: 1px solid #D4BFA5; border-radius: 4px; background-color: #FFFDF9;;width:150mm;height:110mm;object-fit:contain\"></div><div style=\"display: flex; flex-direction: column; justify-content: flex-start; width: 68mm; background-color: #FFF2DF; padding: 3mm; border-radius: 4px; border: 1px solid #C87724;\"><p style=\"font-size: 12pt; line-height: 1.2; margin: 0 0 2mm 0;\"><strong data-content=\"caption_guide_title\"></strong></p><p style=\"font-size: 12pt; line-height: 1.2; margin: 0;\" data-content=\"stimulus_guide_text\"></p></div></div></div><div style=\"display: flex; flex-direction: column; gap: 2mm;\"><div data-content=\"question_1\" style=\"font-size: 12pt; margin: 0;\">On the blank right side of the skull template above, mirror the marigold petals and curved lines shown on the left half.</div><div data-content=\"question_2\" style=\"font-size: 12pt; margin: 0;\">If a traditional artisan carves 4 large sugar skulls each hour and works for 6 hours, how many sugar skulls does the artisan carve in total? Show your calculation.</div><div style=\"border: 1px solid #C87724; height: 32mm; border-radius: 4px; background-color: #FFF2DF;\"></div></div></div>",
+    "images": [
+      {
+        "id": "skull_template",
+        "prompt": "An educational illustration showing a split ceremonial sugar skull outline. The left half features detailed traditional decorative patterns including marigold flowers, swirls, and dots in deep indigo, marigold orange, leaf green, and warm terracotta. The right half is completely blank with a clean black outline, ready for student drawing."
+      }
+    ]
+  },
+  "title": "Symmetry in Sugar Skull Artistry",
+  "config": {
+    "content_review_batch_size": 3,
+    "context_caption_limit": 24,
+    "extended_response_mm": 50,
+    "items_per_page": 2,
+    "max_operand": 100,
+    "max_result": 1000,
+    "minimum_response_mm": 35,
+    "minimum_response_width_mm": 150,
+    "minimum_text_pt": 12,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "purposeful_activity_layout": false,
+    "stimulus_limit": 8,
+    "student_font_pt": 12,
+    "student_workbook": true,
+    "table_caption_limit": 36,
+    "visual_area_mm2": 8000
+  }
+}

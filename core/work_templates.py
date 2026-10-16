@@ -30,9 +30,20 @@ def template_dimensions(kind: str) -> tuple[float,float]:
     return 150,150/1.8
 
 
+def on_template_drawing(prompt: str) -> bool:
+    """Recognize explicit drawing on a template, never separate writing or practice."""
+    return isinstance(prompt,str) and bool(
+        re.search(r'^On (?:the )?blank right (?:side|half) of (?:the )?\w+(?: \w+){0,2} template\b',prompt,re.I)
+        and re.search(r'\b(?:mirror|copy|draw|complete)\b',prompt,re.I)
+        and not re.search(r'\b(?:write|explain|paragraph|sentences?|space below|practice)\b',prompt,re.I))
+
+
 def prepare_work_template(page: dict, config: dict, title: str = '') -> None:
     """Keep authored content/layout; route one unambiguous work asset away from image AI."""
     exercise=page.get('exercise')
+    if isinstance(exercise,dict):
+        for question in exercise.get('questions',[]):
+            if isinstance(question,dict):question.pop('_template_response_asset',None)
     if (not config.get('student_workbook') or not isinstance(exercise,dict)
             or exercise.get('render_mode')!='authored'):return
     kind=required_template(exercise,title)
@@ -82,6 +93,11 @@ def prepare_work_template(page: dict, config: dict, title: str = '') -> None:
     for question in exercise.get('questions',[]):
         prompt=question.get('prompt','')
         if not isinstance(prompt,str):continue
+        # A task explicitly performed ON the printed template already has a
+        # response surface. Do not add another unrelated drawing rectangle.
+        # Derive this marker locally; model-provided markers are cleared above.
+        if kind.endswith('_symmetry') and on_template_drawing(prompt):
+            question['_template_response_asset']=chosen['id']
         if kind.endswith('_symmetry') and re.search(r'\b(?:complete|finish)\b',prompt,re.I) and re.search(r'\bhalf\b',prompt,re.I):
             new=prompt
             if re.search(r'\b(?:complete|finish)\b[^.!?]{0,60}\bleft half\b',new,re.I):
@@ -139,6 +155,7 @@ def template_layout_recovery(page: dict, minimum_font: int, visual_area: float):
     images=page.get('images')
     if not page.get('_recovery_config',{}).get('student_workbook'):return
     if not isinstance(images,list) or len(images)!=1 or not images[0].get('local_template'):return
+    yield from integrated_template_layout(page,minimum_font)
     from core.layout_recovery import single_illustration_recovery
     base=single_illustration_recovery(page,minimum_font,visual_area)
     if base is None:return
@@ -160,3 +177,63 @@ def template_layout_recovery(page: dict, minimum_font: int, visual_area: float):
     for node in parser.root:visit(node)
     base['html']=''.join(literal_html(n) for n in parser.root)
     yield base
+
+
+def integrated_template_layout(page: dict, minimum_font: int):
+    """Preserve on-template tasks, supporting text and extra blank practice panels.
+
+    Source/guide text flows beside the actual 150mm template, not beside a
+    thumbnail. Only explicitly on-template drawing responses are integrated.
+    All other response boxes and independent work surfaces remain unchanged.
+    """
+    from copy import deepcopy
+    from core.page_contract import compile_exercise
+    config=page.get('_recovery_config',{})
+    if not any(q.get('_template_response_asset') for q in page.get('exercise',{}).get('questions',[])):return
+    try:
+        checked=deepcopy(page);blocks={}
+        # Retained diagnostic/retry sources carry the manifest and exercise,
+        # not derived work_template metadata. Recompute it before compilation.
+        prepare_work_template(checked,config,page.get('_recovery_title','Drawing studio'))
+        compile_exercise(checked,config,page.get('_recovery_title','Drawing studio'),blocks_out=blocks)
+        parser=CanonicalTextContainers({});parser.feed(checked['source_layout']);parser.close()
+        if parser.stack or checked.get('_table_caption_ids'):return
+        slots=[];panels=[];assets=[]
+
+        def collect(node):
+            """Retain only canonical text, the work asset and literal blank panels."""
+            if isinstance(node,str):
+                if node.strip():raise ValueError('Keep independent wording')
+                return
+            if 'comment' in node:raise ValueError('Keep comments')
+            attrs=dict(node['attrs']);slot=attrs.get('data-content')
+            if slot:slots.append(slot);return
+            if node['tag']=='img':assets.append(attrs.get('data-asset'));return
+            if all(isinstance(c,str) and not c.strip() for c in node['children']):
+                if re.search(r'(?:height|min-height)\s*:\s*[1-9]',attrs.get('style','')):
+                    panels.append(literal_html(node));return
+            if node['tag'] in {'table','tr','td','th','svg'}:raise ValueError('Keep structured task relationships')
+            for child in node['children']:collect(child)
+
+        for node in parser.root:collect(node)
+        if len(slots)!=len(set(slots)) or not (set(blocks)-{'name','date'})<=set(slots):return
+        image=page['images'][0]
+        if assets!=[image['id']]:return
+        width,height=template_dimensions(image['local_template'])
+        if width>150:return
+        style=f'font-size:{minimum_font}pt;line-height:1.15;margin:0;padding:0'
+        def container(slot):
+            """Render exactly one canonical slot in normal print flow."""
+            return f'<div data-content="{slot}" style="{style};margin-bottom:1mm"></div>'
+        header=f'<h1 data-content="title" style="font-size:{minimum_font+3}pt;line-height:1.15;color:#8B3213;background-color:#FFF2DF;margin:0 0 1mm;padding:1mm"></h1>'
+        header+=' '.join(f'<span data-content="{s}" style="{style}"></span>' for s in ('name','date') if s in slots)
+        header+=container('directions')
+        supporting=[s for s in slots if s not in {'title','name','date','directions'} and not s.startswith('question_')]
+        body=(f'<table style="width:186mm;table-layout:fixed;border-collapse:collapse"><tr>'
+              f'<td style="width:{width}mm;vertical-align:top;padding:0"><img data-asset="{image["id"]}" style="width:{width}mm;height:{height}mm;object-fit:contain"/></td>'
+              '<td style="vertical-align:top;padding:0 0 0 1mm">'+''.join(container(s) for s in supporting)+'</td></tr></table>')
+        tail=''.join(container('question_'+q['id']) for q in checked['exercise']['questions'])
+        result=deepcopy(page);result['exercise']=deepcopy(checked['exercise'])
+        result['html']=header+body+tail+''.join(panels)
+        yield result
+    except (ValueError,TypeError,KeyError,IndexError):return

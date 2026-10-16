@@ -682,6 +682,14 @@ hide new commands in captions. Banner fallback layouts can retain one additional
 inspirational illustration beside the complete guide text while keeping the
 168 x 95.2 mm drawing template and all separate response boxes full size.
 
+An explicit “Plan your banner design in the blank template” sketch task uses that
+template as its response surface, just as direct-on-template symmetry tasks do.
+Separate written explanations keep their full response boxes. For authored pages,
+an accidental `data-visual` reference can become `data-asset` only when its ID
+exactly identifies declared artwork and no computed mechanism is specified.
+Unknown/conflicting references and duplicate images remain errors. Exact-visual
+errors now list missing, undeclared and repeated IDs to make diagnosis precise.
+
 Authored pages with unbound contextual prose receive a text-binding repair rather
 than an HTML-only repair. A complete existing explanatory paragraph can become
 `exercise.passage`; it is not shortened into a 120-character caption. Existing

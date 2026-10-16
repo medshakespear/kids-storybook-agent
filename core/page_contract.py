@@ -321,6 +321,8 @@ def normalize_illustration_ids(page: dict) -> None:
 
     page['html'] = re.sub(r'''(\bdata-asset\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>]+))''',
                           replace,page['html'],flags=re.I)
+    from core.media_namespaces import normalize_authored_media
+    normalize_authored_media(page)
 
 
 def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = None, *, defer_visual_sizing: bool = False, blocks_out: dict | None = None) -> None:
@@ -491,8 +493,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             from core.work_templates import on_template_drawing
             template=page.get('work_template',{})
             if (not config.get('student_workbook') or template.get('asset_id')!=response_asset
-                    or not on_template_drawing(prompt)
-                    or not str(template.get('kind','')).endswith('_symmetry')
+                    or not on_template_drawing(prompt,template.get('kind'))
+                    or not (str(template.get('kind','')).endswith('_symmetry') or template.get('kind')=='banner_plan')
                     or not any(a.get('id')==response_asset and a.get('local_template')==template['kind']
                                for a in page.get('images',[]))):
                 raise ValueError('On-template response needs its declared local drawing surface')
@@ -625,7 +627,11 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     compiled_visuals = page_visuals(page)
     expected_visuals = set(compiled_visuals)
     if set(parser.visuals)!=expected_visuals or len(parser.visuals)!=len(expected_visuals):
-        raise ValueError('Render the exact exercise visual once; never replace or duplicate its mechanism')
+        repeated={vid:parser.visuals.count(vid) for vid in set(parser.visuals) if parser.visuals.count(vid)>1}
+        raise ValueError('Render the exact exercise visual once; never replace or duplicate its mechanism. '
+            f'Missing IDs: {sorted(expected_visuals-set(parser.visuals))}; '
+            f'undeclared IDs: {sorted(set(parser.visuals)-expected_visuals)}; repeated IDs/counts: {repeated}. '
+            'Use data-asset for declared illustrations and data-visual only for the retained computed visual.')
     for vid,(svg,_) in compiled_visuals.items():
         style = parser.visual_styles[vid]
         dimensions = {}

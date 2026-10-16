@@ -1,0 +1,68 @@
+{
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "label_guide",
+          "text": "Fold Guide: Align your decorative motifs symmetrically across the center fold line."
+        }
+      ],
+      "directions": "Use the blank banner template and fold guide below to design a balanced, symmetrical papel picado decoration. Remember that shapes cut near the fold create full patterns when opened.",
+      "goal": "Design a traditional symmetrical papel picado banner pattern for Day of the Dead celebrations.",
+      "mechanic": "design",
+      "questions": [
+        {
+          "answer": "Accept an original symmetrical banner pattern with balanced shapes on both sides of the fold line.",
+          "id": "1",
+          "prompt": "Plan your banner design in the blank template above. Sketch repeating geometric shapes and cultural symbols (such as marigold flowers or leaves) that mirror each other across the center fold.",
+          "space_mm": 55
+        },
+        {
+          "answer": "Student should explain that matching shapes and cuts were mirrored on the left and right of the center line.",
+          "id": "2",
+          "prompt": "Explain how you used symmetry in your design to ensure both halves of the papel picado match when cut along the fold.",
+          "space_mm": 50
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "banner_guide",
+          "label": "Design Guide",
+          "text": "Papel picado banners are crafted by stacking and folding tissue paper, then cutting out geometric and symbolic shapes. Because the paper is folded in half, every cut made on one side must be mirrored on the other to create a complete symmetrical picture when unfolded."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family: Arial, sans-serif; width: 186mm; margin: 0 auto; color: #222222;\"><div style=\"text-align: center; margin-bottom: 2px;\"><h1 data-content=\"title\" style=\"font-size: 16pt; color: #d96b27; margin: 0 0 2px 0; text-transform: uppercase; letter-spacing: 1px;\">Day of the Dead: Papel Picado Design Challenge</h1><p data-content=\"directions\" style=\"font-size: 12pt; line-height: 1.1; margin: 0 auto; max-width: 180mm; color: #333333;\">Use the blank banner template and fold guide below to design a balanced, symmetrical papel picado decoration. Remember that shapes cut near the fold create full patterns when opened.</p></div><div style=\"display: flex; gap: 6px; margin-bottom: 2px; align-items: flex-start;\"><div style=\"flex: 1; font-size: 12pt; line-height: 1.1; background: #FFF2DF; padding: 4px; border-radius: 4px; border-left: 3px solid #C87724;\"><div data-content=\"stimulus_banner_guide\"></div><div style=\"margin-top: 2px; font-weight: bold; color: #C87724;\" data-content=\"caption_label_guide\"></div></div><div style=\"width: 120mm; flex-shrink: 0; text-align: center;\"><img data-asset=\"banner_art\" style=\"border-radius: 4px;;width:168mm;height:95.2mm;object-fit:contain\"></div></div><div style=\"margin-top: 2px;\"><div data-content=\"question_1\" style=\"margin-bottom: 2px; font-size: 12pt; line-height: 1.1;\">Plan your banner design in the blank template above. Sketch repeating geometric shapes and cultural symbols (such as marigold flowers or leaves) that mirror each other across the center fold.<div style=\"border: 1px dashed #C87724; height: 35mm; margin-top: 2px; border-radius: 4px; background: #fff;\"></div></div><div data-content=\"question_2\" style=\"font-size: 12pt; line-height: 1.1;\">Explain how you used symmetry in your design to ensure both halves of the papel picado match when cut along the fold.<div style=\"border: 1px solid #ccc; height: 25mm; margin-top: 2px; border-radius: 4px; background: #fff;\"></div></div></div></div>",
+    "images": [
+      {
+        "id": "banner_art",
+        "prompt": "Vibrant folk art illustration of traditional Mexican papel picado banners fluttering with floral motifs and marigold orange, indigo, and magenta colors."
+      }
+    ]
+  },
+  "title": "Papel Picado Banner Design Challenge",
+  "config": {
+    "content_review_batch_size": 3,
+    "context_caption_limit": 24,
+    "extended_response_mm": 50,
+    "items_per_page": 2,
+    "max_operand": 100,
+    "max_result": 1000,
+    "minimum_response_mm": 35,
+    "minimum_response_width_mm": 150,
+    "minimum_text_pt": 12,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "purposeful_activity_layout": false,
+    "stimulus_limit": 8,
+    "student_font_pt": 12,
+    "student_workbook": true,
+    "table_caption_limit": 36,
+    "visual_area_mm2": 8000
+  }
+}

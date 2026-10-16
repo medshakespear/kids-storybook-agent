@@ -30,11 +30,14 @@ def template_dimensions(kind: str) -> tuple[float,float]:
     return 150,150/1.8
 
 
-def on_template_drawing(prompt: str) -> bool:
+def on_template_drawing(prompt: str, kind: str | None = None) -> bool:
     """Recognize explicit drawing on a template, never separate writing or practice."""
-    return isinstance(prompt,str) and bool(
-        re.search(r'^On (?:the )?blank right (?:side|half) of (?:the )?\w+(?: \w+){0,2} template\b',prompt,re.I)
-        and re.search(r'\b(?:mirror|copy|draw|complete)\b',prompt,re.I)
+    if not isinstance(prompt,str):return False
+    symmetry=re.search(r'^On (?:the )?blank right (?:side|half) of (?:the )?\w+(?: \w+){0,2} template\b',prompt,re.I)
+    banner=re.search(r'^Plan your banner design in (?:the )?blank template\b',prompt,re.I)
+    matching=banner if kind=='banner_plan' else symmetry if kind and kind.endswith('_symmetry') else symmetry or banner
+    return bool(matching
+        and re.search(r'\b(?:mirror|copy|draw|sketch|complete)\b',prompt,re.I)
         and not re.search(r'\b(?:write|explain|paragraph|sentences?|space below|practice)\b',prompt,re.I))
 
 
@@ -96,7 +99,7 @@ def prepare_work_template(page: dict, config: dict, title: str = '') -> None:
         # A task explicitly performed ON the printed template already has a
         # response surface. Do not add another unrelated drawing rectangle.
         # Derive this marker locally; model-provided markers are cleared above.
-        if kind.endswith('_symmetry') and on_template_drawing(prompt):
+        if (kind.endswith('_symmetry') or kind=='banner_plan') and on_template_drawing(prompt,kind):
             question['_template_response_asset']=chosen['id']
         if kind.endswith('_symmetry') and re.search(r'\b(?:complete|finish)\b',prompt,re.I) and re.search(r'\bhalf\b',prompt,re.I):
             new=prompt

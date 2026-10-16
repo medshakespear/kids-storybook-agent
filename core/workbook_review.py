@@ -4,6 +4,23 @@ from copy import deepcopy
 
 from core.task_visuals import answer_text
 from core.workbook_checks import classification_leaks,printed_words,unsupported_fact_claims
+from core.contextual_tasks import contextual_task_issues
+
+
+def semantic_review_guidance() -> str:
+    """Share meaning checks between blind solving and comparison with authored keys."""
+    return ('Track the meaning and location of each quantity: handed-out minus returned means '
+        'items still with recipients, not items in storage. Usable returns added back to stock '
+        'increase stock; require starting inventory and an explicit return/restocking condition. '
+        'For sentence ordering, require printed time/dependency cues establishing ONE order; '
+        'otherwise accept all defensible orders or re-author the source, not just the key. '
+        'In bullying scenarios, seek trusted adult help promptly. Checking in, speaking up, '
+        'collecting evidence or finding witnesses must never be prerequisites for reporting; '
+        'optional peer support is only when safe. Do not treat bullying as an equal-power '
+        'disagreement requiring reconciliation. Raw class totals cannot prove per-student '
+        'participation, age effects or causation without denominators/comparable conditions. '
+        'State only the observed count comparison. Avoid redundant inclusion reflections and '
+        'unrelated math tacked onto matching questions; keep each task focused. ')
 
 
 def blind_pages(pages: list[dict]) -> list[dict]:
@@ -132,7 +149,7 @@ def review_varied_pack(pack: dict, ask, repair, batch_size: int = 3) -> None:
                 'as established biographical facts without supplied attribution. '
                 'Do not inspect image pixels. Return page_number, source_accuracy, no_answer_leak, reason, '
                 'issues and question_checks with id, source_support, skill_match, grade_match, solution, reason. '
-                'Activities:\n'+json.dumps(public))
+                +semantic_review_guidance()+'Activities:\n'+json.dumps(public))
             independent=ask(independent_prompt,lambda raw:validate_independent(raw,public),
                 'Workbook independent solutions',5000,response_schema=independent_schema(public))
             prompt=('Compare the existing answer keys with these independently obtained solutions and '
@@ -147,13 +164,13 @@ def review_varied_pack(pack: dict, ask, repair, batch_size: int = 3) -> None:
                 'This is text review; do not inspect AI image pixels. Return one page/question verdict each '
                 'with source_accuracy, no_answer_leak, source_support, skill_match and answer_correct. '
                 'Include a concrete independent solution and reason. Preserve response space. '
-                'Independent solutions:\n'+json.dumps(independent['pages'])+'\nActivities:\n'+json.dumps(pages))
+                +semantic_review_guidance()+'Independent solutions:\n'+json.dumps(independent['pages'])+'\nActivities:\n'+json.dumps(pages))
             verdict=ask(prompt,lambda raw:validate_review(raw,pages),'Workbook content review',
                 5000,response_schema=review_schema(pages))
             for page in pages:
                 n=page['page_number']
                 issues=(verdict[n]+independent['required_issues'][n]+classification_leaks(pack['pages'][n-1])
-                        +unsupported_fact_claims(pack['pages'][n-1]))
+                        +unsupported_fact_claims(pack['pages'][n-1])+contextual_task_issues(pack['pages'][n-1]))
                 if issues:failed[n]=list(dict.fromkeys(issues))
         if not failed:
             pack['content_checks']={'status':'passed','pages':len(pack['pages']),'repair_rounds':attempt,

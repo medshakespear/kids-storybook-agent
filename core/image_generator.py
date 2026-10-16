@@ -25,6 +25,14 @@ STYLE_LOCK = (
 )
 
 
+def text_free_scene(scene: str) -> str:
+    """Remove explicit quoted prop-lettering requests, preserving the surrounding scene."""
+    import re
+    props=r'(?:sign|poster|banner|placard|badge|shirt|book cover|screen)'
+    return re.sub(r'\b('+props+r')\s+(?:that\s+)?(?:says|reads|saying|reading|labeled|labelled|with the words)\s*'
+        r'[\x27\"‘“][^\x27\"’”]+[\x27\"’”]',lambda m:'blank '+m[1],scene,flags=re.I)
+
+
 def _image_prompt(story: dict, page: dict, style: str, limit: int = 2048) -> str:
     """Fit provider limits while keeping activity assets free of unrelated cast leakage."""
     description = story["character_description"]
@@ -41,7 +49,10 @@ def _image_prompt(story: dict, page: dict, style: str, limit: int = 2048) -> str
         # Activity assets are self-contained. Injecting the pack-wide character
         # description into every request can leak recurring cast into object-only
         # art. If a character is required, the asset's own SCENE must request it.
-        required = f"SCENE: {page['image_prompt']}\n{lock}\nSTYLE: "
+        scene=text_free_scene(page['image_prompt'])
+        required = ('TEXT-FREE ARTWORK: use unmarked props, plain clothing and gestures. '
+                    'Do not depict written event names or campaign slogans.\n'
+                    f'{lock}\nSCENE: {scene}\nSTYLE: ')
         available = limit - len(required)
         if available < 0:
             raise ValueError('Scene requirements exceed the image prompt limit')

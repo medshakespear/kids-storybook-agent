@@ -338,9 +338,10 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     validate_brief(exercise)
     from core.student_workbook import check_activity
     check_activity(exercise,config)
-    from core.simple_sources import prepare_simple_sources,neutralize_layout_references
+    from core.simple_sources import prepare_simple_sources,neutralize_layout_references,normalize_student_header
     prepare_simple_sources(page,exercise,config)
     neutralize_layout_references(page,exercise,config)
+    page['html']=normalize_student_header(page['html'],config)
     from core.reading_bindings import declare_reading_headings
     declare_reading_headings(page['html'],exercise,config)
     from core.maze_intent import is_statement_maze

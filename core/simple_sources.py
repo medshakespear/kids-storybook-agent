@@ -10,6 +10,60 @@ def normalized(value: str) -> str:
     return ' '.join(value.split()).casefold()
 
 
+def collapse_repeated_cards(text: str) -> str:
+    """Keep one of two identical complete lettered lists, never merge different cards."""
+    markers=list(re.finditer(r'(?<!\w)(?:Card\s+)?([A-H])[:.)]\s+',text))
+    if len(markers)<4 or len(markers)%2:return text
+    half=len(markers)//2
+    labels=[m[1] for m in markers]
+    if len(set(labels[:half]))!=half or labels[:half]!=labels[half:]:return text
+    bodies=[text[m.end():markers[i+1].start() if i+1<len(markers) else len(text)].strip()
+            for i,m in enumerate(markers)]
+    if any(not a or normalized(a)!=normalized(b) for a,b in zip(bodies[:half],bodies[half:])):return text
+    return text[:markers[0].start()]+text[markers[half].start():]
+
+
+def normalize_student_header(markup: str, config: dict) -> str:
+    """Move pure standard name/date slots into one full-width, readable header row."""
+    if not config.get('simple_exercises_only'):return markup
+    parser=CanonicalTextContainers({});parser.feed(markup);parser.close()
+    if parser.stack:return markup
+    places=[]
+
+    def visit(children):
+        """Find identifiers without crossing another canonical content container."""
+        for node in children:
+            if isinstance(node,str) or 'comment' in node:continue
+            slot=dict(node['attrs']).get('data-content')
+            if slot in {'name','date'}:places.append((children,node,slot))
+            elif not slot:visit(node['children'])
+
+    header=('<table style="width:175mm;table-layout:fixed;margin:1mm 0 2mm">'
+        '<tr><td style="width:100mm;padding:0;vertical-align:top">'
+        '<p data-content="name" style="margin:0;font-size:12pt"></p></td>'
+        '<td style="width:75mm;padding:0;vertical-align:top">'
+        '<p data-content="date" style="margin:0;font-size:12pt"></p></td></tr></table>')
+    header_parser=CanonicalTextContainers({});header_parser.feed(header);header_parser.close()
+    header=''.join(literal_html(n) for n in header_parser.root)
+    visit(parser.root)
+    if len(places)==2 and header in markup:return markup
+    for _,node,slot in places:
+        pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
+        if any(p is None for p in pieces):return markup
+        value=''.join(pieces).strip()
+        if value and not re.fullmatch(slot+r'\s*:\s*[_\s]*',value,re.I):return markup
+    for children,node,_ in places:children.remove(node)
+    target=parser.root
+    from core.continuation_layout import continuation_boundaries
+    if continuation_boundaries(markup):
+        roots=[n for n in parser.root if isinstance(n,dict) and 'comment' not in n]
+        if len(roots)==2 and all(n['tag']=='div' for n in roots):target=roots[0]['children']
+    index=next((i+1 for i,n in enumerate(target) if isinstance(n,dict)
+                and dict(n.get('attrs',[])).get('data-content')=='title'),0)
+    target[index:index]=header_parser.root
+    return ''.join(literal_html(n) for n in parser.root)
+
+
 def source_body(source: dict) -> str:
     """Ignore a repeated structural label only when comparing complete source bodies."""
     text=source.get('text','');label=source.get('label','')
@@ -32,6 +86,15 @@ def prepare_simple_sources(page: dict, exercise: dict, config: dict) -> None:
     normalize_stimulus_ids(page,exercise)
     sources=exercise.get('stimuli',[]);captions=exercise.get('captions',[])
     if not isinstance(sources,list) or not isinstance(captions,list):return
+    # Consolidate only a complete same-letter, same-body list repeated inside
+    # one source, synchronizing literal prefills for canonical binding.
+    for source in sources:
+        if isinstance(source,dict) and isinstance(source.get('text'),str):
+            old=source['text'];new=collapse_repeated_cards(old)
+            if new!=old:
+                source['text']=new
+                from html import escape
+                page['html']=page['html'].replace(escape(old),escape(new))
     parser=CanonicalTextContainers({});parser.feed(page['html']);parser.close()
     if parser.stack:return
     positions={}

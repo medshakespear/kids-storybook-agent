@@ -1059,3 +1059,22 @@ Only affected activities are rechecked, once. Remaining substantive failures blo
 publication. AI review reduces errors but does not certify pedagogical or factual
 accuracy; review the resulting PDF before listing it for sale. Image review stays
 disabled, and prompts now explicitly request blank paper/book/sign props.
+
+Simple varied workbooks also check the meaning of inventory word problems, not
+just their arithmetic: net items distributed are different from stock remaining,
+and usable restocked returns increase stock. A narrow local guard makes complete
+two-delivery/return examples require correction when those quantities are mixed
+up, even if the model approves them. Blind review checks more general inventory
+stories, ambiguous ordering, prompt adult reporting in bullying scenarios, and
+unsupported conclusions from class totals without student counts. Such text
+checks cannot guarantee that every possible exercise is correct.
+
+Exact repeated lettered card lists inside one source are consolidated only when
+all labels and complete bodies agree. Simple-mode name/date fields use a readable
+full-width header row, including on the first sheet of continuation activities.
+Explicit quoted lettering requests on illustrated signs and similar props are
+removed before image generation, and text-free instructions precede the scene.
+This reduces unwanted AI lettering; it does not inspect generated pixels or
+guarantee perfect artwork. Gemini image checkers remain disabled. Redeploy both
+Railway services and generate a new workbook to use these changes; existing PDFs
+are not rewritten.

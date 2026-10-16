@@ -1,0 +1,71 @@
+{
+  "page": {
+    "exercise": {
+      "captions": [],
+      "directions": "Examine the blank banner template and fold guide below. Plan your repeating symmetrical cutout patterns, then answer the questions about your design.",
+      "goal": "Plan and sketch a traditional papel picado banner layout incorporating symmetrical motifs.",
+      "mechanic": "write",
+      "questions": [
+        {
+          "answer": "Accept descriptions featuring marigolds, skulls, or doves with clear explanations of their cultural meaning in honoring ancestors.",
+          "id": "1",
+          "prompt": "Describe the repeating cultural motifs you chose for your banner design and explain why they represent remembrance and celebration in Dia de los Muertos traditions.",
+          "space_mm": 50
+        },
+        {
+          "answer": "The total length is 68 centimeters.",
+          "calculation": {
+            "answer": "68",
+            "expression": "5*12 + 4*2"
+          },
+          "id": "2",
+          "prompt": "If each papel picado panel is 12 centimeters wide and you leave a 2-centimeter space between each panel, what is the total length of a banner with 5 panels?",
+          "space_mm": 35
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "banner_intro",
+          "label": "Traditional Craft",
+          "text": "Papel picado is a traditional folk art where artisans chisel delicate designs into colorful tissue paper banners. These banners decorate streets and altars during Dia de los Muertos, swaying gently in the breeze to symbolize the fragility of life and the wind connecting the living and the dead."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family: Arial, sans-serif; max-width: 186mm; margin: 0 auto; color: #1a1a1a; box-sizing: border-box;\"><div style=\"margin-bottom: 12px; text-align: center;\"><h1 data-content=\"title\" style=\"font-size: 22px; font-weight: bold; color: #b83324; margin: 0 0 4px 0;\"></h1><p data-content=\"directions\" style=\"font-size: 13px; line-height: 1.4; color: #333333; margin: 0;\"></p></div><div style=\"display: flex; gap: 12px; margin-bottom: 14px; align-items: center;\"><div style=\"flex: 1;\" data-content=\"stimulus_banner_intro\"></div><div style=\"width: 80mm; flex-shrink: 0;\"><img data-asset=\"banner_banner_intro\" style=\"width: 80mm; height: 60mm; object-fit: cover; border-radius: 6px; border: 1px solid #dcdcdc;\"></div></div><div style=\"margin-bottom: 10px;\"><img data-asset=\"banner_template\" style=\" display: block; margin: 0 auto; border: 2px dashed #b83324; border-radius: 4px; background-color: #ffffff;;width:168mm;height:95.2mm;object-fit:contain\"></div><section style=\"margin-top: 10px;\"><div data-content=\"question_1\"></div></section><section style=\"margin-top: 10px;\"><div data-content=\"question_2\"></div></section></div>",
+    "images": [
+      {
+        "id": "banner_banner_intro",
+        "prompt": "Vibrant Mexican folk art style illustration of colorful paper banners hanging with marigold flowers and festive geometric cutout patterns."
+      },
+      {
+        "id": "banner_template",
+        "prompt": "Large clean white paper banner template with a dashed center fold guide and blank border frames for student sketching and design planning."
+      }
+    ]
+  },
+  "title": "Papel Picado Banner Planning",
+  "config": {
+    "content_review_batch_size": 3,
+    "context_caption_limit": 24,
+    "extended_response_mm": 50,
+    "items_per_page": 2,
+    "max_operand": 100,
+    "max_result": 1000,
+    "minimum_response_mm": 35,
+    "minimum_response_width_mm": 150,
+    "minimum_text_pt": 12,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "purposeful_activity_layout": false,
+    "stimulus_limit": 8,
+    "student_font_pt": 12,
+    "student_workbook": true,
+    "table_caption_limit": 36,
+    "visual_area_mm2": 8000
+  }
+}

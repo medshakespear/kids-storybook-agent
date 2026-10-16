@@ -144,10 +144,12 @@ def merge_authored_wording(original: dict, correction: dict) -> dict:
     old_ids={c.get('id') for c in original['exercise'].get('captions',[]) if isinstance(c,dict)}
     for caption in result['exercise'].get('captions',[]):
         if isinstance(caption,dict) and isinstance(caption.get('text'),str):
+            from core.content_binding import instruction_heading
+            retained_heading=instruction_heading(caption['text']) and normalized(caption['text']) in candidates
             if caption.get('id') not in old_ids and re.match(
                     r'^(?:(?:please|now|then)\s+)?(?:draw|write|count|sort|match|pair|circle|find|trace|'
                     r'explain|describe|calculate|solve|choose|complete|help|design|create|compare|transform|'
-                    r'identify|read|list|rewrite|record|investigate|measure)\b',caption['text'].strip(),re.I):
+                    r'identify|read|list|rewrite|record|investigate|measure)\b',caption['text'].strip(),re.I) and not retained_heading:
                 raise ValueError('Authored wording repair must not hide additional commands in captions')
             covered.add(normalized(caption['text']))
     remaining=raw_paragraphs(result)

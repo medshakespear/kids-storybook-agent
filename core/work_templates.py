@@ -154,8 +154,9 @@ def template_layout_recovery(page: dict, minimum_font: int, visual_area: float):
     """Reflow one work template without omitting canonical content or independent writing panels."""
     images=page.get('images')
     if not page.get('_recovery_config',{}).get('student_workbook'):return
-    if not isinstance(images,list) or len(images)!=1 or not images[0].get('local_template'):return
+    if not isinstance(images,list) or not 1<=len(images)<=2 or sum(bool(a.get('local_template')) for a in images)!=1:return
     yield from stacked_template_layout(page,minimum_font)
+    if len(images)!=1:return
     yield from integrated_template_layout(page,minimum_font)
     from core.layout_recovery import single_illustration_recovery
     base=single_illustration_recovery(page,minimum_font,visual_area)
@@ -185,7 +186,8 @@ def stacked_template_layout(page: dict, minimum_font: int):
     from copy import deepcopy
     from core.page_contract import compile_exercise
     config=page.get('_recovery_config',{})
-    if page['images'][0].get('local_template')!='banner_plan':return
+    templates=[a for a in page['images'] if a.get('local_template')=='banner_plan']
+    if len(templates)!=1:return
     try:
         checked=deepcopy(page);blocks={}
         prepare_work_template(checked,config,page.get('_recovery_title','Banner studio'))
@@ -208,8 +210,9 @@ def stacked_template_layout(page: dict, minimum_font: int):
                 raise ValueError('Keep independent working surface')
             for child in node['children']:visit(child)
         for node in parser.root:visit(node)
-        asset=checked['images'][0]
-        if assets!=[asset['id']] or len(seen)!=len(set(seen)) or not (set(blocks)-{'name','date'})<=set(seen):return
+        asset=next(a for a in checked['images'] if a.get('local_template')=='banner_plan')
+        decorations=[a for a in checked['images'] if a['id']!=asset['id']]
+        if sorted(assets)!=sorted(a['id'] for a in checked['images']) or len(seen)!=len(set(seen)) or not (set(blocks)-{'name','date'})<=set(seen):return
         exercise=checked['exercise']
         duplicate={'caption_'+c['id'] for c in exercise.get('captions',[]) if c['text']==exercise.get('directions')}
         exercise['captions']=[c for c in exercise.get('captions',[]) if 'caption_'+c['id'] not in duplicate]
@@ -224,6 +227,18 @@ def stacked_template_layout(page: dict, minimum_font: int):
         art=f'<img data-asset="{asset["id"]}" style="width:{width}mm;height:{height}mm;object-fit:contain;display:block;margin:0 auto"/>'
         supporting=[s for s in seen if s not in {'title','name','date','directions'}|duplicate and not s.startswith('question_')]
         result=deepcopy(page);result['exercise']=deepcopy(exercise);result['_inline_source_labels']=True
+        if decorations:
+            # Keep the independent inspirational illustration beside the guide,
+            # rather than spending another full-width row above the template.
+            # Positional source references remain strict to avoid reversing them.
+            guide_text=' '.join(s.get('text','') for s in exercise.get('stimuli',[]))
+            if re.search(r'\b(?:above|below)\b',guide_text,re.I):return
+            header=(f'<table style="width:186mm;table-layout:fixed;border-collapse:collapse"><tr>'
+                    '<td style="width:144mm;padding:0 2mm 0 0;vertical-align:top">'+header+
+                    ''.join(slot_html(s) for s in supporting)+'</td>'
+                    f'<td style="width:40mm;padding:0;vertical-align:top"><img data-asset="{decorations[0]["id"]}" '
+                    'style="width:40mm;height:40mm;object-fit:contain"/></td></tr></table>')
+            supporting=[]
         result['html']=header+art+''.join(slot_html(s) for s in supporting)+''.join(slot_html('question_'+q['id']) for q in exercise['questions'])
         yield result
     except (ValueError,TypeError,KeyError,IndexError):return

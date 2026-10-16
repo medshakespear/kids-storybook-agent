@@ -675,6 +675,13 @@ Written explanations, math responses and separately authored practice panels kee
 their own space. A compact fallback places short guide text beside the 150 x
 110 mm template; printed-size, page-fit and content checks still apply.
 
+Standalone mirroring/symmetry rules headings, such as “Design Rules for
+Mirroring:”, bind locally as complete labels. Instructions following the colon
+do not qualify as a heading, and repairs still cannot truncate paragraphs or
+hide new commands in captions. Banner fallback layouts can retain one additional
+inspirational illustration beside the complete guide text while keeping the
+168 x 95.2 mm drawing template and all separate response boxes full size.
+
 Authored pages with unbound contextual prose receive a text-binding repair rather
 than an HTML-only repair. A complete existing explanatory paragraph can become
 `exercise.passage`; it is not shortened into a 120-character caption. Existing

@@ -70,6 +70,12 @@ def goal_heading(value: str) -> bool:
     return bool(re.fullmatch(r'(?:activity\s+)?goal\s*:',value.strip(),re.I))
 
 
+def instruction_heading(value: str) -> bool:
+    """Recognize a standalone rules label, never instructions following its colon."""
+    return bool(re.fullmatch(r'(?:Design Rules for (?:Mirroring|Symmetry)|'
+                             r'(?:Mirroring|Symmetry) (?:Design )?Rules)\s*:',value.strip(),re.I))
+
+
 def evidence_heading(value: str) -> bool:
     """Recognize complete claim/record headings, never their content or instructions."""
     return bool(re.fullmatch(r'(?:visitor guide claims|visitor claims|measurement records|'
@@ -376,6 +382,7 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
             value = ' '.join(''.join(pieces).split()) if all(p is not None for p in pieces) else ''
             if (value.casefold() in {'zone id','zone id:'} or tip_heading(value) or goal_heading(value)
                     or evidence_heading(value) or source_heading(value) or definition_label(value) or diagram_label(value)
+                    or instruction_heading(value)
                     or (node['tag'] in {'h2','h3','h4','h5','h6'} and len(value)<=80
                         and re.fullmatch(r'[A-Za-z][A-Za-z :’\x27-]{0,65}\b(?:Design Challenge|Design Studio|Design Workshop)',value))
                     or value.casefold() == activity_label):
@@ -406,6 +413,7 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
             continue
         used = {c.get('id') for c in captions if isinstance(c,dict)}
         prefix = ('goal_label' if goal_heading(text) else
+                  'rules_label' if instruction_heading(text) else
                   'tip_label' if tip_heading(text) else
                   'source_label' if source_heading(text) else
                   'definition_label' if definition_label(text) else

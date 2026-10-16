@@ -1500,10 +1500,22 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
     if quality is not None and not cover:
         try:
             validate_exercises(design, quality, expected_title)
+            design['quality_profile']['allow_activity_continuations']=bool(quality.get('allow_activity_continuations'))
         except ValueError as exc:
             if prepared_layout is not None:
                 exc.layout_source=prepared_layout
             raise
+    if prepared_layout is not None and not cover:
+        from core.continuation_layout import prefer_continuation,continuation_layout
+        if prefer_continuation(prepared_layout):
+            for candidate in continuation_layout(prepared_layout,font,quality.get('visual_area_mm2',8000)):
+                try:
+                    result=validate_design(candidate,font,quality=quality,expected_title=expected_title,
+                        require_coherent=require_coherent,brief=brief)
+                except ValueError:
+                    continue
+                LOGGER.info('Dense activity: measured reference and response sheets preserve full writing space')
+                return result
     try:
         check_page(design, font, cover=cover)
     except ValueError as exc:

@@ -1,0 +1,124 @@
+{
+  "config": {
+    "content_review_batch_size": 3,
+    "context_caption_limit": 24,
+    "extended_response_mm": 50,
+    "items_per_page": 2,
+    "max_operand": 100,
+    "max_result": 1000,
+    "minimum_response_mm": 35,
+    "minimum_response_width_mm": 150,
+    "minimum_text_pt": 12,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "purposeful_activity_layout": false,
+    "stimulus_limit": 8,
+    "student_font_pt": 12,
+    "student_workbook": true,
+    "table_caption_limit": 36,
+    "visual_area_mm2": 8000
+  },
+  "title": "Papel Picado Banner Planning",
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "th_motif",
+          "text": "Traditional Motif"
+        },
+        {
+          "id": "th_meaning",
+          "text": "Cultural Symbolism"
+        },
+        {
+          "id": "th_repeat",
+          "text": "Pattern Rule"
+        },
+        {
+          "id": "td_m1",
+          "text": "Marigold Flower (Cempas\u00a5chil)"
+        },
+        {
+          "id": "td_mean1",
+          "text": "Guides visiting souls with bright scent and color."
+        },
+        {
+          "id": "td_rep1",
+          "text": "Every 4 cm"
+        },
+        {
+          "id": "td_m2",
+          "text": "Hummingbird (Colibr\u00ed)"
+        },
+        {
+          "id": "td_mean2",
+          "text": "Messengers bringing love from ancestors."
+        },
+        {
+          "id": "td_rep2",
+          "text": "Every 8 cm"
+        },
+        {
+          "id": "td_m3",
+          "text": "Geometric Lace Border"
+        },
+        {
+          "id": "td_mean3",
+          "text": "Wind element and fragility of life."
+        },
+        {
+          "id": "td_rep3",
+          "text": "Continuous"
+        },
+        {
+          "id": "template_title",
+          "text": "Papel Picado Blank Template with Center Fold Guide (168 x 95.2 mm)"
+        }
+      ],
+      "directions": "Study the traditional motifs table, design your repeating cutout pattern in the blank template, and answer the planning questions below.",
+      "goal": "Design an original repeating banner motif celebrating remembrance, following specific geometric and thematic constraints.",
+      "mechanic": "design banner",
+      "questions": [
+        {
+          "answer": "18 marigold cutouts. The drawing in the template must show alternating or repeating marigold and hummingbird motifs symmetrically aligned along the fold guide.",
+          "calculation": {
+            "answer": "18",
+            "expression": "72/4"
+          },
+          "id": "1",
+          "prompt": "Plan your banner motif in the blank template above. Using the pattern rules, if your banner string is 72 centimeters long and you place a marigold flower cutout every 4 centimeters, how many total marigold cutouts will appear on your banner?",
+          "space_mm": 50
+        },
+        {
+          "answer": "Accept student explanations that connect their banner drawings to guiding spirits, ancestral remembrance, and traditional symbols like marigolds or hummingbirds.",
+          "id": "2",
+          "prompt": "Write two sentences explaining how your chosen cutout design honors the traditions of Dia de los Muertos and incorporates the cultural symbolism from the table.",
+          "space_mm": 50
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "banner_intro",
+          "label": "Folk Art Tradition",
+          "text": "Papel picado (pecked paper) is a traditional folk art used during Dia de los Muertos to decorate streets and ofrendas. The delicate paper sheets represent the wind and the fragility of life. Artisans use chisels and folding techniques to create repeating symmetrical patterns."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family: Arial, sans-serif; width: 186mm; margin: 0 auto; color: #2C1810; background-color: #FFFDF9; padding: 2mm; box-sizing: border-box; font-size: 12pt;\"><div style=\"display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #D9531E; padding-bottom: 1mm; margin-bottom: 1mm;\"><div ><h1 data-content=\"title\" style=\"font-size: 14pt; font-weight: bold; color: #D9531E; margin: 0; text-transform: uppercase;\"></h1><p data-content=\"directions\" style=\"font-size: 12pt; margin: 0.5mm 0 0 0; color: #4A2E1B; font-weight: bold;\"></p></div><div style=\"text-align: right; font-size: 12pt;\"><span style=\"margin-right: 4mm;\"><span data-content=\"name\"></span></span><span ><span data-content=\"date\"></span></span></div></div><div style=\"display: flex; gap: 2mm; margin-bottom: 1mm; align-items: flex-start;\"><div style=\"flex: 1.2;\"><div data-content=\"stimulus_banner_intro\" style=\"background-color: #FDF3E7; border-left: 3px solid #D9531E; padding: 1mm; font-size: 12pt; line-height: 1.2; margin-bottom: 1mm;\"></div><table style=\"width: 100%; border-collapse: collapse; font-size: 12pt;\"><thead ><tr style=\"background-color: #F7D6B4;\"><th style=\"border: 1px solid #D9531E; padding: 0.5mm; text-align: left;\" data-content=\"caption_th_motif\"></th><th style=\"border: 1px solid #D9531E; padding: 0.5mm; text-align: left;\" data-content=\"caption_th_meaning\"></th><th style=\"border: 1px solid #D9531E; padding: 0.5mm; text-align: center;\" data-content=\"caption_th_repeat\"></th></tr></thead><tbody ><tr ><td style=\"border: 1px solid #D9531E; padding: 0.5mm;\" data-content=\"caption_td_m1\"></td><td style=\"border: 1px solid #D9531E; padding: 0.5mm;\" data-content=\"caption_td_mean1\"></td><td style=\"border: 1px solid #D9531E; padding: 0.5mm; text-align: center;\" data-content=\"caption_td_rep1\"></td></tr><tr ><td style=\"border: 1px solid #D9531E; padding: 0.5mm;\" data-content=\"caption_td_m2\"></td><td style=\"border: 1px solid #D9531E; padding: 0.5mm;\" data-content=\"caption_td_mean2\"></td><td style=\"border: 1px solid #D9531E; padding: 0.5mm; text-align: center;\" data-content=\"caption_td_rep2\"></td></tr><tr ><td style=\"border: 1px solid #D9531E; padding: 0.5mm;\" data-content=\"caption_td_m3\"></td><td style=\"border: 1px solid #D9531E; padding: 0.5mm;\" data-content=\"caption_td_mean3\"></td><td style=\"border: 1px solid #D9531E; padding: 0.5mm; text-align: center;\" data-content=\"caption_td_rep3\"></td></tr></tbody></table></div><div style=\"flex: 0 0 50mm; text-align: center;\"><img data-asset=\"banner_sketch\" style=\"width: 50mm; height: 33mm; object-fit: contain; border: 1px solid #E5C39E; border-radius: 4px; background-color: #FFF;\"></div></div><div style=\"margin-bottom: 1mm;\"><div style=\"text-align: center; font-weight: bold; font-size: 12pt; color: #4A2E1B; margin-bottom: 0.5mm;\" data-content=\"caption_template_title\"></div><div style=\"text-align: center;\"><img data-asset=\"banner_template\" style=\"border: 2px dashed #D9531E; border-radius: 4px; background-color: #FFFFFF;;width:168mm;height:95.2mm;object-fit:contain\"></div></div><div style=\"display: flex; gap: 4mm;\"><div style=\"flex: 1; font-size: 12pt;\" data-content=\"question_1\"></div><div style=\"flex: 1; font-size: 12pt;\" data-content=\"question_2\"></div></div></div>",
+    "images": [
+      {
+        "id": "banner_sketch",
+        "prompt": "An artistic flat illustration of traditional Mexican papel picado folk art banner featuring symmetrical cutouts of marigold flowers, hummingbirds, and geometric lace patterns in vibrant marigold orange and magenta."
+      },
+      {
+        "id": "banner_template",
+        "prompt": "A large, clean white rectangular template sheet for a paper banner with visible center fold guides, dotted cut lines, and blank spaces ready for a repeating folk art design."
+      }
+    ]
+  }
+}

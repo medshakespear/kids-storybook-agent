@@ -351,6 +351,12 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     exercise['goal'] = bounded_text(exercise.get('goal'), 'goal', 240)
     blocks = {'title': html.escape(title), 'name': 'Name: ____________________',
               'date': 'Date: ____________________'}
+    from core.continuation_layout import continuation_boundaries
+    boundaries=continuation_boundaries(page['html'])
+    if boundaries:
+        if boundaries!=1 or not config.get('allow_activity_continuations') or exercise['render_mode']!='authored':
+            raise ValueError('Only opted-in authored activities may use one continuation sheet')
+        blocks['continuation_title']=html.escape(title)+' - Responses'
     page['visuals'], page['calculations'] = [], []
     if exercise['render_mode'] == 'exact':
         visual = exercise.get('visual')

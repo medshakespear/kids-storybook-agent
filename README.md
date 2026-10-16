@@ -512,8 +512,16 @@ and works with a link, description, event or undated reading topic:
   vocabulary, process sequencing, table interpretation, applied math, writing,
   investigations and design challenges, selected for the topic and grade.
 
-Both produce 12-page A4 PDFs: a cover with the real store logo, ten student pages
-and one final answer key. Mixed mode preserves Gemini's page compositions instead
+Reading/QCM books produce 12-page A4 PDFs. Mixed books contain ten activities,
+a cover with the real store logo and one final answer key, normally 12 pages.
+Dense mixed activities may use a reference sheet followed by a full-width response
+sheet, with a hard maximum of 16 PDF pages per workbook. The generator tries
+measured one-page layouts first except for demonstrably overloaded combinations.
+All source text, table rows, artwork and extra handwriting panels are retained;
+fonts and answer boxes are not shrunk to force a fit. Questions referring to
+material “above” instead refer to the reference page when moved. Downloads report
+the actual physical page count, and the answer key remains the final page.
+Mixed mode preserves Gemini's page compositions instead
 of replacing them with the legacy canonical worksheet layout. Python still binds
 questions and answers from one shared specification, checks arithmetic and print
 bounds, and assembles the PDF with WeasyPrint. Exact diagram tools remain available

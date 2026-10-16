@@ -531,8 +531,13 @@ def layout_recovery_candidates(page: dict, minimum_font: int, visual_area: float
     from core.illustrated_cards import illustrated_source_cards
     yield from illustrated_source_cards(page,minimum_font,visual_area)
     yield from source_card_layouts(page,minimum_font,visual_area)
+    from core.continuation_layout import continuation_layout,prefer_continuation
+    if prefer_continuation(page):
+        yield from continuation_layout(page,minimum_font,visual_area)
     from core.bounded_layout import bounded_authored_layouts
     yield from bounded_authored_layouts(page,minimum_font,visual_area)
+    if not prefer_continuation(page):
+        yield from continuation_layout(page,minimum_font,visual_area)
     resized=readable_exact_layout(page,minimum_font,visual_area)
     if resized is not None:
         yield resized

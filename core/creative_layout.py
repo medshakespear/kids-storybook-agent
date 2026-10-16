@@ -63,7 +63,7 @@ PROPERTIES = {'color', 'background-color', 'border', 'border-color', 'border-wid
               'word-wrap', 'min-width', 'align-self', 'flex', 'list-style-type',
               'list-style-position', 'border-top-left-radius', 'border-top-right-radius',
               'border-bottom-left-radius', 'border-bottom-right-radius',
-              'gap', 'row-gap', 'column-gap', 'white-space'}
+              'gap', 'row-gap', 'column-gap', 'white-space', 'break-before'}
 
 
 def clean_style(value: str, minimum_font: float = 11) -> str:
@@ -87,6 +87,8 @@ def clean_style(value: str, minimum_font: float = 11) -> str:
         # Priority flags are unnecessary in these isolated fragments; keep the value.
         rendered = tinycss2.serialize(decl.value).strip()
         name = decl.lower_name
+        if name=='break-before' and rendered!='page':
+            raise ValueError('Only an explicit printable page boundary is supported')
         if name == 'white-space':
             choices = {'normal': 'normal', 'nowrap': 'normal', 'pre': 'pre-wrap',
                        'pre-wrap': 'pre-wrap', 'pre-line': 'pre-line', 'break-spaces': 'pre-wrap'}
@@ -259,7 +261,23 @@ def fragment(page: dict, preview: bool = False) -> str:
     visuals = page_visuals(page)
     parser = PrintFragment(assets, preview, visuals, page.get('quality_profile', {}).get('minimum_text_pt', 11),
                            {a['id']:a['local_template'] for a in page['images'] if a.get('local_template')})
-    parser.feed(page['html'])
+    pieces=[]
+    if activity_sheet_count(page)==2:
+        from core.print_grid import literal_html
+        tree=CanonicalTextContainers({});tree.feed(page['html']);tree.close()
+        roots=[n for n in tree.root if not isinstance(n,str) or n.strip()]
+        if len(roots)!=2 or any(not isinstance(n,dict) or n.get('tag')!='div' for n in roots):
+            raise ValueError('Continuation layout needs two complete top-level sheet containers')
+        for node in roots:
+            for i,(key,value) in enumerate(node['attrs']):
+                if key=='style':
+                    declarations=tinycss2.parse_declaration_list(value,skip_comments=True,skip_whitespace=True)
+                    node['attrs'][i]=(key,tinycss2.serialize([d for d in declarations if d.type=='declaration' and d.lower_name!='break-before']))
+            start=len(parser.parts);parser.feed(literal_html(node))
+            if parser.stack:raise ValueError('Continuation sheet containers must be independently balanced')
+            pieces.append(''.join(parser.parts[start:]))
+    else:
+        parser.feed(page['html'])
     parser.close()
     # Browsers safely auto-close trailing emphasis markup. Do the same only for
     # inline formatting tags; structural page markup remains strictly validated.
@@ -273,7 +291,7 @@ def fragment(page: dict, preview: bool = False) -> str:
         classes += ' design-reflow'
     if mode == 'compact':
         classes += ' design-compact'
-    return f'<div class="{classes}">' + ''.join(parser.parts) + '</div>'
+    return '<!--workbook-continuation-sheet-->'.join(f'<div class="{classes}">'+p+'</div>' for p in (pieces or [''.join(parser.parts)]))
 
 
 def data_only_fetcher(url: str, *args, **kwargs):
@@ -308,7 +326,8 @@ def document_markup(bodies: list[str], font: int = 13) -> str:
     .key section {{break-inside:avoid;margin:0 0 5mm;border-top:1mm solid #188a91;padding-top:2mm;}}
     .key h3 {{font-size:11pt;}} .key p {{font-size:10pt;}}
     '''
-    return '<html><head><style>' + css + '</style></head><body>' + ''.join('<article>' + b + '</article>' for b in bodies) + '</body></html>'
+    sheets=[sheet for body in bodies for sheet in body.split('<!--workbook-continuation-sheet-->')]
+    return '<html><head><style>' + css + '</style></head><body>' + ''.join('<article>' + b + '</article>' for b in sheets) + '</body></html>'
 
 
 def check_document(document, expected: int) -> None:
@@ -427,6 +446,20 @@ def grow_main_artwork(markup: str, document, profile: dict) -> str | None:
     return markup[:match.start()]+tag+markup[match.end():]
 
 
+def activity_sheet_count(page: dict) -> int:
+    """Count bounded continuation sheets only in the opted-in varied profile."""
+    from core.continuation_layout import continuation_boundaries
+    count=continuation_boundaries(page.get('html',''))
+    if count and (count!=1 or not page.get('quality_profile',{}).get('allow_activity_continuations')):
+        raise ValueError('Only one continuation sheet is allowed per varied activity')
+    return count+1
+
+
+def workbook_sheet_count(pack: dict) -> int:
+    """Include physical continuation sheets in downloads and final PDF validation."""
+    return 2+sum(activity_sheet_count(page) for page in pack['pages'])
+
+
 def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: bool = True) -> None:
     """Try measured local reflow before requesting another model-authored design."""
     page.pop('print_layout', None)
@@ -459,7 +492,7 @@ def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: boo
                 rendered_markup.add(markup)
                 doc = HTML(string=markup, url_fetcher=data_only_fetcher).render()
                 try:
-                    check_document(doc, 1)
+                    check_document(doc, 1 if cover else activity_sheet_count(page))
                     if not cover:
                         from core.student_workbook import check_response_width
                         check_response_width(doc,profile)
@@ -560,9 +593,11 @@ def pack_markup(pack: dict, config: dict, preview: bool = False) -> str:
 def preflight_pack(pack: dict, config: dict) -> None:
     """Measure the final key and assembled book before any image API spending."""
     with RENDER_LOCK:
+        if config.get('allow_activity_continuations') and workbook_sheet_count(pack)>16:
+            raise ValueError('Workbook exceeds the 16-page print budget; simplify dense activities before publication')
         fit_answer_key(pack,config)
         doc = HTML(string=pack_markup(pack, config, preview=True), url_fetcher=data_only_fetcher).render()
-        check_document(doc, len(pack['pages']) + 2)
+        check_document(doc, workbook_sheet_count(pack))
         from core.work_templates import check_template_geometry
         check_template_geometry(doc)
 
@@ -570,10 +605,12 @@ def preflight_pack(pack: dict, config: dict) -> None:
 def build_creative_pdf(pack: dict, config: dict, output_path: str | Path) -> Path:
     """Preserve AI-authored cover and student designs and append one compact answer key."""
     with RENDER_LOCK:
+        if config.get('allow_activity_continuations') and workbook_sheet_count(pack)>16:
+            raise ValueError('Workbook exceeds the 16-page print budget; simplify dense activities before publication')
         if 'answer_key_layout' not in pack:
             fit_answer_key(pack,config)
         doc = HTML(string=pack_markup(pack, config), url_fetcher=data_only_fetcher).render()
-        check_document(doc, len(pack['pages']) + 2)
+        check_document(doc, workbook_sheet_count(pack))
         from core.work_templates import check_template_geometry
         check_template_geometry(doc)
         target = Path(output_path)
@@ -597,6 +634,10 @@ def check_visual_quality(document, profile: dict, *, cover: bool = False) -> Non
             largest = max(largest, value)
         if not cover and getattr(box, 'text', '').strip():
             if box.style['font_size'] * .75 + .01 < profile['minimum_text_pt']:
+                raise ValueError(f"Student text is too small: use at least {profile['minimum_text_pt']}pt")
+    for sheet in document.pages[1:]:
+        for box in sheet._page_box.descendants():
+            if getattr(box,'text','').strip() and box.style['font_size']*.75+.01<profile['minimum_text_pt']:
                 raise ValueError(f"Student text is too small: use at least {profile['minimum_text_pt']}pt")
     # The cover includes the separately placed logo; student pages do not.
     minimum = profile['visual_area_mm2']

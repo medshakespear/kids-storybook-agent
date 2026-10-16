@@ -68,7 +68,8 @@ def generate_book(
     story['book_type'] = book_type
     designed = time.monotonic()
     logging.getLogger(__name__).info('Design stage complete: %.1fs', designed - started)
-    story['page_count'] = len(story['pages']) + 2
+    from core.creative_layout import workbook_sheet_count
+    story['page_count'] = workbook_sheet_count(story)
     story["generated_on"] = today_in_timezone().isoformat()
     with tempfile.TemporaryDirectory(prefix="activity-pack-") as art_folder:
         generate_activity_images(story, config[grade_band], art_folder)

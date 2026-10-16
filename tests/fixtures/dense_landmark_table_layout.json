@@ -1,0 +1,145 @@
+{
+  "config": {
+    "content_review_batch_size": 3,
+    "context_caption_limit": 24,
+    "extended_response_mm": 50,
+    "items_per_page": 2,
+    "max_operand": 100,
+    "max_result": 1000,
+    "minimum_response_mm": 35,
+    "minimum_response_width_mm": 150,
+    "minimum_text_pt": 12,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "purposeful_activity_layout": false,
+    "stimulus_limit": 8,
+    "student_font_pt": 12,
+    "student_workbook": true,
+    "table_caption_limit": 36,
+    "visual_area_mm2": 8000
+  },
+  "title": "Classifying Geographic Landmarks",
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "source_label",
+          "text": "Field Guide Excerpt: Landmark Categories"
+        },
+        {
+          "id": "th_natural",
+          "text": "Natural Physical Features"
+        },
+        {
+          "id": "th_human",
+          "text": "Human-Made Structures"
+        },
+        {
+          "id": "c1_title",
+          "text": "1. Pine Ridge Mountain"
+        },
+        {
+          "id": "c1_desc",
+          "text": "A tall rocky peak formed by tectonic forces."
+        },
+        {
+          "id": "c2_title",
+          "text": "2. Iron Bridge"
+        },
+        {
+          "id": "c2_desc",
+          "text": "A steel structure crossing the local river."
+        },
+        {
+          "id": "c3_title",
+          "text": "3. Blue Heron River"
+        },
+        {
+          "id": "c3_desc",
+          "text": "A flowing body of fresh water winding south."
+        },
+        {
+          "id": "c4_title",
+          "text": "4. Coastal Lighthouse"
+        },
+        {
+          "id": "c4_desc",
+          "text": "A stone tower built to guide ships safely."
+        },
+        {
+          "id": "c5_title",
+          "text": "5. Whispering Pine Forest"
+        },
+        {
+          "id": "c5_desc",
+          "text": "A dense group of native evergreen trees."
+        },
+        {
+          "id": "c6_title",
+          "text": "6. Paved Highway 9"
+        },
+        {
+          "id": "c6_desc",
+          "text": "A concrete road connecting nearby towns."
+        },
+        {
+          "id": "c7_title",
+          "text": "7. Silver Lake"
+        },
+        {
+          "id": "c7_desc",
+          "text": "A natural basin filled with deep fresh water."
+        },
+        {
+          "id": "c8_title",
+          "text": "8. City Water Tower"
+        },
+        {
+          "id": "c8_desc",
+          "text": "A large metal tank supplying town water."
+        }
+      ],
+      "directions": "Study the field guide excerpt and landmark table below. Then answer the two questions with complete explanations.",
+      "goal": "Categorize geographical features into natural physical landmarks and human-made cultural landmarks.",
+      "mechanic": "classify statements",
+      "questions": [
+        {
+          "answer": "Accept valid classifications with reasons citing natural formation vs human construction.",
+          "id": "1",
+          "prompt": "Choose three landmarks from the table above. Classify each one as either a natural physical feature or a human-made structure, and explain how you can tell the difference using the field guide.",
+          "space_mm": 50
+        },
+        {
+          "answer": "Accept explanations stating that combining permanent natural features with prominent man-made structures provides reliable visual checkpoints from different angles.",
+          "id": "2",
+          "prompt": "Why is it helpful for cartographers and travelers to include both natural and human-made landmarks when describing a navigation route on a map?",
+          "space_mm": 50
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "landmark_cards",
+          "label": "Field Guide Excerpt: Landmark Categories",
+          "text": "Geographers study two main types of landmarks to describe locations. Natural physical landmarks are created by nature, such as rivers, mountains, and forests. Human-made cultural landmarks are built by people, including bridges, highways, and lighthouses."
+        },
+        {
+          "id": "source_text",
+          "label": "Source Text",
+          "text": "Geographers study two main types of landmarks to describe locations. Natural physical landmarks are created by nature, such as rivers, mountains, and forests. Human-made cultural landmarks are built by people, including bridges, highways, and lighthouses."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family: Arial, sans-serif; box-sizing: border-box; color: #1e3d2f; max-width: 186mm; margin: 0 auto; padding: 2mm;\"><h1 data-content=\"title\" style=\"font-size: 15pt; font-weight: bold; text-align: center; margin-bottom: 0.5mm; color: #1e3d2f; text-transform: uppercase; letter-spacing: 0.5px;\">Maps and Navigation</h1><p data-content=\"name\" style=\"font-size: 12pt; margin-bottom: 1mm;\">Name: _______________________________</p><p data-content=\"directions\" style=\"font-size: 12pt; font-weight: bold; margin-bottom: 1.5mm; background-color: #f4f7f4; padding: 1mm 2mm; border-left: 4px solid #2d6a4f;\">Study the field guide excerpt and landmark table below. Then answer the two questions with complete explanations.</p><div style=\"display: flex; gap: 3mm; margin-bottom: 1.5mm; align-items: flex-start;\"><div style=\"flex: 1;\"><div style=\"border: 1px solid #b7d5c4; border-radius: 6px; padding: 1.5mm 2mm; background-color: #fafcfb;\"><p style=\"font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 0.5mm; color: #2d6a4f;\" data-content=\"caption_source_label\"></p><div data-content=\"stimulus_landmark_cards\" style=\"font-size:12pt;line-height:1.15;margin:0 0 0.5mm\"></div><p style=\"font-size: 12pt; line-height: 1.2; margin: 0;\" data-content=\"stimulus_source_text\"></p></div></div><div style=\"width: 55mm; flex-shrink: 0;\"><img data-asset=\"explorer_compass\" style=\"width: 55mm; height: 32mm; object-fit: cover; border-radius: 6px; border: 1px solid #b7d5c4;\"></div></div><div style=\"margin-bottom: 1.5mm;\"><table style=\"width: 100%; border-collapse: collapse; font-size: 10pt;\"><thead ><tr style=\"background-color: #2d6a4f; color: white;\"><th style=\"padding: 1mm; border: 1px solid #2d6a4f; width: 50%; text-align: left;\" data-content=\"caption_th_natural\"></th><th style=\"padding: 1mm; border: 1px solid #2d6a4f; width: 50%; text-align: left;\" data-content=\"caption_th_human\"></th></tr></thead><tbody ><tr ><td style=\"padding: 0.5mm 1mm; border: 1px solid #b7d5c4; vertical-align: top;\"><span style=\"font-weight: bold; font-size: 11pt;\" data-content=\"caption_c1_title\"></span><br ><span style=\"font-size: 11pt; color: #4a5d4e;\" data-content=\"caption_c1_desc\"></span></td><td style=\"padding: 0.5mm 1mm; border: 1px solid #b7d5c4; vertical-align: top;\"><span style=\"font-weight: bold; font-size: 11pt;\" data-content=\"caption_c2_title\"></span><br ><span style=\"font-size: 11pt; color: #4a5d4e;\" data-content=\"caption_c2_desc\"></span></td></tr><tr ><td style=\"padding: 0.5mm 1mm; border: 1px solid #b7d5c4; vertical-align: top;\"><span style=\"font-weight: bold; font-size: 11pt;\" data-content=\"caption_c3_title\"></span><br ><span style=\"font-size: 11pt; color: #4a5d4e;\" data-content=\"caption_c3_desc\"></span></td><td style=\"padding: 0.5mm 1mm; border: 1px solid #b7d5c4; vertical-align: top;\"><span style=\"font-weight: bold; font-size: 11pt;\" data-content=\"caption_c4_title\"></span><br ><span style=\"font-size: 11pt; color: #4a5d4e;\" data-content=\"caption_c4_desc\"></span></td></tr><tr ><td style=\"padding: 0.5mm 1mm; border: 1px solid #b7d5c4; vertical-align: top;\"><span style=\"font-weight: bold; font-size: 11pt;\" data-content=\"caption_c5_title\"></span><br ><span style=\"font-size: 11pt; color: #4a5d4e;\" data-content=\"caption_c5_desc\"></span></td><td style=\"padding: 0.5mm 1mm; border: 1px solid #b7d5c4; vertical-align: top;\"><span style=\"font-weight: bold; font-size: 11pt;\" data-content=\"caption_c6_title\"></span><br ><span style=\"font-size: 11pt; color: #4a5d4e;\" data-content=\"caption_c6_desc\"></span></td></tr><tr ><td style=\"padding: 0.5mm 1mm; border: 1px solid #b7d5c4; vertical-align: top;\"><span style=\"font-weight: bold; font-size: 11pt;\" data-content=\"caption_c7_title\"></span><br ><span style=\"font-size: 11pt; color: #4a5d4e;\" data-content=\"caption_c7_desc\"></span></td><td style=\"padding: 0.5mm 1mm; border: 1px solid #b7d5c4; vertical-align: top;\"><span style=\"font-weight: bold; font-size: 11pt;\" data-content=\"caption_c8_title\"></span><br ><span style=\"font-size: 11pt; color: #4a5d4e;\" data-content=\"caption_c8_desc\"></span></td></tr></tbody></table></div><div style=\"margin-top: 1mm;\" data-content=\"question_1\"></div><div style=\"margin-top: 1mm;\" data-content=\"question_2\"></div></div>",
+    "images": [
+      {
+        "id": "explorer_compass",
+        "prompt": "An illustrated top-down field compass resting beside a rolled paper map and a brass magnifying glass on a rustic wooden cartographer desk, clean lines, warm amber and forest green tones, educational style, no text."
+      }
+    ]
+  }
+}

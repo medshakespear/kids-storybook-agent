@@ -1,0 +1,65 @@
+{
+  "title": "Designing a Papel Picado Banner",
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "banner_guide_title",
+          "text": "Design Inspiration"
+        },
+        {
+          "id": "template_title",
+          "text": "Blank Banner Template with Fold Guide"
+        },
+        {
+          "id": "template_desc",
+          "text": "Use the center fold guide to plan your mirrored shapes and cutouts for your festival banner."
+        }
+      ],
+      "directions": "Study the traditional reference motifs, examine the blank banner template with its center fold guide, and answer the design questions below.",
+      "goal": "Apply principles of symmetrical design and pattern creation to draft an original decorative festival banner.",
+      "mechanic": "investigate",
+      "questions": [
+        {
+          "answer": "Accept original descriptions of symmetrical motifs like marigolds or birds, explaining that folding ensures equal balance on both halves.",
+          "id": "1",
+          "prompt": "Plan your banner design. Describe two symmetrical shapes or cultural symbols you will draw on your template and explain how folding the paper helps keep both sides balanced.",
+          "space_mm": 50
+        },
+        {
+          "answer": "24 total snips",
+          "calculation": {
+            "answer": "24",
+            "expression": "4*6"
+          },
+          "id": "2",
+          "prompt": "If you need to cut out 4 identical marigold flowers across a string of festival banners, and each flower requires 6 careful snips with scissors, how many total snips do you need to make?",
+          "space_mm": 38
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "banner_guide_text",
+          "label": "Banner Guide Text",
+          "text": "Traditional papel picado banners use folding and careful cutting to create balanced, symmetrical patterns inspired by nature and memories."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family: &#x27;Helvetica Neue&#x27;, Helvetica, Arial, sans-serif; color: #2C223B; margin: 0; padding: 0; width: 186mm; box-sizing: border-box;\"><div style=\"text-align: center; margin-bottom: 4px;\"><h1 data-content=\"title\" style=\"font-size: 16pt; color: #D96B27; margin: 0 0 2px 0; text-transform: uppercase; letter-spacing: 1px;\">Designing a Papel Picado Banner</h1><p data-content=\"directions\" style=\"font-size: 12pt; color: #4A3B5C; margin: 0 auto; max-width: 170mm; line-height: 1.15;\">Study the traditional reference motifs, examine the blank banner template with its center fold guide, and answer the design questions below.</p></div><div style=\"display: flex; gap: 6px; margin-bottom: 6px; align-items: stretch;\"><div style=\"flex: 1; background-color: #FFF8EE; border: 1.5px solid #D96B27; border-radius: 4px; padding: 4px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;\"><div ><h3 style=\"margin: 0 0 2px 0; font-size: 12pt; color: #C22D73;\" data-content=\"caption_banner_guide_title\">Design Inspiration</h3><p style=\"margin: 0 0 4px 0; font-size: 12pt; line-height: 1.15;\" data-content=\"stimulus_banner_guide_text\">Traditional papel picado banners use folding and careful cutting to create balanced, symmetrical patterns inspired by nature and memories.</p></div><div style=\"display: flex; gap: 6px; justify-content: center;\"><img data-asset=\"motif_one\" style=\"width: 24mm; height: 24mm; object-fit: contain; border: 1px dashed #D96B27; background: #ffffff; border-radius: 4px;\"><img data-asset=\"motif_two\" style=\"width: 24mm; height: 24mm; object-fit: contain; border: 1px dashed #D96B27; background: #ffffff; border-radius: 4px;\"></div></div><div style=\"flex: 1.2; display: flex; flex-direction: column; align-items: center; background-color: #F7F5FC; border: 1.5px solid #5A2A82; border-radius: 4px; padding: 4px; box-sizing: border-box;\"><h3 style=\"margin: 0 0 2px 0; font-size: 12pt; color: #5A2A82;\" data-content=\"caption_template_title\">Blank Banner Template with Fold Guide</h3><p style=\"margin: 0 0 2px 0; font-size: 12pt; color: #4A3B5C; text-align: center; line-height: 1.15;\" data-content=\"caption_template_desc\">Use the center fold guide to plan your mirrored shapes and cutouts for your festival banner.</p><img data-asset=\"banner_template\" style=\"border: 1.5px solid #2C223B; background: #ffffff; border-radius: 4px;;width:168mm;height:95.2mm;object-fit:contain\"></div></div><div style=\"display: flex; flex-direction: column; gap: 4px;\"><div data-content=\"question_1\" style=\"font-size: 12pt;\"></div><div data-content=\"question_2\" style=\"font-size: 12pt;\"></div></div></div>",
+    "images": [
+      {
+        "id": "motif_one",
+        "prompt": "Folk art marigold flower line drawing with clear symmetrical petals, clean vector lines, black ink on white background, no text or numbers."
+      },
+      {
+        "id": "motif_two",
+        "prompt": "Traditional folk art hummingbird silhouette line drawing with symmetrical wings, clean vector lines, black ink on white background, no text or numbers."
+      },
+      {
+        "id": "banner_template",
+        "prompt": "A large blank rectangular papel picado banner template with a dashed vertical fold guide line down the exact center, crisp clean borders, ready for cutting and folding motifs, white background, no text."
+      }
+    ]
+  }
+}

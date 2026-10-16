@@ -428,6 +428,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         limit = stimulus_capacity(config)
         if len(stimuli)>limit:
             raise ValueError(f'Use at most {limit} short source/scenario blocks per activity; keep the combined text within the single-page budget')
+        from core.section_headings import bind_section_headings
+        page['html'] = bind_section_headings(page['html'],exercise,config)
         from core.student_workbook import adjacent_source_labels
         external_labels=adjacent_source_labels(page['html'],stimuli,exercise.get('captions',[]),config)
         seen = set()
@@ -449,6 +451,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         captions = exercise.get('captions', [])
     from core.content_binding import validate_caption_budget, exercise_caption_limit
     context_limit = exercise_caption_limit(config,exercise['render_mode'])
+    from core.section_headings import bind_section_headings
+    page['html'] = bind_section_headings(page['html'],exercise,config,table_ids=table_ids)
     page['html'] = bind_standard_heading(page['html'],exercise, context_limit=context_limit, table_ids=table_ids)
     captions = exercise.get('captions', [])
     validate_caption_budget(captions, table_ids=table_ids, context_limit=context_limit)

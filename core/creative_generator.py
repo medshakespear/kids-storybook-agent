@@ -263,6 +263,15 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
             collect(child)
     for node in parser.root:
         collect(node)
+    # An empty section heading can be named from its immediately adjacent
+    # retained source. Authorize only that same locally grounded label during
+    # layout repair, without admitting a model's replacement subject matter.
+    from core.section_headings import bind_section_headings
+    grounded=deepcopy(original.get('exercise',{}))
+    bind_section_headings(original['html'],grounded,original.get('_recovery_config',{}))
+    previous_ids={c.get('id') for c in original.get('exercise',{}).get('captions',[]) if isinstance(c,dict)}
+    words.update(normalized(c['text']) for c in grounded.get('captions',[])
+                 if isinstance(c,dict) and c.get('id') not in previous_ids)
     from core.table_captions import empty_table_header_slots,neutral_table_header,prepare_table_captions
     missing_headers=empty_table_header_slots(original)
     if missing_headers: missing_headers &= empty_table_header_slots(result,allow_neutral_text=True)

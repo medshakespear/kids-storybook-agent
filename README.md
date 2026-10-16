@@ -1002,6 +1002,21 @@ source facts or change answers. Unknown thematic labels, partial independent
 prose, duplicate passages and unrelated missing slots remain validation errors.
 Restored content still has to fit the printed page with full writing space.
 
+For varied activities, undeclared section headings such as `caption_sec_title_1`
+bind locally when they contain complete short printed heading text. An empty
+numbered section-heading slot before one declared source can reuse that source's retained
+label, or the neutral label `Source` when no label was supplied. The same rule
+applies during layout-only repair. No heading is inferred from an opaque ID,
+answer, image prompt or unrelated card. Repeated slots, instructions disguised as
+headings and ambiguous source associations still require correction. All source
+text, questions, answers, caption budgets and print checks remain enforced.
+
+Dense drawing activities with a local template and two or three reference
+illustrations can use the bounded reference/response fallback. It retains every
+reference image, the full-size drawing template and full-width writing areas,
+with at most one additional sheet per activity and the existing 16-page varied
+workbook cap. Reading/QCM books are unchanged.
+
 Missing organizational table headings have a separate recovery rule. An empty
 `<th data-content="caption_th_feature">` can be bound to `Feature` locally, using
 a small allowlist of neutral headings. A layout retry can also name an existing

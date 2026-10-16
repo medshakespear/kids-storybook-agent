@@ -28,7 +28,10 @@ def prefer_continuation(page: dict) -> bool:
     config=page.get('_recovery_config',{});exercise=page.get('exercise',{})
     if not config.get('allow_activity_continuations') or continuation_boundaries(page.get('html','')):return False
     questions=exercise.get('questions',[])
-    if sum(q.get('space_mm',0) for q in questions if isinstance(q,dict))<100:return False
+    response_height=sum(q.get('space_mm',0) for q in questions if isinstance(q,dict))
+    templates=[a for a in page.get('images',[]) if a.get('local_template') and not a['local_template'].endswith('_reference')]
+    if len(templates)==1 and len(page.get('images',[]))>=3 and response_height>=75:return True
+    if response_height<100:return False
     words=sum(len(s.get('text','').split()) for s in exercise.get('stimuli',[]) if isinstance(s,dict))
     markup=page.get('html','');headers=len(re.findall(r'<th\b',markup));rows=len(re.findall(r'<tr\b',markup))
     if headers>=3 and words>=35 and len(page.get('images',[]))==2:return True
@@ -125,12 +128,16 @@ def continuation_layout(page: dict, font: int, visual_area: float):
             """Preserve each image identity and use its true printable template dimensions."""
             return f'<img data-asset="{asset["id"]}" style="width:{w:g}mm;height:{h:g}mm;object-fit:contain;display:block;margin:0 auto 1mm"/>'
         if templates:
-            if len(templates)!=1 or len(decorative)>1:return
-            if decorative:
+            if len(templates)!=1 or len(decorative)>3:return
+            if len(decorative)==1:
                 header=('<table style="width:186mm;table-layout:fixed;border-collapse:collapse"><tr><td style="width:144mm;padding:0 2mm 0 0">'+header+'</td>'
                     '<td style="width:40mm;padding:0">'+artwork(decorative[0],40,40)+'</td></tr></table>')
             w,h=template_dimensions(templates[0]['local_template'])
             art=artwork(templates[0],w,h)
+            if len(decorative)>1:
+                art=('<table style="width:186mm;table-layout:fixed;border-collapse:collapse"><tr>'
+                     +''.join('<td style="padding:0;text-align:center">'+artwork(a,40,40)+'</td>' for a in decorative)
+                     +'</tr></table>'+art)
         else:
             side=math.ceil(math.sqrt(visual_area*1.03/len(images)))
             if len(images)==1:art=artwork(images[0],side,side)

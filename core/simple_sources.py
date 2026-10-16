@@ -10,6 +10,25 @@ def normalized(value: str) -> str:
     return ' '.join(value.split()).casefold()
 
 
+def remove_orphan_separators(markup: str, config: dict) -> str:
+    """Remove isolated layout pipes, retaining source/table/task punctuation and work areas."""
+    if not config.get('simple_exercises_only'):return markup
+    parser=CanonicalTextContainers({});parser.feed(markup);parser.close()
+    def visit(children, protected=False):
+        """Never remove a character from a canonical field or from a real table."""
+        prose=any(isinstance(c,str) and re.search(r'\w',c) for c in children)
+        result=[]
+        for node in children:
+            if isinstance(node,str):
+                if not protected and not prose and node.strip()=='|':continue
+            elif 'comment' not in node:
+                own=protected or node['tag']=='table' or bool(dict(node['attrs']).get('data-content'))
+                node['children']=visit(node['children'],own)
+            result.append(node)
+        return result
+    return ''.join(literal_html(n) for n in visit(parser.root))
+
+
 def collapse_repeated_cards(text: str) -> str:
     """Keep one of two identical complete lettered lists, never merge different cards."""
     markers=list(re.finditer(r'(?<!\w)(?:Card\s+)?([A-H])[:.)]\s+',text))
@@ -131,6 +150,8 @@ def prepare_simple_sources(page: dict, exercise: dict, config: dict) -> None:
         positions.pop(slot,None)
         return True
 
+    from core.workbook_tasks import repeated_inventory_sources
+    table_copies=repeated_inventory_sources(page,exercise)
     kept=[];seen={};removed_labels=[]
     passage=exercise.get('passage')
     if isinstance(passage,str) and passage.strip():seen[normalized(passage)]='passage'
@@ -140,8 +161,10 @@ def prepare_simple_sources(page: dict, exercise: dict, config: dict) -> None:
         sid=source['id'];text=source['text'];label=source.get('label','')
         label=label if isinstance(label,str) else ''
         referenced=bool(label.strip() and normalized(label) in normalized(task))
-        duplicate=normalized(source_body(source)) in seen
-        if (duplicate and not referenced and not compare
+        duplicate=normalized(source_body(source)) in seen or sid in table_copies
+        comparing_sources=bool(re.search(r'\b(?:both sources|two (?:sources|accounts|passages)|each source|compare.{0,30}(?:sources|accounts|passages))\b',task,re.I))
+        table_copy=sid in table_copies and not comparing_sources
+        if (duplicate and not referenced and (not compare or table_copy)
                 and remove_slot('stimulus_'+sid,text,label)):
             removed_labels.append(label);changed=True;continue
         seen.setdefault(normalized(source_body(source)),'stimulus_'+sid);kept.append(source)

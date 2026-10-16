@@ -5,6 +5,7 @@ from copy import deepcopy
 from core.task_visuals import answer_text
 from core.workbook_checks import classification_leaks,printed_words,unsupported_fact_claims
 from core.contextual_tasks import contextual_task_issues
+from core.workbook_tasks import task_coverage_issues
 
 
 def semantic_review_guidance() -> str:
@@ -25,7 +26,18 @@ def semantic_review_guidance() -> str:
         'Unselected Fact/Opinion choices, empty checkboxes and category column headings are '
         'legitimate scaffolds, not leaked answers. A selected category or prefilled explanation '
         'in a student response cell is a leak. Repair only the identified response cell, preserving '
-        'its writing area, source evidence, question and verified final-key solution. ')
+        'its writing area, source evidence, question and verified final-key solution. '
+        'Audit ALL student actions in directions, tables and matching lists, not only numbered questions. '
+        'If directions require four classifications, independently solve all four and ensure the final '
+        'key includes every row, even if only two follow-up questions are registered. One question '
+        'can own the full table task with concise row-by-row answers. Never silently omit rows. '
+        'Every numbered matching term needs its printed label and a separate readable entry. '
+        'Distinguish a count of items from points earned: the question, operation, unit and key '
+        'must ask/answer the same quantity. Catch repeated-word item labels and keep corrections '
+        'consistent across sources, table cells, prompts and key without changing quantities. '
+        'Vague invented historical/cultural scenes must be labeled fictional; do not present '
+        'invented village celebrations as established history. Use a real supported context instead '
+        'if historical facts are the learning goal. ')
 
 
 def blind_pages(pages: list[dict]) -> list[dict]:
@@ -175,7 +187,8 @@ def review_varied_pack(pack: dict, ask, repair, batch_size: int = 3) -> None:
             for page in pages:
                 n=page['page_number']
                 issues=(verdict[n]+independent['required_issues'][n]+classification_leaks(pack['pages'][n-1])
-                        +unsupported_fact_claims(pack['pages'][n-1])+contextual_task_issues(pack['pages'][n-1]))
+                        +unsupported_fact_claims(pack['pages'][n-1])+contextual_task_issues(pack['pages'][n-1])
+                        +task_coverage_issues(pack['pages'][n-1]))
                 if issues:failed[n]=list(dict.fromkeys(issues))
         if not failed:
             pack['content_checks']={'status':'passed','pages':len(pack['pages']),'repair_rounds':attempt,

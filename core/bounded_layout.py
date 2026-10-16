@@ -166,6 +166,14 @@ def bounded_authored_layouts(page: dict, minimum_font: int, visual_area: float):
             compact_header+=' '.join(f'<span data-content="{field}" style="font-size:{minimum_font}pt"></span>' for field in ('name','date') if field in metadata)
             compact_header+=''.join(directions)
             compact_tail=''.join(f'<div data-content="{slot}" style="font-size:{minimum_font}pt;line-height:1.15;margin:1mm 0;padding:0"></div>' for slot in questions)+''.join(workspaces)
+            if config.get('simple_exercises_only') and sum(len(re.findall(r'<th\b',c)) for c in compact_contexts)>=4:
+                # Numeric tables need their own full-width region. Keep the same
+                # image, data, typography and writing heights; measure this
+                # compact stacked arrangement before a narrow side-by-side one.
+                stacked=deepcopy(page);stacked['exercise']=deepcopy(checked['exercise'])
+                stacked['html']=(compact_header+'<div style="text-align:center;margin:0 0 1mm">'
+                    +artwork(175)+'</div>'+''.join(compact_contexts)+compact_tail)
+                yield stacked
             result=deepcopy(page);result['exercise']=deepcopy(checked['exercise'])
             result['html']=compact_header+'<table style="width:186mm;table-layout:fixed;border-collapse:collapse"><tr>'+art+context+'</tr></table>'+compact_tail
             yield result

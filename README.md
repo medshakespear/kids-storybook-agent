@@ -1096,3 +1096,19 @@ and printed cell text so the bounded repair can clear only the answer cell while
 retaining its dimensions, source evidence and final-key solution. Ambiguous
 merged tables and source columns still receive independent content review;
 they are not silently rewritten or treated as verified by this local check.
+
+Varied workbooks now audit tasks in table directions as well as numbered
+questions. Classification keys must cover every requested row; numbered matching
+references need printed labels, and item-count questions cannot be answered in
+points. These local findings participate in the existing bounded content repair.
+Independent review also checks fictional history labels and inconsistent item
+names. The local checks are deliberately narrow and do not certify all content.
+
+Simple mode removes isolated layout pipes outside source/task/table content and
+consolidates an inventory paragraph only when every item and initial/distributed/
+returned value exactly matches a retained data table. Four-or-more-column tables
+with headers need at least 150mm of rendered width; measured reflow keeps all
+values, readable fonts and student response areas. Decor/craft niche titles gain
+`Reading & Math` when needed to clarify the actual printable product. Image
+prompts replace common writing-board props with unlettered picture boards;
+image checkers remain disabled and generated artwork still needs human review.

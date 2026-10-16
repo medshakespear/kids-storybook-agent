@@ -342,6 +342,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     prepare_simple_sources(page,exercise,config)
     neutralize_layout_references(page,exercise,config)
     page['html']=normalize_student_header(page['html'],config)
+    from core.simple_sources import remove_orphan_separators
+    page['html']=remove_orphan_separators(page['html'],config)
     from core.reading_bindings import declare_reading_headings
     declare_reading_headings(page['html'],exercise,config)
     from core.maze_intent import is_statement_maze

@@ -1501,6 +1501,7 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
             'visual_area_mm2': quality.get('visual_area_mm2', 6500),
             'minimum_text_pt': quality.get('minimum_text_pt', 11),
             'model_authored_flow': bool(quality.get('stimulus_limit')),
+            'minimum_data_table_width_mm':150 if quality.get('simple_exercises_only') else 0,
             'minimum_response_width_mm':quality.get('minimum_response_width_mm',0)}
     else:
         images, design['html'] = _consolidate_image_manifest(design, cover=cover)

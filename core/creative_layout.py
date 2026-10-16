@@ -494,8 +494,9 @@ def check_page(page: dict, font: int, *, cover: bool = False, _allow_growth: boo
                 try:
                     check_document(doc, 1 if cover else activity_sheet_count(page))
                     if not cover:
-                        from core.student_workbook import check_response_width
+                        from core.student_workbook import check_response_width,check_data_table_width
                         check_response_width(doc,profile)
+                        check_data_table_width(doc,profile)
                         from core.work_templates import check_template_geometry
                         check_template_geometry(doc)
                 except ValueError as exc:

@@ -26,6 +26,11 @@ def exercise_guidance(grade_band: str) -> str:
         'simple directions do not mean below-grade mathematics. '+math+' '
         'For every numeric problem include one calculation matching the printed problem and '
         'its exact answer. Independently solve the problem before writing the answer key. '
+        'Distinguish points earned from the number of items; use the correct unit in both prompt '
+        'and solution. Number matching terms explicitly (one term per line) whenever a question '
+        'references numbered items. Every table-row action in directions must be owned by a '
+        'registered question whose answer covers every required row, not just follow-up questions. '
+        'Keep complete short row-by-row criteria within the answer budget. '
         'Comparison questions must have supporting details in EACH named source; do not invent '
         'shared traditions, objects or actions. A key must not add facts absent from the sources. '
         'Sequence answers must use the same printed card letters. '
@@ -44,6 +49,9 @@ def exercise_guidance(grade_band: str) -> str:
         'empty name/date slots; do not add a separate literal Name: Date: heading. '
         'Use neutral source labels, never a full sentence that pre-answers a question. Print each '
         'reading once: do not duplicate it as passage, source card, caption or alternate card ID. '
+        'Do not repeat an entire data table as a pipe-formatted paragraph. Use one clear table '
+        'with spaced headers, placing four-or-more columns below the illustration at full width. '
+        'Proofread item names and keep them consistent across the sources, table, prompts and key. '
         'Avoid positional references above/below/left/right, and do not say underlined unless '
         'you actually underline the target word; a quoted word is enough. Give the two questions '
         'different purposes and expected details. Fictional practice numbers assigned to historical '
@@ -54,7 +62,9 @@ def exercise_guidance(grade_band: str) -> str:
         'Prefer clear short titles, calm colorful headings, one contextual picture and full-width '
         'answer space. No technical instructions such as 50mm writing space in student wording. '
         'Keep cultural events distinct and describe beliefs as traditions, not universal facts. '
-        'No invented safety ratings, guarantees or quotations presented as authentic. ')
+        'No invented safety ratings, guarantees or quotations presented as authentic. '
+        'Label invented historical/cultural scenes as fictional; a vague village story is not '
+        'verified history. Do not print standalone layout separators such as vertical bars. ')
 
 
 def check_simple_activity(exercise: dict, *, planning: bool = False) -> None:

@@ -1,8 +1,17 @@
 """Opt-in varied exercises with model-authored, individually print-checked layouts."""
 from copy import deepcopy
+import re
 
 from core.creative_generator import generate_creative_pack
 from core.grade_policy import require_active_grade
+
+
+def clarified_workbook_title(title: str) -> str:
+    """Keep niche keywords while distinguishing written exercises from ready-made decor kits."""
+    if (re.search(r'\b(?:bulletin\s+board|crafts?|decor|templates?)\b',title,re.I)
+            and not re.search(r'\b(?:reading|math|workbook|activities|exercises)\b',title,re.I)):
+        return title+': Reading & Math'
+    return title
 
 
 def generate_varied_pack(theme, grade_band, grade_config, *, source_context=None, book_title=None):
@@ -42,8 +51,10 @@ short answers and 50mm for longer explanations. Do not request practice drawing 
 Use named accurate cultural contexts; identify fictional sources as fictional.
 No teacher guide. No answers on student pages. One consolidated final answer key.
 '''
+    title=clarified_workbook_title(book_title or theme)
+    title=title if book_title is not None or title!=theme else None
     pack = generate_creative_pack(theme, grade_band, config, source_context=context,
-                                  book_title=book_title, require_variety=True)
+                                  book_title=title, require_variety=True)
     pack.update(book_type='varied_activities', content_format='varied_activities',
                 design_engine='gemini_authored_activities')
     return pack

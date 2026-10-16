@@ -65,7 +65,12 @@ def continuation_layout(page: dict, font: int, visual_area: float):
     from core.card_layout import content_slots,compact_card_node
     from core.work_templates import prepare_work_template,template_dimensions
     try:
-        checked=deepcopy(page);blocks={}
+        source=page
+        if len(page.get('images',[]))==1:
+            from core.layout_recovery import retained_table_artwork_recovery
+            separated=retained_table_artwork_recovery(page,font,visual_area)
+            if separated is not None:source=separated
+        checked=deepcopy(source);blocks={}
         prepare_work_template(checked,config,page.get('_recovery_title','Activity'))
         compile_exercise(checked,config,page.get('_recovery_title','Activity'),blocks_out=blocks)
         parser=CanonicalTextContainers({});parser.feed(checked['source_layout']);parser.close()

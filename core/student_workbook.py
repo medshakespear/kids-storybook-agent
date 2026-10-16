@@ -214,3 +214,24 @@ def check_response_width(document, profile: dict) -> None:
                     raise ValueError(f'Design overflow: student answer box is only {width:.1f}mm wide; '
                         f'use at least {minimum}mm. Place questions below the illustration/source '
                         'region, preserving the full response heights and readable text.')
+
+
+def check_data_table_width(document, profile: dict) -> None:
+    """Keep four-or-more-column data tables out of cramped illustration side columns."""
+    minimum=profile.get('minimum_data_table_width_mm',0)
+    if not minimum:return
+    for page in document.pages:
+        for box in page._page_box.descendants():
+            if type(box).__name__!='TableBox' or box.element is None:continue
+            element=box.element;rows=[]
+            for child in element:
+                if child.tag=='tr':rows.append(child)
+                elif child.tag in {'thead','tbody','tfoot'}:rows.extend(c for c in child if c.tag=='tr')
+            if len(rows)<2:continue
+            cells=[c for c in rows[0] if c.tag in {'td','th'}]
+            if len(cells)<4 or not any(c.tag=='th' for c in cells):continue
+            width=box.width*25.4/96
+            if width+0.5<minimum:
+                raise ValueError(f'Design overflow: data table with {len(cells)} columns is only {width:.1f}mm wide; '
+                    f'use at least {minimum}mm. Place the complete table below the illustration rather than '
+                    'squeezing its headers into a narrow side column. Retain every value and answer area.')

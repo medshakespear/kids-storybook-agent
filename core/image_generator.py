@@ -29,8 +29,11 @@ def text_free_scene(scene: str) -> str:
     """Remove explicit quoted prop-lettering requests, preserving the surrounding scene."""
     import re
     props=r'(?:sign|poster|banner|placard|badge|shirt|book cover|screen)'
-    return re.sub(r'\b('+props+r')\s+(?:that\s+)?(?:says|reads|saying|reading|labeled|labelled|with the words)\s*'
+    value=re.sub(r'\b('+props+r')\s+(?:that\s+)?(?:says|reads|saying|reading|labeled|labelled|with the words)\s*'
         r'[\x27\"‘“][^\x27\"’”]+[\x27\"’”]',lambda m:'blank '+m[1],scene,flags=re.I)
+    # Text-bearing classroom props otherwise encourage the image model to
+    # invent writing even when no literal lettering was requested.
+    return re.sub(r'\b(?:bulletin board|whiteboard|chalkboard)s?\b','unlettered picture board',value,flags=re.I)
 
 
 def _image_prompt(story: dict, page: dict, style: str, limit: int = 2048) -> str:

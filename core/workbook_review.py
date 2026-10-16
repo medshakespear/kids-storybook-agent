@@ -20,7 +20,12 @@ def semantic_review_guidance() -> str:
         'disagreement requiring reconciliation. Raw class totals cannot prove per-student '
         'participation, age effects or causation without denominators/comparable conditions. '
         'State only the observed count comparison. Avoid redundant inclusion reflections and '
-        'unrelated math tacked onto matching questions; keep each task focused. ')
+        'unrelated math tacked onto matching questions; keep each task focused. '
+        'For classification, distinguish supplied source statements from student answer cells. '
+        'Unselected Fact/Opinion choices, empty checkboxes and category column headings are '
+        'legitimate scaffolds, not leaked answers. A selected category or prefilled explanation '
+        'in a student response cell is a leak. Repair only the identified response cell, preserving '
+        'its writing area, source evidence, question and verified final-key solution. ')
 
 
 def blind_pages(pages: list[dict]) -> list[dict]:

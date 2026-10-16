@@ -11,7 +11,7 @@ def printed_words(markup: str) -> str:
 
 
 def classification_leaks(page: dict) -> list[str]:
-    """Flag filled classification/reason cells, leaving source cards and worked examples intact."""
+    """Flag filled answer cells, not unselected choices, sources or table headings."""
     exercise=page.get('exercise',{})
     task=' '.join([str(exercise.get('directions',''))]+[str(q.get('prompt','')) for q in exercise.get('questions',[])])
     if not re.search(r'\b(?:classif\w*|categor\w*|sort|label)\b',task,re.I):return []
@@ -21,7 +21,30 @@ def classification_leaks(page: dict) -> list[str]:
     if len(categories)<2:return []
     from core.content_binding import CanonicalTextContainers
     from core.print_grid import literal_html
-    parser=CanonicalTextContainers({});parser.feed(page.get('html',''));parser.close();issues=[]
+    parser=CanonicalTextContainers({});parser.feed(page.get('html',''));parser.close();issues=[];table_number=0
+
+    def response_header(value):
+        """Distinguish an explicit answer column from a source/evidence-statement column."""
+        if re.search(r'\b(?:classif\w*|categor\w*)\b|^(?:statement\s+)?type$',value,re.I):return True
+        if re.search(r'\b(?:statements?|sources?|claims?|records?|excerpts?|descriptions?)\b',value,re.I):return False
+        if re.search(r'\b(?:reason\w*|explanations?|justification|supporting\s+(?:evidence|phrase)|your\s+evidence)\b',value,re.I):return True
+        # Plain "Evidence" can introduce supplied observations. Ambiguous
+        # columns remain the responsibility of independent content review.
+        if any(re.fullmatch(re.escape(c)+r's?',value.strip(),re.I) for c in categories):return True
+        return unselected_choices(value)
+
+    def unselected_choices(value):
+        """Recognize only empty choice scaffolds; selected marks and reasoning are answers."""
+        if re.search(r'[☑☒✓✔●]|[\[(]\s*[xX*]\s*[\])]',value):return False
+        present=[c for c in categories if re.search(r'\b'+re.escape(c)+r's?\b',value,re.I)]
+        if not present:return False
+        if any(len(re.findall(r'\b'+re.escape(c)+r's?\b',value,re.I))>1 for c in present):return False
+        empty_box=bool(re.search(r'[☐□○◯]|\[\s*\]|\(\s*\)',value))
+        if not empty_box and len(present)!=len(categories):return False
+        remaining=value
+        for category in categories:remaining=re.sub(r'\b'+re.escape(category)+r's?\b',' ',remaining,flags=re.I)
+        remaining=re.sub(r'\b(?:circle|choose|select|check|one|or|and|option|category)\b',' ',remaining,flags=re.I)
+        return not re.sub(r'[\s_:/|(),.;?\[\]☐□○◯-]+','',remaining)
 
     def rows(node):
         """Read rows inside this table only; nested tables have their own ownership."""
@@ -31,19 +54,36 @@ def classification_leaks(page: dict) -> list[str]:
 
     def visit(node):
         """Require a classification/reason column before inspecting its answer cells."""
+        nonlocal table_number
         if isinstance(node,str) or 'comment' in node:return
         if node['tag']=='table':
+            table_number+=1
             records=rows(node)
             if records:
-                headers=[printed_words(literal_html(c)) for c in records[0]['children'] if isinstance(c,dict) and c.get('tag') in {'td','th'}]
+                header_cells=[c for c in records[0]['children'] if isinstance(c,dict) and c.get('tag') in {'td','th'}]
+                headers=[printed_words(literal_html(c)) for c in header_cells]
                 worked=any(re.search(r'\bworked example\b',h,re.I) for h in headers)
-                columns=[i for i,h in enumerate(headers) if re.search(r'\b(?:classif\w*|category|reason\w*|evidence)\b',h,re.I)]
-                if columns and not worked:
-                    for row in records[1:]:
+                merged=any(str(dict(c['attrs']).get(k,'1'))!='1' for c in header_cells for k in ('colspan','rowspan'))
+                columns=[i for i,h in enumerate(headers) if response_header(h)]
+                if columns and not worked and not merged:
+                    for row_number,row in enumerate(records[1:],1):
                         cells=[c for c in row['children'] if isinstance(c,dict) and c.get('tag') in {'td','th'}]
-                        if any(i<len(cells) and any(re.search(r'\b'+re.escape(term)+r's?\b',printed_words(literal_html(cells[i])),re.I) for term in categories) for i in columns):
-                            issues.append('Student classification/reasoning table reveals a requested category. Leave response cells blank; preserve the source statements and move solutions to the final key.')
-                            break
+                        if any(str(dict(c['attrs']).get(k,'1'))!='1' for c in cells for k in ('colspan','rowspan')):continue
+                        for i in columns:
+                            if i>=len(cells):continue
+                            text=printed_words(literal_html(cells[i]))
+                            category=any(re.search(r'\b'+re.escape(term)+r's?\b',text,re.I) for term in categories)
+                            selection=bool(re.search(r'[☑☒✓✔]|^\s*[xX]\s*$',text)) and any(
+                                re.fullmatch(re.escape(c)+r's?',headers[i].strip(),re.I) for c in categories)
+                            if (category and not unselected_choices(text)) or selection:
+                                issues.append(f'Student classification/reasoning table reveals a requested category: '
+                                    f'table {table_number}, data row {row_number}, column {i+1} ({headers[i]!r}), '
+                                    f'printed cell {text[:180]!r}. Clear only this student answer cell; preserve '
+                                    'its border, dimensions, source statement and all source evidence. Keep its '
+                                    'verified solution in the final key. If an answer-only caption owns this cell, '
+                                    'remove that caption and its binding together, leaving the cell blank; never '
+                                    'remove a source/header caption or another required source slot. Empty Fact/Opinion choice labels are '
+                                    'allowed; do not rewrite the activity or delete source text to fix this cell.')
         for child in node['children']:visit(child)
 
     for node in parser.root:visit(node)

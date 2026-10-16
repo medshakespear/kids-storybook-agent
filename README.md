@@ -1087,3 +1087,12 @@ source content; the renderer never invents facts from IDs. Blank combined
 `Name: Date:` labels now bind as optional metadata even without underscores.
 The bounded continuation fallback recognizes blank metadata tables and invisible
 empty header rows, preserving real reference tables and full-width answer areas.
+
+The classification leak check distinguishes explicit student response columns
+from supplied source/evidence-statement columns. Unselected category alternatives
+and empty checkboxes are allowed; a selected category or prefilled reasoning is
+still blocked. Each local finding identifies its table, data row, column heading
+and printed cell text so the bounded repair can clear only the answer cell while
+retaining its dimensions, source evidence and final-key solution. Ambiguous
+merged tables and source columns still receive independent content review;
+they are not silently rewritten or treated as verified by this local check.

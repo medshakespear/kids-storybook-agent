@@ -641,6 +641,13 @@ normalize together before binding and missing-source repair. Source text, questi
 wording, answers and writing space stay intact. Colliding IDs, duplicate slots and
 actually missing source text still fail validation.
 
+An accidental `stimulus_source_one_label` heading resolves locally to a caption
+only when `source_one` already declares that exact label. Empty headings or
+identical prefilled label text qualify; conflicting wording, missing labels and
+independent graphics do not. The label stays beside its source and is printed
+once, including inside simple heading/inline wrappers. This avoids requesting a
+fabricated extra passage while keeping source text and answer space unchanged.
+
 Authored pages with unbound contextual prose receive a text-binding repair rather
 than an HTML-only repair. A complete existing explanatory paragraph can become
 `exercise.passage`; it is not shortened into a 120-character caption. Existing

@@ -139,12 +139,22 @@ def adjacent_source_labels(markup: str, sources: list, captions: list, config: d
         and isinstance(c.get('text'),str)}
     found=set()
 
+    def wrapped_slot(node):
+        """Look through a single formatting wrapper, never across cards or columns."""
+        if not isinstance(node,dict):return None
+        slot=dict(node.get('attrs',[])).get('data-content')
+        if slot:return slot
+        if node.get('tag') not in {'h1','h2','h3','h4','h5','h6','p','span','strong','b','em'}:
+            return None
+        children=[c for c in node.get('children',[]) if not isinstance(c,str) or c.strip()]
+        return wrapped_slot(children[0]) if len(children)==1 else None
+
     def visit(children):
         """Inspect adjacent bound containers without interpreting unbound model wording."""
         peers=[c for c in children if not isinstance(c,str) or c.strip()]
         for previous,current in zip(peers,peers[1:]):
             if not isinstance(previous,dict) or not isinstance(current,dict): continue
-            before=dict(previous.get('attrs',[])).get('data-content')
+            before=wrapped_slot(previous)
             after=dict(current.get('attrs',[])).get('data-content')
             if after in labels and caption_labels.get(before)==labels[after]:
                 found.add(after.removeprefix('stimulus_'))

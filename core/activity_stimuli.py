@@ -38,6 +38,42 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
     parser=CanonicalTextContainers({});parser.feed(page['html']);parser.close()
     if parser.stack:
         raise ValueError('Exercise layout tags must be balanced')
+    sources={s['id']:s for s in normalized if isinstance(s,dict) and s.get('id') in seen}
+    captions=deepcopy(exercise.get('captions',[]))
+
+    def label_slot(node, sid):
+        """Bind an explicit source-heading alias only to an already declared label.
+
+        A real source whose ID ends in _label takes precedence. Never infer a
+        missing label from the ID, discard prefilled wording, or swallow media.
+        """
+        if sid in seen or not sid.endswith('_label') or not isinstance(captions,list):
+            return None
+        label=sources.get(sid[:-6],{}).get('label')
+        if not isinstance(label,str) or not label.strip() or len(label.strip())>120:
+            return None
+        if not re.fullmatch(r'[a-z][a-z0-9_]{0,23}',sid):
+            return None
+
+        def wording(child):
+            """Accept only plain text and harmless inline formatting in a label."""
+            if isinstance(child,str):return child
+            if child.get('tag') not in {'span','strong','b','em','br'} or any(
+                    k.startswith('data-') for k,_ in child.get('attrs',[])):
+                raise ValueError('Source label alias contains independent content')
+            return ' ' if child['tag']=='br' else ''.join(wording(c) for c in child['children'])
+
+        try:
+            printed=' '.join(''.join(wording(c) for c in node['children']).split())
+        except ValueError:
+            return None
+        if printed and printed!=' '.join(label.split()):return None
+        existing=[c for c in captions if isinstance(c,dict) and c.get('id')==sid]
+        if existing:
+            if len(existing)!=1 or existing[0].get('text')!=label.strip():return None
+        else:
+            captions.append({'id':sid,'text':label.strip()})
+        return 'caption_'+sid
 
     def visit(node):
         """Rewrite actual declared source attributes, never words inside source cards."""
@@ -52,6 +88,11 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
                     canonical='stimulus_'+sid
                     changed=changed or value!=canonical
                     value=canonical
+                else:
+                    heading=label_slot(node,sid)
+                    if heading:
+                        value=heading
+                        changed=True
             attrs.append((key,value))
         node['attrs']=attrs
         for child in node['children']:
@@ -71,6 +112,7 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
         visit(node)
     if changed:
         exercise['stimuli']=normalized
+        if isinstance(captions,list):exercise['captions']=captions
         page['html']=''.join(render(node) for node in parser.root)
 
 

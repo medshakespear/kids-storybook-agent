@@ -155,6 +155,7 @@ def template_layout_recovery(page: dict, minimum_font: int, visual_area: float):
     images=page.get('images')
     if not page.get('_recovery_config',{}).get('student_workbook'):return
     if not isinstance(images,list) or len(images)!=1 or not images[0].get('local_template'):return
+    yield from stacked_template_layout(page,minimum_font)
     yield from integrated_template_layout(page,minimum_font)
     from core.layout_recovery import single_illustration_recovery
     base=single_illustration_recovery(page,minimum_font,visual_area)
@@ -177,6 +178,55 @@ def template_layout_recovery(page: dict, minimum_font: int, visual_area: float):
     for node in parser.root:visit(node)
     base['html']=''.join(literal_html(n) for n in parser.root)
     yield base
+
+
+def stacked_template_layout(page: dict, minimum_font: int):
+    """Use full-width normal flow for a banner plus complete written responses."""
+    from copy import deepcopy
+    from core.page_contract import compile_exercise
+    config=page.get('_recovery_config',{})
+    if page['images'][0].get('local_template')!='banner_plan':return
+    try:
+        checked=deepcopy(page);blocks={}
+        prepare_work_template(checked,config,page.get('_recovery_title','Banner studio'))
+        compile_exercise(checked,config,page.get('_recovery_title','Banner studio'),blocks_out=blocks)
+        if checked.get('_table_caption_ids'):return
+        parser=CanonicalTextContainers({});parser.feed(checked['source_layout']);parser.close()
+        if parser.stack:return
+        seen=[];assets=[]
+        def visit(node):
+            """Reject independent prose, structured data and unnamed work surfaces."""
+            if isinstance(node,str):
+                if node.strip():raise ValueError('Keep literal text')
+                return
+            if 'comment' in node:raise ValueError('Keep comments')
+            attrs=dict(node['attrs']);slot=attrs.get('data-content')
+            if slot:seen.append(slot);return
+            if node['tag']=='img':assets.append(attrs.get('data-asset'));return
+            if node['tag'] in {'table','td','th','svg'}:raise ValueError('Keep data structure')
+            if all(isinstance(c,str) and not c.strip() for c in node['children']) and re.search(r'(?:height|min-height|border)\s*:',attrs.get('style','')):
+                raise ValueError('Keep independent working surface')
+            for child in node['children']:visit(child)
+        for node in parser.root:visit(node)
+        asset=checked['images'][0]
+        if assets!=[asset['id']] or len(seen)!=len(set(seen)) or not (set(blocks)-{'name','date'})<=set(seen):return
+        exercise=checked['exercise']
+        duplicate={'caption_'+c['id'] for c in exercise.get('captions',[]) if c['text']==exercise.get('directions')}
+        exercise['captions']=[c for c in exercise.get('captions',[]) if 'caption_'+c['id'] not in duplicate]
+        style=f'font-size:{minimum_font}pt;line-height:1.1;margin:0;padding:0'
+        def slot_html(slot):
+            """Preserve one canonical field in compact, readable normal flow."""
+            return f'<div data-content="{slot}" style="{style};margin-bottom:0.6mm"></div>'
+        header=f'<h1 data-content="title" style="font-size:{minimum_font+3}pt;color:#B33600;background-color:#FFF2DF;line-height:1.1;margin:0;padding:0.5mm"></h1>'
+        header+=' '.join(f'<span data-content="{s}" style="{style}"></span>' for s in ('name','date') if s in seen)
+        header+=slot_html('directions')
+        width,height=template_dimensions(asset['local_template'])
+        art=f'<img data-asset="{asset["id"]}" style="width:{width}mm;height:{height}mm;object-fit:contain;display:block;margin:0 auto"/>'
+        supporting=[s for s in seen if s not in {'title','name','date','directions'}|duplicate and not s.startswith('question_')]
+        result=deepcopy(page);result['exercise']=deepcopy(exercise);result['_inline_source_labels']=True
+        result['html']=header+art+''.join(slot_html(s) for s in supporting)+''.join(slot_html('question_'+q['id']) for q in exercise['questions'])
+        yield result
+    except (ValueError,TypeError,KeyError,IndexError):return
 
 
 def integrated_template_layout(page: dict, minimum_font: int):

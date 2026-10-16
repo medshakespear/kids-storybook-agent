@@ -641,6 +641,19 @@ normalize together before binding and missing-source repair. Source text, questi
 wording, answers and writing space stay intact. Colliding IDs, duplicate slots and
 actually missing source text still fail validation.
 
+Missing declared step captions can be restored beside their source card when
+their IDs explicitly match, or their full wording uniquely matches the source
+label. Unrelated captions are never assigned by list order. Simple print grids
+accept nonnegative absolute gaps in mm, px, pt, cm, in or pc; Python converts them
+to millimeters. Negative, percentage and relative gaps still need correction.
+
+When one shared illustration brief accompanies an explicit numbered HTML series
+of 2-4 source-card images, each card can receive its own image brief derived from
+that shared brief and its complete retained source text. Each distinct image is
+then generated once. Ambiguous or unrelated manifest mismatches remain errors.
+Redundant blank answer panels expressed in absolute units are measured with
+their padding before consolidation; larger independent work areas remain intact.
+
 An accidental `stimulus_source_one_label` heading resolves locally to a caption
 only when `source_one` already declares that exact label. Empty headings or
 identical prefilled label text qualify; conflicting wording, missing labels and

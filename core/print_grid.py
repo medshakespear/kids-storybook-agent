@@ -24,6 +24,15 @@ def equal_columns(value: str) -> int | None:
     return None
 
 
+def print_gap(value: str) -> str:
+    """Convert nonnegative absolute CSS lengths to physical print millimeters."""
+    if value=='0':return '0mm'
+    match=re.fullmatch(r'(\d+(?:\.\d+)?|\.\d+)(mm|px|pt|cm|in|pc)',value.lower())
+    if not match:raise ValueError('Printable grid gap needs a nonnegative absolute length (mm, px, pt, cm, in or pc)')
+    factor={'mm':1,'px':25.4/96,'pt':25.4/72,'cm':10,'in':25.4,'pc':25.4/6}[match[2]]
+    return f'{float(match[1])*factor:.6f}'.rstrip('0').rstrip('.')+'mm'
+
+
 def normalize_print_grid(markup: str, *, allow_weighted: bool = False) -> str:
     """Preserve ordered cells in print tables; optionally support weighted tracks and forward spans."""
     if not re.search(r'grid-template-columns|display\s*:\s*(?:inline-)?grid',markup,re.I): return markup
@@ -58,10 +67,9 @@ def normalize_print_grid(markup: str, *, allow_weighted: bool = False) -> str:
         if not cells or any(isinstance(c,str) or 'comment' in c for c in cells):
             raise ValueError('Printable grid cells must be separate content containers')
         gap=values.get('gap','0mm').split()
-        if len(gap) not in {1,2}: raise ValueError('Printable grid gap must use positive mm dimensions')
+        if len(gap) not in {1,2}: raise ValueError('Printable grid gap needs one or two absolute lengths')
         row=values.get('row-gap',gap[0]);col=values.get('column-gap',gap[-1])
-        if not all(re.fullmatch(r'(?:0|\d+(?:\.\d+)?mm)',v) for v in (row,col)):
-            raise ValueError('Printable grid gap must use positive mm dimensions')
+        row,col=print_gap(row),print_gap(col)
         spans=[]
         for cell in cells:
             declarations_cell=tinycss2.parse_declaration_list(dict(cell['attrs']).get('style','') or '',skip_comments=True,skip_whitespace=True)

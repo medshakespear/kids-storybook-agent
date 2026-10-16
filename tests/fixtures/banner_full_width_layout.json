@@ -1,0 +1,72 @@
+{
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "banner_info",
+          "text": "Use the large blank banner template on this page for your design."
+        }
+      ],
+      "directions": "Use the large blank banner template on this page for your design.",
+      "goal": "Apply principles of pattern, negative space, and cultural storytelling to design an original decorative banner motif.",
+      "mechanic": "design banner",
+      "questions": [
+        {
+          "answer": "Accept explanations describing traditional motifs like marigolds, birds, or geometric patterns and their symbolic meaning for the celebration.",
+          "id": "1",
+          "prompt": "Explain the cultural symbols or motifs you chose for your banner design and how they represent remembrance and celebration during Dia de los Muertos.",
+          "space_mm": 50
+        },
+        {
+          "answer": "The total combined width is 168 centimeters.",
+          "calculation": {
+            "answer": "168",
+            "expression": "6*28"
+          },
+          "id": "2",
+          "prompt": "If you repeat your banner design pattern 6 times along a string to decorate a community altar, and each individual banner measures 28 centimeters in width, what is the total combined width of all 6 banners?",
+          "space_mm": 50
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "banner_info",
+          "label": "Design Guide",
+          "text": "Papel picado is traditional cut-paper art used during Dia de los Muertos. Design your own repeating motif in the blank banner template above using geometric shapes, flowers, or birds."
+        }
+      ]
+    },
+    "html": "<div style=\"font-family: Arial, sans-serif; color: #331a00; font-size: 12pt; line-height: 1.35; padding: 4px; box-sizing: border-box; width: 186mm; height: 265mm;\"><div style=\"text-align: center; margin-bottom: 4px;\"><h1 data-content=\"title\" style=\"font-size: 16pt; color: #b33600; margin: 0 0 2px 0; text-transform: uppercase; letter-spacing: 0.5px;\">Dia de los Muertos Banner Design</h1><p data-content=\"name\" style=\"margin: 0; font-size: 11pt; color: #555;\">Name: _____________________________________</p></div><div style=\"background-color: #fff8f0; border: 1.5px dashed #e65c00; border-radius: 4px; padding: 4px 6px; margin-bottom: 4px;\"><p data-content=\"directions\" style=\"font-weight: bold; margin: 0 0 2px 0; color: #8a2200; font-size: 12pt;\">Use the large blank banner template on this page for your design.</p><div data-content=\"stimulus_banner_info\" style=\"font-size: 11pt; margin-bottom: 2px;\"></div><div data-content=\"caption_banner_info\" style=\"font-size: 11pt;\"></div></div><div style=\"text-align: center; margin-bottom: 4px;\"><img data-asset=\"banner_template\" style=\"border: 2px solid #b33600; border-radius: 4px; background-color: #ffffff;;width:168mm;height:95.2mm;object-fit:contain\"></div><div style=\"margin-bottom: 4px; font-size: 12pt;\"><div data-content=\"question_1\"></div></div><div style=\"font-size: 12pt;\"><div data-content=\"question_2\"></div></div></div>",
+    "images": [
+      {
+        "id": "banner_template",
+        "prompt": "Large clean uncolored blank rectangular paper banner template with decorative traditional Mexican folk art borders along top and bottom edges, fold guides, and crisp black outlines for student design cutouts, flat vector style, no color, white background."
+      }
+    ]
+  },
+  "title": "Papel Picado Banner Design Challenge",
+  "config": {
+    "content_review_batch_size": 3,
+    "context_caption_limit": 24,
+    "extended_response_mm": 50,
+    "items_per_page": 2,
+    "max_operand": 100,
+    "max_result": 1000,
+    "minimum_response_mm": 35,
+    "minimum_response_width_mm": 150,
+    "minimum_text_pt": 12,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "purposeful_activity_layout": false,
+    "stimulus_limit": 8,
+    "student_font_pt": 12,
+    "student_workbook": true,
+    "table_caption_limit": 36,
+    "visual_area_mm2": 8000
+  }
+}

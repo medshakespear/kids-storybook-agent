@@ -169,4 +169,23 @@ def restore_source_slots(markup: str, blocks: dict, exercise: dict, config: dict
         children,index=anchor
         children.insert(index,{'tag':'div','attrs':[('data-content',slot),
             ('style',f"font-size:{config.get('minimum_text_pt',12)}pt;line-height:1.2;margin:0 0 2mm")],'children':[]})
+    for caption in exercise.get('captions',[]):
+        if not isinstance(caption,dict) or not isinstance(caption.get('id'),str):continue
+        cid=caption['id'];slot='caption_'+cid
+        found,_=locations()
+        if slot not in blocks or slot in found:continue
+        # An explicit shared ID or identical complete source label associates a
+        # missing caption with its own card. Never infer a caption from order.
+        matches=[s for s in exercise.get('stimuli',[]) if isinstance(s,dict) and
+                 (cid in {s.get('id'),str(s.get('id'))+'_label'} or
+                  (' '.join(str(caption.get('text','')).split())==
+                   ' '.join(str(s.get('label','')).split()) and s.get('label')))]
+        if len(matches)!=1:continue
+        source_slot='stimulus_'+matches[0]['id']
+        if len(found.get(source_slot,[]))!=1:continue
+        anchor=insertion(found[source_slot][0])
+        if anchor is None:continue
+        children,index=anchor
+        children.insert(index,{'tag':'p','attrs':[('data-content',slot),
+            ('style',f"font-size:{config.get('minimum_text_pt',12)}pt;line-height:1.15;margin:0 0 1mm")],'children':[]})
     return ''.join(literal_html(n) for n in parser.root)

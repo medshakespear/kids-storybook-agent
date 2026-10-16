@@ -1409,6 +1409,8 @@ def validate_design(raw: dict, font: int, *, cover: bool = False,
     if quality is not None:
         design['html'] = reveal_print_content(design['html'])
     if require_coherent and not cover:
+        from core.source_art_manifest import expand_source_art
+        expand_source_art(design,quality or {})
         from core.work_templates import prepare_work_template
         prepare_work_template(design,quality or {},expected_title or '')
         if (quality or {}).get('purposeful_activity_layout') and brief:

@@ -30,7 +30,7 @@ def consolidate_response_panels(markup: str, questions: list, config: dict) -> s
         if any(not isinstance(c,str) or c.strip() for c in node['children']): return None
         declarations=tinycss2.parse_declaration_list(node['attrs'][0][1],skip_comments=True,skip_whitespace=True)
         allowed={'height','min-height','border','border-radius','margin','margin-top','margin-bottom','margin-left','margin-right',
-                 'background','background-color'}
+                 'background','background-color','padding','padding-top','padding-bottom','padding-left','padding-right','box-sizing'}
         values={}
         for d in declarations:
             if d.type!='declaration' or d.lower_name not in allowed or d.important: return None
@@ -46,13 +46,25 @@ def consolidate_response_panels(markup: str, questions: list, config: dict) -> s
                         and color[3]==1 and min(color[:3])>=250/255)
             if color!=(1,1,1,1) and not paper_tint:return None
         if not re.search(r'\b(?:solid|dashed|dotted)\b',values.get('border','')): return None
+        def length(value):
+            """Measure fixed CSS units without accepting relative or negative sizes."""
+            if value=='0':return 0
+            match=re.fullmatch(r'(\d+(?:\.\d+)?|\.\d+)(mm|px|pt|cm|in)',value)
+            return float(match[1])*{'mm':1,'px':25.4/96,'pt':25.4/72,'cm':10,'in':25.4}[match[2]] if match else None
         sizes=[]
         for key in ('height','min-height'):
             if key in values:
-                match=re.fullmatch(r'(\d+(?:\.\d+)?)mm',values[key])
-                if not match: return None
-                sizes.append(float(match[1]))
-        return max(sizes) if sizes and min(sizes)>0 else None
+                size=length(values[key])
+                if size is None:return None
+                sizes.append(size)
+        padding=[length(v) for v in values.get('padding','0').split()]
+        if len(padding) not in (1,2,3,4) or None in padding:return None
+        top=padding[0];bottom=padding[0] if len(padding)<3 else padding[2]
+        top=length(values.get('padding-top',f'{top}mm'));bottom=length(values.get('padding-bottom',f'{bottom}mm'))
+        if top is None or bottom is None:return None
+        if values.get('box-sizing','content-box') not in {'border-box','content-box'}:return None
+        inset=0 if values.get('box-sizing')=='border-box' else top+bottom
+        return max(sizes)+inset if sizes and min(sizes)>0 else None
 
     def visit(children):
         """Consolidate direct siblings only; never move or infer an independent task."""

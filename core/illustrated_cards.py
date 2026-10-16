@@ -76,12 +76,12 @@ def illustrated_source_cards(page, minimum_font, visual_area):
         discarded={s for _,_,labels in pairs for s in labels}
         paired_sources={s for s,_,_ in pairs}
         required=set(blocks)-{'name','date'}
-        other=required-paired_sources-discarded-{'title','directions'}
+        contexts=set(captions)-discarded
+        other=required-paired_sources-discarded-contexts-{'title','directions'}
         if any(not s.startswith('question_') for s in other):return
-        if set(captions)!=discarded:return
         if not required<=set(seen_slots):return
         result=deepcopy(page);result['exercise']=deepcopy(checked['exercise'])
-        result['exercise']['captions']=[]
+        result['exercise']['captions']=[c for c in checked['exercise'].get('captions',[]) if 'caption_'+c['id'] not in discarded]
         result['_inline_source_labels']=True
         colors=re.findall(r'#[0-9a-fA-F]{6}\b',page['html'])
         accent=colors[0] if colors else '#167E80'
@@ -92,6 +92,7 @@ def illustrated_source_cards(page, minimum_font, visual_area):
                 f'color:{accent};background-color:#FFF3E3;padding:1mm;margin:0 0 1mm"></h1>')
         header+=' '.join(f'<span data-content="{s}" style="{text_style}"></span>' for s in ('name','date') if s in seen_slots)
         header+=f'<p data-content="directions" style="{text_style};margin:1mm 0"></p>'
+        header+=''.join(f'<p data-content="{slot}" style="{text_style};margin:1mm 0"></p>' for slot in seen_slots if slot in contexts)
         rows=[]
         for offset in range(0,len(pairs),2):
             cells=[]

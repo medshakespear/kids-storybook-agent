@@ -19,6 +19,8 @@ def required_template(exercise: dict, title: str = '') -> str | None:
     if (re.search(r'\b(?:banner|papel picado|paper flag)\b',subject_text,re.I)
             and re.search(r'\b(?:design|draw|sketch|plan|create)\b',task,re.I)
             and re.search(r'\b(?:draw|sketch|cutouts?|cut-work|motifs?|symmetr\w*|fold|papel picado|paper flag)\b',subject_text,re.I)):
+        if re.search(r'\bright half\b',task,re.I) and re.search(r'left.{0,45}(?:reference|motifs)',task,re.I):
+            return 'banner_symmetry'
         return 'banner_plan'
     return None
 
@@ -26,7 +28,7 @@ def required_template(exercise: dict, title: str = '') -> str | None:
 def template_dimensions(kind: str) -> tuple[float,float]:
     """Reserve a full-width student surface rather than a thumbnail or an illustration frame."""
     if kind.endswith('_symmetry') and kind[:-9] in SUBJECTS:return 150,110
-    if kind=='banner_plan':return 168,95.2
+    if kind in {'banner_plan','banner_symmetry'}:return 168,95.2
     return 150,150/1.8
 
 
@@ -35,10 +37,12 @@ def on_template_drawing(prompt: str, kind: str | None = None) -> bool:
     if not isinstance(prompt,str):return False
     symmetry=re.search(r'^On (?:the )?blank right (?:side|half) of (?:the )?\w+(?: \w+){0,2} template\b',prompt,re.I)
     banner=re.search(r'^Plan your banner design in (?:the )?blank template\b',prompt,re.I)
-    matching=banner if kind=='banner_plan' else symmetry if kind and kind.endswith('_symmetry') else symmetry or banner
+    reference=(re.search(r'\btemplate\b',prompt,re.I) and re.search(r'\b(?:blank )?right half\b',prompt,re.I)
+               and re.search(r'left.{0,40}(?:reference|motifs)',prompt,re.I))
+    matching=(banner or reference) if kind in {'banner_plan','banner_symmetry'} else (symmetry or reference) if kind and kind.endswith('_symmetry') else symmetry or banner or reference
     return bool(matching
         and re.search(r'\b(?:mirror|copy|draw|sketch|complete)\b',prompt,re.I)
-        and not re.search(r'\b(?:write|explain|paragraph|sentences?|space below|practice)\b',prompt,re.I))
+        and not re.search(r'\b(?:write|explain|describe|compare|identify|name|list|record|calculate|count|how many|paragraph|sentences?|space below|practice)\b',prompt,re.I))
 
 
 def prepare_work_template(page: dict, config: dict, title: str = '') -> None:
@@ -65,6 +69,11 @@ def prepare_work_template(page: dict, config: dict, title: str = '') -> None:
         aid=next('work_template'+('_'+str(i) if i else '') for i in range(5) if 'work_template'+('_'+str(i) if i else '') not in used)
         chosen={'id':aid,'prompt':'Locally drawn student work template.'};images.append(chosen)
     chosen['local_template']=kind
+    if kind.endswith('_symmetry') and subject in SUBJECTS:
+        # A second, explicitly named reference for an exact copying task must
+        # show the same motifs as the work template, rather than unrelated AI art.
+        references=[a for a in candidates if a is not chosen and re.search(r'\breference\b',a['id'].replace('_',' '),re.I)]
+        if len(references)==1:references[0]['local_template']=subject+'_reference'
     # Keep the original art brief for provenance; it is never sent to Cloudflare.
     page['work_template']={'kind':kind,'asset_id':chosen['id']}
     parser=CanonicalTextContainers({});parser.feed(page['html']);parser.close()
@@ -101,7 +110,8 @@ def prepare_work_template(page: dict, config: dict, title: str = '') -> None:
         # Derive this marker locally; model-provided markers are cleared above.
         if (kind.endswith('_symmetry') or kind=='banner_plan') and on_template_drawing(prompt,kind):
             question['_template_response_asset']=chosen['id']
-        if kind.endswith('_symmetry') and re.search(r'\b(?:complete|finish)\b',prompt,re.I) and re.search(r'\bhalf\b',prompt,re.I):
+        if (kind.endswith('_symmetry') and not question.get('_template_response_asset')
+                and re.search(r'\b(?:complete|finish)\b',prompt,re.I) and re.search(r'\bhalf\b',prompt,re.I)):
             new=prompt
             if re.search(r'\b(?:complete|finish)\b[^.!?]{0,60}\bleft half\b',new,re.I):
                 new=re.sub(r'\b(left|right)\b',lambda m:'right' if m[1].lower()=='left' else 'left',new,flags=re.I)
@@ -157,10 +167,10 @@ def template_layout_recovery(page: dict, minimum_font: int, visual_area: float):
     """Reflow one work template without omitting canonical content or independent writing panels."""
     images=page.get('images')
     if not page.get('_recovery_config',{}).get('student_workbook'):return
-    if not isinstance(images,list) or not 1<=len(images)<=2 or sum(bool(a.get('local_template')) for a in images)!=1:return
+    if not isinstance(images,list) or not 1<=len(images)<=2 or sum(bool(a.get('local_template')) and not a['local_template'].endswith('_reference') for a in images)!=1:return
     yield from stacked_template_layout(page,minimum_font)
-    if len(images)!=1:return
     yield from integrated_template_layout(page,minimum_font)
+    if len(images)!=1:return
     from core.layout_recovery import single_illustration_recovery
     base=single_illustration_recovery(page,minimum_font,visual_area)
     if base is None:return
@@ -189,16 +199,15 @@ def stacked_template_layout(page: dict, minimum_font: int):
     from copy import deepcopy
     from core.page_contract import compile_exercise
     config=page.get('_recovery_config',{})
-    templates=[a for a in page['images'] if a.get('local_template')=='banner_plan']
+    templates=[a for a in page['images'] if a.get('local_template') in {'banner_plan','banner_symmetry'}]
     if len(templates)!=1:return
     try:
         checked=deepcopy(page);blocks={}
         prepare_work_template(checked,config,page.get('_recovery_title','Banner studio'))
         compile_exercise(checked,config,page.get('_recovery_title','Banner studio'),blocks_out=blocks)
-        if checked.get('_table_caption_ids'):return
         parser=CanonicalTextContainers({});parser.feed(checked['source_layout']);parser.close()
         if parser.stack:return
-        seen=[];assets=[]
+        seen=[];assets=[];tables=[];table_slots=set()
         def visit(node):
             """Reject independent prose, structured data and unnamed work surfaces."""
             if isinstance(node,str):
@@ -208,12 +217,19 @@ def stacked_template_layout(page: dict, minimum_font: int):
             attrs=dict(node['attrs']);slot=attrs.get('data-content')
             if slot:seen.append(slot);return
             if node['tag']=='img':assets.append(attrs.get('data-asset'));return
-            if node['tag'] in {'table','td','th','svg'}:raise ValueError('Keep data structure')
+            if node['tag']=='table':
+                from core.card_layout import content_slots,compact_card_node
+                owned=content_slots(node)
+                if not owned or any(not s.startswith('caption_') for s in owned) or re.search(r'<img\b',literal_html(node)):
+                    raise ValueError('Keep structured data relationships')
+                table_slots.update(owned);seen.extend(owned)
+                tables.append(literal_html(compact_card_node(node,minimum_font)));return
+            if node['tag'] in {'td','th','svg'}:raise ValueError('Keep data structure')
             if all(isinstance(c,str) and not c.strip() for c in node['children']) and re.search(r'(?:height|min-height|border)\s*:',attrs.get('style','')):
                 raise ValueError('Keep independent working surface')
             for child in node['children']:visit(child)
         for node in parser.root:visit(node)
-        asset=next(a for a in checked['images'] if a.get('local_template')=='banner_plan')
+        asset=next(a for a in checked['images'] if a.get('local_template') in {'banner_plan','banner_symmetry'})
         decorations=[a for a in checked['images'] if a['id']!=asset['id']]
         if sorted(assets)!=sorted(a['id'] for a in checked['images']) or len(seen)!=len(set(seen)) or not (set(blocks)-{'name','date'})<=set(seen):return
         exercise=checked['exercise']
@@ -228,7 +244,7 @@ def stacked_template_layout(page: dict, minimum_font: int):
         header+=slot_html('directions')
         width,height=template_dimensions(asset['local_template'])
         art=f'<img data-asset="{asset["id"]}" style="width:{width}mm;height:{height}mm;object-fit:contain;display:block;margin:0 auto"/>'
-        supporting=[s for s in seen if s not in {'title','name','date','directions'}|duplicate and not s.startswith('question_')]
+        supporting=[s for s in seen if s not in {'title','name','date','directions'}|duplicate|table_slots and not s.startswith('question_')]
         result=deepcopy(page);result['exercise']=deepcopy(exercise);result['_inline_source_labels']=True
         if decorations:
             # Keep the independent inspirational illustration beside the guide,
@@ -242,7 +258,7 @@ def stacked_template_layout(page: dict, minimum_font: int):
                     f'<td style="width:40mm;padding:0;vertical-align:top"><img data-asset="{decorations[0]["id"]}" '
                     'style="width:40mm;height:40mm;object-fit:contain"/></td></tr></table>')
             supporting=[]
-        result['html']=header+art+''.join(slot_html(s) for s in supporting)+''.join(slot_html('question_'+q['id']) for q in exercise['questions'])
+        result['html']=header+art+''.join(slot_html(s) for s in supporting)+''.join(tables)+''.join(slot_html('question_'+q['id']) for q in exercise['questions'])
         yield result
     except (ValueError,TypeError,KeyError,IndexError):return
 
@@ -285,8 +301,10 @@ def integrated_template_layout(page: dict, minimum_font: int):
 
         for node in parser.root:collect(node)
         if len(slots)!=len(set(slots)) or not (set(blocks)-{'name','date'})<=set(slots):return
-        image=page['images'][0]
-        if assets!=[image['id']]:return
+        image=next(a for a in checked['images'] if a['id']==checked['work_template']['asset_id'])
+        references=[a for a in checked['images'] if a['id']!=image['id']]
+        if sorted(assets)!=sorted(a['id'] for a in checked['images']):return
+        if any(a.get('local_template')!=image['local_template'].removesuffix('_symmetry')+'_reference' for a in references):return
         width,height=template_dimensions(image['local_template'])
         if width>150:return
         style=f'font-size:{minimum_font}pt;line-height:1.15;margin:0;padding:0'
@@ -296,6 +314,11 @@ def integrated_template_layout(page: dict, minimum_font: int):
         header=f'<h1 data-content="title" style="font-size:{minimum_font+3}pt;line-height:1.15;color:#8B3213;background-color:#FFF2DF;margin:0 0 1mm;padding:1mm"></h1>'
         header+=' '.join(f'<span data-content="{s}" style="{style}"></span>' for s in ('name','date') if s in slots)
         header+=container('directions')
+        if references:
+            header=('<table style="width:186mm;table-layout:fixed;border-collapse:collapse"><tr>'
+                f'<td style="width:40mm;padding:0 2mm 0 0;vertical-align:top"><img data-asset="{references[0]["id"]}" '
+                'style="width:38mm;height:27.8667mm;object-fit:contain"/></td>'
+                '<td style="vertical-align:top;padding:0">'+header+'</td></tr></table>')
         supporting=[s for s in slots if s not in {'title','name','date','directions'} and not s.startswith('question_')]
         body=(f'<table style="width:186mm;table-layout:fixed;border-collapse:collapse"><tr>'
               f'<td style="width:{width}mm;vertical-align:top;padding:0"><img data-asset="{image["id"]}" style="width:{width}mm;height:{height}mm;object-fit:contain"/></td>'

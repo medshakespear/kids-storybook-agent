@@ -1,0 +1,100 @@
+{
+  "config": {
+    "content_review_batch_size": 3,
+    "context_caption_limit": 24,
+    "extended_response_mm": 50,
+    "items_per_page": 2,
+    "max_operand": 100,
+    "max_result": 1000,
+    "minimum_response_mm": 35,
+    "minimum_response_width_mm": 150,
+    "minimum_text_pt": 12,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "purposeful_activity_layout": false,
+    "stimulus_limit": 8,
+    "student_font_pt": 12,
+    "student_workbook": true,
+    "table_caption_limit": 36,
+    "visual_area_mm2": 8000
+  },
+  "title": "Papel Picado Geometry and Design",
+  "page": {
+    "exercise": {
+      "captions": [
+        {
+          "id": "fig1",
+          "text": "Blank template with center fold guide and left reference motifs"
+        },
+        {
+          "id": "th_step",
+          "text": "Design Step"
+        },
+        {
+          "id": "th_geom",
+          "text": "Geometric Rule"
+        },
+        {
+          "id": "td_1a",
+          "text": "1. Fold"
+        },
+        {
+          "id": "td_1b",
+          "text": "Crease banner along the vertical center axis"
+        },
+        {
+          "id": "td_2a",
+          "text": "2. Mirror"
+        },
+        {
+          "id": "td_2b",
+          "text": "Copy left motifs exactly across the fold line"
+        },
+        {
+          "id": "td_3a",
+          "text": "3. Balance"
+        },
+        {
+          "id": "td_3b",
+          "text": "Maintain equal spacing for all cutout shapes"
+        }
+      ],
+      "directions": "Study the folding guide and table below. Complete the blank right half of the banner template using precise symmetrical drawing.",
+      "goal": "Apply principles of symmetry and geometric patterning to design traditional festive paper banners.",
+      "mechanic": "design",
+      "questions": [
+        {
+          "answer": "Accept student drawings showing correct horizontal reflection of left motifs across the center fold line with balanced spacing.",
+          "id": "1",
+          "prompt": "Examine the left reference motifs on the banner template. Complete the right half by drawing mirror-image marigold flowers and geometric diamond cutouts that align perfectly across the center fold line.",
+          "space_mm": 50
+        },
+        {
+          "answer": "Mirroring shapes ensures visual harmony and allows the paper banner to unfold with a symmetrical pattern.",
+          "id": "2",
+          "prompt": "Explain in one sentence how mirroring shapes helps create a balanced papel picado design for Day of the Dead decorations.",
+          "space_mm": 50
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": [
+        {
+          "id": "banner_guide",
+          "label": "Banner Design Guide",
+          "text": "Papel picado artisans use folding and symmetry to create intricate celebration banners. Each cutout on the left must be mirrored accurately onto the right half so the design remains balanced when unfolded."
+        }
+      ]
+    },
+    "html": "<div style=\"width: 186mm; box-sizing: border-box; font-family: &#x27;Helvetica Neue&#x27;, Helvetica, Arial, sans-serif; color: #2C221E; background-color: #FFFDF9; padding: 2mm;\"><div style=\"display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #E05A37; padding-bottom: 1mm; margin-bottom: 1mm;\"><h1 data-content=\"title\" style=\"font-size: 15pt; font-weight: 700; color: #D34E24; margin: 0;\"></h1><div style=\"font-size: 12pt; color: #665C54;\"><span data-content=\"name\"></span></div></div><p data-content=\"directions\" style=\"font-size: 12pt; font-weight: 600; color: #2C221E; margin: 0 0 1mm 0; line-height: 1.1;\"></p><div style=\"display: flex; gap: 3mm; margin-bottom: 1mm; align-items: flex-start;\"><div style=\"flex: 1.3;\"><img data-asset=\"banner_template\" style=\"background-color: #FAF5EE; border: 2px dashed #C85A32; border-radius: 4px; display: block;;width:168mm;height:95.2mm;object-fit:contain\"><div style=\"font-size: 12pt; text-align: center; color: #786C63; margin-top: 0.5mm;\"><span data-content=\"caption_fig1\"></span></div></div><div style=\"flex: 1; display: flex; flex-direction: column; gap: 1mm;\"><div style=\"background-color: #FDF3E7; border-left: 4px solid #E05A37; padding: 1.5mm; border-radius: 2px;\"><span data-content=\"stimulus_banner_guide\" style=\"font-size: 12pt; line-height: 1.1; color: #3A2E2B;\"></span></div><table style=\"width: 100%; border-collapse: collapse; font-size: 12pt;\"><thead ><tr style=\"background-color: #E05A37; color: #FFFFFF;\"><th style=\"padding: 1.5mm; border: 1px solid #D34E24; text-align: left;\" data-content=\"caption_th_step\"></th><th style=\"padding: 1.5mm; border: 1px solid #D34E24; text-align: left;\" data-content=\"caption_th_geom\"></th></tr></thead><tbody ><tr ><td style=\"padding: 1.5mm; border: 1px solid #E6DCD0;\" data-content=\"caption_td_1a\"></td><td style=\"padding: 1.5mm; border: 1px solid #E6DCD0;\" data-content=\"caption_td_1b\"></td></tr><tr ><td style=\"padding: 1.5mm; border: 1px solid #E6DCD0;\" data-content=\"caption_td_2a\"></td><td style=\"padding: 1.5mm; border: 1px solid #E6DCD0;\" data-content=\"caption_td_2b\"></td></tr><tr ><td style=\"padding: 1.5mm; border: 1px solid #E6DCD0;\" data-content=\"caption_td_3a\"></td><td style=\"padding: 1.5mm; border: 1px solid #E6DCD0;\" data-content=\"caption_td_3b\"></td></tr></tbody></table></div></div><div style=\"margin-bottom: 1mm;\"><div data-content=\"question_1\"></div></div><div ><div data-content=\"question_2\"></div></div></div>",
+    "images": [
+      {
+        "id": "banner_template",
+        "prompt": "Clean vector line art of a rectangular papel picado banner template divided by a center fold line, featuring marigold flowers and geometric star motifs on the left side and a blank white right side for symmetry practice, warm cream background."
+      }
+    ]
+  }
+}

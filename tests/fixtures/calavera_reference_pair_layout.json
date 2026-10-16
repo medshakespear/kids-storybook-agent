@@ -1,0 +1,65 @@
+{
+  "config": {
+    "content_review_batch_size": 3,
+    "context_caption_limit": 24,
+    "extended_response_mm": 50,
+    "items_per_page": 2,
+    "max_operand": 100,
+    "max_result": 1000,
+    "minimum_response_mm": 35,
+    "minimum_response_width_mm": 150,
+    "minimum_text_pt": 12,
+    "operations": [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    "purposeful_activity_layout": false,
+    "stimulus_limit": 8,
+    "student_font_pt": 12,
+    "student_workbook": true,
+    "table_caption_limit": 36,
+    "visual_area_mm2": 8000
+  },
+  "title": "Calavera Symmetry: Blank Skull Template",
+  "page": {
+    "exercise": {
+      "captions": [],
+      "directions": "Study the decorative reference motifs on the left. Use the center line as a mirror guide to draw and complete the symmetrical patterns on the blank right half of the calavera.",
+      "goal": "Demonstrate line symmetry by analyzing reference motifs and completing the missing decorative half of a calavera mask.",
+      "mechanic": "investigate",
+      "questions": [
+        {
+          "answer": "Student accurately mirrors corresponding floral and geometric motifs across the central vertical axis.",
+          "id": "1",
+          "prompt": "Examine the intricate floral and geometric patterns on the left reference skull. Carefully mirror these exact shapes, petals, and lines onto the blank right half of the template.",
+          "space_mm": 50
+        },
+        {
+          "answer": "There are 8 marigold flowers on the entire finished mask in total.",
+          "calculation": {
+            "answer": "8",
+            "expression": "2*4"
+          },
+          "id": "2",
+          "prompt": "If a complete calavera design requires 4 marigold flowers on the left cheek and you mirror them, how many marigold flowers appear on the entire finished mask in total?",
+          "space_mm": 50
+        }
+      ],
+      "render_mode": "authored",
+      "stimuli": []
+    },
+    "html": "<div style=\"font-family:sans-serif;max-width:186mm;margin:0 auto;color:#2b2b2b;\"><h1 data-content=\"title\" style=\"font-size:20pt;color:#d95d11;text-align:center;margin-bottom:4mm;\"></h1><p data-content=\"name\" style=\"font-size:12pt;font-weight:bold;margin:2mm 0;\">Name: ______________________</p><p data-content=\"directions\" style=\"font-size:12pt;line-height:1.4;margin-bottom:6mm;\"></p><div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:6mm;\"><div style=\"width:90mm;\"><img data-asset=\"skull_reference\" style=\"width:90mm;height:110mm;object-fit:contain;border:1px solid #d95d11;border-radius:4px;\"></div><div style=\"width:90mm;\"><img data-asset=\"skull_blank\" style=\"border:1px solid #2b2b2b;border-radius:4px;background-color:#fff9f5;;width:150mm;height:110mm;object-fit:contain\"></div></div><div data-content=\"question_1\" style=\"margin-bottom:4mm;\"></div><div data-content=\"question_2\"></div></div>",
+    "images": [
+      {
+        "id": "skull_reference",
+        "prompt": "Detailed traditional Mexican calavera mask illustration featuring intricate marigold flower motifs, geometric scrollwork, and symmetrical patterns on the left side, warm marigold orange, rich magenta, deep indigo, leaf green, chalk white background."
+      },
+      {
+        "id": "skull_blank",
+        "prompt": "A clean black outline of a blank calavera sugar skull viewed from the front with a vertical dashed center line guide for symmetry practice, no shading, high contrast vector line art on a clean white background."
+      }
+    ]
+  }
+}

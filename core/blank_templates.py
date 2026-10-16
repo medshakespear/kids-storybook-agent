@@ -41,10 +41,15 @@ import math
 def _template_png(kind: str) -> bytes:
     """Draw work surfaces locally; every unfinished right half stays free of example motifs."""
     from core.work_templates import SUBJECTS
+    if kind.endswith('_reference') and kind[:-10] in SUBJECTS:
+        from PIL import ImageOps
+        original=Image.open(io.BytesIO(_template_png(kind[:-10]+'_symmetry'))).convert('RGB')
+        original.paste(ImageOps.mirror(original.crop((0,0,900,1320))),(900,0))
+        output=io.BytesIO();original.save(output,format='PNG',dpi=(300,300));return output.getvalue()
     symmetry=kind.endswith('_symmetry') and kind[:-9] in SUBJECTS
-    if not symmetry and kind not in {'blanket','pumpkin_face','pattern_grid','banner_plan'}:
+    if not symmetry and kind not in {'blanket','pumpkin_face','pattern_grid','banner_plan','banner_symmetry'}:
         raise ValueError('Unsupported blank template')
-    size=(1800,1320) if symmetry else (1800,1020) if kind=='banner_plan' else (1800,1000)
+    size=(1800,1320) if symmetry else (1800,1020) if kind in {'banner_plan','banner_symmetry'} else (1800,1000)
     image=Image.new('RGB',size,'white');draw=ImageDraw.Draw(image);ink='#344454'
     if symmetry:
         subject=kind[:-9]
@@ -115,8 +120,18 @@ def _template_png(kind: str) -> bytes:
         image.paste(layer,(0,0),mask)
         draw=ImageDraw.Draw(image)
         for y in range(35,1290,30):draw.line((900,y,900,y+15),fill='#9AA8B2',width=3)
-    elif kind=='banner_plan':
+    elif kind in {'banner_plan','banner_symmetry'}:
         draw.rectangle((120,120,1680,900),outline=ink,width=8)
+        if kind=='banner_symmetry':
+            # Reference motifs belong to the left half only. Diamonds and a
+            # marigold provide exact repeatable shapes, never AI counting data.
+            for cx,cy in ((430,340),(600,700)):
+                for i in range(8):
+                    angle=2*math.pi*i/8;x=cx+65*math.cos(angle);y=cy+65*math.sin(angle)
+                    draw.ellipse((x-26,y-26,x+26,y+26),outline=ink,width=6)
+                draw.ellipse((cx-20,cy-20,cx+20,cy+20),outline=ink,width=6)
+            for cx,cy in ((690,340),(350,680)):
+                draw.polygon([(cx,cy-65),(cx+45,cy),(cx,cy+65),(cx-45,cy)],outline=ink,width=7)
         for y in range(140,880,36):draw.line((900,y,900,y+18),fill='#9AA8B2',width=3)
     elif kind=='pumpkin_face':
         draw.rounded_rectangle((855,65,945,230),radius=20,outline=ink,width=7)

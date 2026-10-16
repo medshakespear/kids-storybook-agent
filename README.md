@@ -690,6 +690,14 @@ exactly identifies declared artwork and no computed mechanism is specified.
 Unknown/conflicting references and duplicate images remain errors. Exact-visual
 errors now list missing, undeclared and repeated IDs to make diagnosis precise.
 
+Half-banner copying activities use a local symmetry template with marigold and
+diamond motifs on the left and an undecorated right half. An explicitly named
+reference skull paired with a half-skull work surface is drawn from the same
+local motif source, so students are never asked to copy unrelated AI artwork.
+Explicit reference-copying tasks use the template as their drawing response;
+calculation and explanation questions retain separate handwriting space.
+Banner reflow retains real design-rule tables with their rows and columns intact.
+
 Authored pages with unbound contextual prose receive a text-binding repair rather
 than an HTML-only repair. A complete existing explanatory paragraph can become
 `exercise.passage`; it is not shortened into a 120-character caption. Existing

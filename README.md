@@ -538,6 +538,18 @@ then compare those independent solutions and the sources with every clause of th
 key. Insufficient source evidence, grade mismatch or a conflicting key triggers
 one scoped content repair and a fresh review of affected pages. Local checks also
 flag student classification tables whose response/reason cells reveal categories.
+Simple written activities also consolidate exact duplicate source bodies when no
+question needs their separate identities. Distinct accounts, comparison pairs,
+referenced source labels, data-table relationships, images and writing surfaces
+are preserved. Redundant answer-like source headings are removed only when their
+complete wording is already retained in the reading. Safe local cleanup makes
+source/table references independent of left/right/above/below placement, and a
+quoted vocabulary target is called the word rather than falsely called underlined.
+Positive FACT/TRUE answers cannot use a named detail absent from the supplied
+reading as textual evidence. The content review also checks complete supporting
+quotations, distinct question purposes, historical sequence cues and fictional
+labels on invented arithmetic scenarios involving historical figures. These
+changes apply to newly generated books; existing PDFs are not rewritten.
 AI image review remains disabled. No additional API provider or key is needed.
 The content review checks for unsolvable tasks, incorrect keys, repeated activities,
 cultural generalizations and fabricated primary sources. Invented source excerpts

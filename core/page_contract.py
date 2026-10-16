@@ -338,6 +338,9 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     validate_brief(exercise)
     from core.student_workbook import check_activity
     check_activity(exercise,config)
+    from core.simple_sources import prepare_simple_sources,neutralize_layout_references
+    prepare_simple_sources(page,exercise,config)
+    neutralize_layout_references(page,exercise,config)
     from core.reading_bindings import declare_reading_headings
     declare_reading_headings(page['html'],exercise,config)
     from core.maze_intent import is_statement_maze
@@ -425,6 +428,10 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
             or exercise.get('stimuli') or re.search(r'\bdata-content\s*=\s*[\'\"]stimulus_',page['html'])):
         from core.activity_stimuli import prepare_stimuli, stimulus_capacity
         stimuli = prepare_stimuli(page,exercise)
+        # Long source-like captions may just have migrated into stimuli. Apply
+        # the same exact-copy cleanup before source capacity and block binding.
+        prepare_simple_sources(page,exercise,config)
+        stimuli = exercise.get('stimuli',[])
         limit = stimulus_capacity(config)
         if len(stimuli)>limit:
             raise ValueError(f'Use at most {limit} short source/scenario blocks per activity; keep the combined text within the single-page budget')

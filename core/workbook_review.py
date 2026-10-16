@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 
 from core.task_visuals import answer_text
-from core.workbook_checks import classification_leaks,printed_words
+from core.workbook_checks import classification_leaks,printed_words,unsupported_fact_claims
 
 
 def blind_pages(pages: list[dict]) -> list[dict]:
@@ -114,12 +114,22 @@ def review_varied_pack(pack: dict, ask, repair, batch_size: int = 3) -> None:
                 'Use ONLY their printed sources and questions. Never fill gaps from artwork or prior knowledge. '
                 'If two sources do not support two shared details, flag source_support=false instead of inventing them. '
                 'Vocabulary questions must refer to the actual objects and words in the passage. '
+                'An exact quotation must support the ENTIRE statement, including each named location '
+                'and date. A passage saying Tanzania does not prove a particular named park. '
+                'Do not supply missing details from your own historical knowledge. '
+                'Check that two questions require different details or reasoning, rather than asking '
+                'the same purpose/contribution twice. Headings must not pre-answer the task. '
+                'Historical sequencing needs printed dates or clear time relationships establishing '
+                'the intended order, not an unstated guessed timeline. '
                 'Solve all mathematics independently, checking operation, units and explicit rounding. '
                 'Use the same printed card letters for sequences. For open questions give a concrete criterion. '
                 'Check grade_match against this guidance: '+exercise_guidance(pack['grade_band'])+' '
                 'Check source_accuracy and whether the source/text table gives away student answers. '
                 'Flag unsupported safety guarantees, false science, unattributed fictional quotes, '
                 'or cultural generalizations. Sources labeled fictional still need internally consistent information. '
+                'Invented arithmetic scenarios about a real historical person must be labeled fictional '
+                'or replaced with clearly fictional participants; never present practice kit/book counts '
+                'as established biographical facts without supplied attribution. '
                 'Do not inspect image pixels. Return page_number, source_accuracy, no_answer_leak, reason, '
                 'issues and question_checks with id, source_support, skill_match, grade_match, solution, reason. '
                 'Activities:\n'+json.dumps(public))
@@ -128,7 +138,8 @@ def review_varied_pack(pack: dict, ask, repair, batch_size: int = 3) -> None:
             prompt=('Compare the existing answer keys with these independently obtained solutions and '
                 'the actual printed sources. Do not assume the authored key is correct. Check EVERY clause '
                 'of every answer, not just its numeric value. An answer must not invent shared traditions, '
-                'objects, locations, events or explanations absent from the source. If the source is insufficient, '
+                'objects, locations, events or explanations absent from the source. '
+                'Check exact meanings: developing uses FOR crops does not mean creating those crops. If the source is insufficient, '
                 'repair the question/source together; do not invent a plausible answer. A numeric calculation '
                 'must solve the printed word problem. Use printed card letters in sequence keys. '
                 'A fact/opinion reasoning column must not reveal the requested classification. '
@@ -141,7 +152,8 @@ def review_varied_pack(pack: dict, ask, repair, batch_size: int = 3) -> None:
                 5000,response_schema=review_schema(pages))
             for page in pages:
                 n=page['page_number']
-                issues=verdict[n]+independent['required_issues'][n]+classification_leaks(pack['pages'][n-1])
+                issues=(verdict[n]+independent['required_issues'][n]+classification_leaks(pack['pages'][n-1])
+                        +unsupported_fact_claims(pack['pages'][n-1]))
                 if issues:failed[n]=list(dict.fromkeys(issues))
         if not failed:
             pack['content_checks']={'status':'passed','pages':len(pack['pages']),'repair_rounds':attempt,

@@ -48,3 +48,28 @@ def classification_leaks(page: dict) -> list[str]:
 
     for node in parser.root:visit(node)
     return list(dict.fromkeys(issues))
+
+
+def unsupported_fact_claims(page: dict) -> list[str]:
+    """Catch an asserted factual quoted claim naming entities absent from its evidence.
+
+    This narrow check does not fact-check history or reject valid false-statement
+    corrections. A positively classified FACT/TRUE claim cannot ask for textual
+    proof of a named place/person that the retained reading never mentions.
+    """
+    exercise=page.get('exercise',{})
+    source=' '.join([str(exercise.get('passage',''))]+
+        [str(s.get('text','')) for s in exercise.get('stimuli',[]) if isinstance(s,dict)]+
+        [str(c.get('text','')) for c in exercise.get('captions',[]) if isinstance(c,dict)])
+    source=' '.join(source.split()).casefold();issues=[]
+    for q in exercise.get('questions',[]):
+        if not isinstance(q,dict):continue
+        prompt=str(q.get('prompt',''));answer=str(q.get('answer',''))
+        if not (re.search(r'\b(?:supporting text|evidence|based on|according to|from the passage|from the text)\b',prompt,re.I)
+                and re.match(r'^\s*(?:classification\s*:\s*)?(?:fact|true)\b',answer,re.I)):continue
+        claims=re.findall(r'[\x27\"‘“]([^\x27\"’”]{20,})[\x27\"’”]',prompt)
+        for claim in claims:
+            for entity in re.findall(r'\b(?:[A-Z][a-z]+\s+){1,5}[A-Z][a-z]+\b',claim):
+                if ' '.join(entity.split()).casefold() not in source:
+                    issues.append(f'Question {q.get("id")}: the key classifies a claim as FACT/TRUE, but its named detail {entity!r} is absent from the reading. Remove the unsupported detail or supply verified source evidence; do not invent a supporting quote.')
+    return list(dict.fromkeys(issues))

@@ -191,6 +191,9 @@ def source_markup(source: dict, text: str, config: dict, *, external_label: bool
     body=text
     if text.casefold().startswith(label.casefold()+':'):
         body=text[len(label)+1:].lstrip()
+    elif config.get('simple_exercises_only') and re.fullmatch(
+            r'(?:source|card|lab note|reading source|library text|card text|leader bio)(?:\s+[A-Z0-9])?',label,re.I):
+        body=re.sub(r'^'+re.escape(label)+r'\s+(?=[A-Z])','',text,count=1)
     if external_label: return html.escape(body)
     return '<strong>'+html.escape(label)+'</strong>'+(' ' if inline_label else '<br/>')+html.escape(body)
 

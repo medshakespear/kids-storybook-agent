@@ -1,4 +1,6 @@
 """Restore declared reading content and neutral source labels in student-authored layouts."""
+import re
+
 from core.content_binding import CanonicalTextContainers,canonical_content_slot
 from core.print_grid import literal_html
 
@@ -56,6 +58,45 @@ def declare_reading_headings(markup: str, exercise: dict, config: dict) -> None:
 
     visit(parser.root)
     if captions:exercise['captions']=captions
+
+
+def normalize_passage_alias(markup: str, blocks: dict, exercise: dict, config: dict) -> str:
+    """Bind one source-named body to the sole unused canonical passage, losslessly.
+
+    Never guess among source records, overwrite conflicting evidence, consume
+    graphics/workspaces, or reinterpret a heading as a reading body. A bare ID
+    of an explicitly declared stimulus is handled separately by canonical slots.
+    """
+    if (not config.get('student_workbook') or exercise.get('render_mode')!='authored'
+            or not blocks.get('passage') or any(k.startswith('stimulus_') for k in blocks)):
+        return markup
+    parser=CanonicalTextContainers(blocks);parser.feed(markup);parser.close()
+    if parser.stack:return markup
+    references=[];candidates=[]
+    def visit(node,inside=False):
+        """Inspect only whole outer text slots; nested content remains protected."""
+        if isinstance(node,str) or 'comment' in node:return
+        raw=dict(node['attrs']).get('data-content')
+        slot=canonical_content_slot(raw,blocks)
+        if slot:references.append(slot)
+        if (not inside and isinstance(raw,str) and slot not in blocks
+                and re.fullmatch(r'source_[a-z0-9_]{1,24}',raw)
+                and not re.search(r'_(?:label|heading|title)$',raw)):
+            candidates.append(node)
+        for child in node['children']:visit(child,inside or bool(raw))
+    for node in parser.root:visit(node)
+    if 'passage' in references or len(candidates)!=1:return markup
+    node=candidates[0]
+    if node['tag'] not in {'p','div','section','span'}:return markup
+    pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
+    if any(piece is None for piece in pieces):return markup
+    printed=' '.join(''.join(pieces).split()).casefold()
+    if printed and printed!=parser.text_blocks['passage']:return markup
+    # Keep the original container and all layout attributes. Its body is either
+    # empty or a complete redundant copy of the canonical reading.
+    node['attrs']=[(k,'passage' if k=='data-content' else v) for k,v in node['attrs']]
+    node['children']=[]
+    return ''.join(literal_html(n) for n in parser.root)
 
 
 def restore_reading_slots(markup: str, blocks: dict, exercise: dict, config: dict) -> str | None:

@@ -619,6 +619,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         from core.creative_layout import clean_style
         page['html'] = normalize_image_dimensions(page['html'],page_visuals(page),config.get('visual_area_mm2',6500),
             lambda style:clean_style(style,config.get('minimum_text_pt',11)))
+    from core.reading_bindings import normalize_passage_alias
+    page['html']=normalize_passage_alias(page['html'],blocks,exercise,config)
     layout = page['html']
     from core.label_bindings import restore_declared_labels
     if config.get('student_workbook'):

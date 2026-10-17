@@ -32,10 +32,11 @@ def metadata_nodes(fields: tuple[str, str]) -> list:
 
 
 def canonical_content_slot(slot: str | None, blocks: dict) -> str | None:
-    """Resolve unique declared caption aliases without inventing missing source text."""
+    """Resolve unique declared caption/source aliases without inventing missing text."""
     if isinstance(slot,str) and slot not in blocks:
         matches=[]
         if 'caption_'+slot in blocks: matches.append('caption_'+slot)
+        if 'stimulus_'+slot in blocks: matches.append('stimulus_'+slot)
         if slot.startswith('stimulus_'):
             bare=slot
             while bare.startswith('stimulus_'): bare=bare[len('stimulus_'):]

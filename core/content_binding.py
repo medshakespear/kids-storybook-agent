@@ -234,7 +234,20 @@ class CanonicalTextContainers(HTMLParser):
             # bindings. Only replace own wording if it is empty or an exact copy.
             pieces = [self.plain_text(child) for child in node['children']]
             own = ' '.join(''.join(p for p in pieces if p is not None).split()).casefold()
-            if not own or own == self.text_blocks[block]:
+            # A complete canonical run may sit beside other retained text and
+            # protected nodes. Isolate that whole run rather than consuming the
+            # sibling captions, artwork or writing panels inside a filled slot.
+            exact_runs=[i for i,piece in enumerate(pieces) if piece is not None
+                        and ' '.join(piece.split()).casefold()==self.text_blocks[block]]
+            if own and own!=self.text_blocks[block] and len(exact_runs)==1:
+                index=exact_runs[0];children=list(node['children']);child=children[index]
+                if isinstance(child,str):
+                    children[index]={'tag':'span','attrs':[('data-content',block)],'children':[]}
+                else:
+                    children[index]=dict(child,attrs=list(child['attrs'])+[('data-content',block)],children=[])
+                attrs=[(k,v) for k,v in attrs if k!='data-content']
+                node=dict(node,attrs=attrs,children=children);block=None
+            elif not own or own == self.text_blocks[block]:
                 attrs = [(k,v) for k,v in attrs if k != 'data-content']
                 children = []; inserted = False
                 for child, piece in zip(node['children'], pieces):

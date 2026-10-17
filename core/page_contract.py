@@ -622,10 +622,11 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     from core.reading_bindings import normalize_passage_alias
     page['html']=normalize_passage_alias(page['html'],blocks,exercise,config)
     layout = page['html']
-    from core.label_bindings import restore_declared_labels
+    from core.label_bindings import restore_declared_labels,restore_declared_card_group
     if config.get('student_workbook'):
         layout = bind_formatted_canonical_text(layout,blocks,separate_protected=True)
         layout = restore_declared_labels(layout,blocks,exercise,config)
+        layout = restore_declared_card_group(layout,blocks,exercise,config)
     bound_layout = bind_formatted_canonical_text(layout,blocks,separate_protected=bool(config.get('student_workbook')))
     from core.reading_bindings import restore_reading_slots,restore_source_slots
     prior_sources=bound_layout

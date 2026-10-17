@@ -36,15 +36,22 @@ def requires_exact_differences(page: dict) -> bool:
     text_targets=r'\b(?:facts?|opinions?|claims?|statements?|arguments?|passages?|texts?|accounts?|perspectives?|reports?|sources?|definitions?|evidence|wording|sentences?|descriptions?|viewpoints?|ideas?|numbers?|amounts?|totals?|prices?|measurements?|temperatures?)\b'
     picture_target=r'^\s*(?:between|in|among|on)\s+(?:(?:the|these|those|two|both|top|bottom|first|second|following|original|changed|pair\s+of)\s+){0,5}(?:pictures?|images?|illustrations?|drawings?|scenes?|photos?|photographs?|objects?|symbols?|shapes?)\b'
     numeric_target=r'^\s*(?:between|of)\s+[-−]?\d+(?:\.\d+)?\s+(?:and|versus|vs\.?)\s+[-−]?\d+(?:\.\d+)?\b'
-    for instruction in printed_instructions(page):
+    instructions=printed_instructions(page)
+    written_cards=bool(page.get('exercise_binding') and isinstance(page.get('exercise'),dict)
+                       and (page['exercise'].get('stimuli') or page['exercise'].get('passage')))
+    for instruction in instructions:
         for clause in re.split(r'[!?;\n]+|(?<!\d)\.|\.(?!\d)',instruction):
             for match in re.finditer(action,clause,re.I):
                 target=clause[match.end():]
                 if re.search(picture_target,target,re.I): return True
                 comparison=re.split(r'\b(?:then|and\s+(?:explain|write|tell|record|justify|draw|color|colour|answer))\b',target,maxsplit=1,flags=re.I)[0]
                 textual=(re.match(r'^\s*(?:between|in|among|of|across)\b',comparison,re.I)
-                         and re.search(text_targets,comparison,re.I))
-                if textual or re.search(numeric_target,target,re.I):
+                         and (re.search(text_targets,comparison,re.I) or re.search(r'\b(?:written|printed|source)\s+cards?\b',comparison,re.I)))
+                conceptual=(re.match(r'^\s*(?:between|in|among|across)\b',comparison,re.I)
+                            and re.search(r'\b(?:customs?|traditions?|celebrations?|practices?)\b',comparison,re.I)
+                            and not re.search(r'\b(?:pictures?|images?|illustrations?|drawings?|scenes?|photos?)\b',comparison,re.I))
+                labeled_cards=(written_cards and re.match(r'^\s*(?:between|in|among)\s+(?:(?:the|these|two|both|written|printed)\s+)*(?:cards?\b|(?:Card\s+)?[A-H]\s+(?:and|versus|vs)\s+(?:Card\s+)?[A-H]\b)',comparison,re.I))
+                if textual or conceptual or labeled_cards or re.search(numeric_target,target,re.I):
                     continue
                 return True  # A generic picture-change task needs the exact component too.
     return False

@@ -88,3 +88,51 @@ def restore_declared_labels(markup: str, blocks: dict, exercise: dict, config: d
                 ('style', f"font-size:{config.get('minimum_text_pt',12)}pt;line-height:1.2;margin:0 0 2mm")], 'children': []})
             used.add(slot)
     return ''.join(literal_html(node) for node in parser.root)
+
+
+def restore_declared_card_group(markup: str, blocks: dict, exercise: dict, config: dict) -> str:
+    """Restore a complete omitted c1..cN text-card group before the student questions.
+
+    Only simple written workbooks qualify. Retain every existing caption verbatim;
+    never infer diagram labels, missing text, categories, answers or new tasks.
+    Partial groups and short unattached labels still need an explicit layout repair.
+    """
+    if not config.get('simple_exercises_only') or exercise.get('render_mode')!='authored':return markup
+    captions=exercise.get('captions',[])
+    if not isinstance(captions,list):return markup
+    cards=[c for c in captions if isinstance(c,dict) and re.fullmatch(r'c[1-8]',str(c.get('id','')))]
+    if not 4<=len(cards)<=8 or {c['id'] for c in cards}!={f'c{i}' for i in range(1,len(cards)+1)}:return markup
+    if not re.search(r'\b(?:match\w*|classif\w*|sort\w*|categor\w*|fact|opinion|sequence|order\w*)\b',
+                     str(exercise.get('mechanic','')).replace('_',' ')+' '+str(exercise.get('directions','')),re.I):return markup
+    from core.authored_wording import instruction_start
+    for c in cards:
+        text=c.get('text')
+        if (not isinstance(text,str) or not 12<=len(text.strip())<=120 or not re.search(r'[a-z]\s+[a-z]',text,re.I)
+                or instruction_start(text) or 'caption_'+c['id'] not in blocks):return markup
+    parser=CanonicalTextContainers(blocks);parser.feed(markup);parser.close()
+    if parser.stack:return markup
+    used=set();assets=set();paths=[]
+    def visit(children,path=(),parent=None,inside=False):
+        """Find a normal-flow insertion point outside filled fields and narrow cells."""
+        for index,node in enumerate(children):
+            if isinstance(node,str) or 'comment' in node:continue
+            attrs=dict(node['attrs']);slot=canonical_content_slot(attrs.get('data-content'),blocks)
+            if slot:used.add(slot)
+            if attrs.get('data-asset'):assets.add(attrs['data-asset'])
+            ancestry=path+((children,index,parent),)
+            if not inside and slot and slot.startswith('question_'):paths.append(ancestry)
+            visit(node['children'],ancestry,node['tag'],inside or bool(slot))
+    visit(parser.root)
+    if any('caption_'+c['id'] in used or c['id'] in assets for c in cards) or not paths:return markup
+    anchor=next(((children,index) for children,index,parent in reversed(paths[0]) if parent in {None,'div','section'}),None)
+    if anchor is None:return markup
+    font=config.get('minimum_text_pt',12)
+    rows=[]
+    for offset in range(0,len(cards),2):
+        cells=[{'tag':'td','attrs':[('style','padding:2mm;vertical-align:top;border:0.3mm solid #A8C8CE')],
+            'children':[{'tag':'p','attrs':[('data-content','caption_'+card['id']),
+                ('style',f'font-size:{font}pt;line-height:1.2;margin:0')],'children':[]}]} for card in cards[offset:offset+2]]
+        rows.append({'tag':'tr','attrs':[],'children':cells})
+    table={'tag':'table','attrs':[('style','width:180mm;table-layout:fixed;border-collapse:collapse;margin:0 0 2mm')],'children':rows}
+    children,index=anchor;children.insert(index,table)
+    return ''.join(literal_html(node) for node in parser.root)

@@ -730,6 +730,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                                   ('Design overflow:', 'Design content extends outside printable bounds:', 'Visuals are too small', 'Exact visual labels would be too small',
                                    'Put ALL printed wording', 'Unknown or repeated exercise content slot',
                                    'Bind this entire text container', 'Use a complete data-content slot',
+                                   'Prefilled content slots may contain only text/formatting',
                                    'Use a simple 1-4 equal-column grid', 'Printable grid',
                                    'Exercise layout tags must be balanced',
                                    'Use every required exercise content slot')))):

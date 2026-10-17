@@ -19,7 +19,7 @@ def exercise_guidance(grade_band: str) -> str:
         'Ask one clear action per question, normally one/two sentences to answer. All needed '
         'information must be printed, with one unambiguous answer or a concrete open-answer criterion. '
         'No drawing, templates, tracing, coloring, crafting, cutting, folding, mirroring, design '
-        'projects, construction or hands-on activities. No geometric puzzles or image-dependent '
+        'projects, construction or hands-on activities. No picture spot-the-difference puzzles: use comparisons of supplied written sources instead. No geometric puzzles or image-dependent '
         'answers. Illustrations are context only; never ask students to count, copy or measure '
         'their contents. The title/theme may mention a craft, but the student work must remain '
         'reading, writing or mathematics. Keep language accessible for the selected grade; '
@@ -80,6 +80,10 @@ def check_simple_activity(exercise: dict, *, planning: bool = False) -> None:
     texts=([exercise.get('learning_goal',''),exercise.get('activity_concept','')] if planning else
            [exercise.get('directions','')]+[q.get('prompt','') for q in (questions if isinstance(questions,list) else []) if isinstance(q,dict)])
     verbs=r'(?:draw(?!\s+(?:a|the)\s+conclusion)|sketch|trace|colou?r|paint|cut|fold|glue|assemble|decorate|craft|build|construct|carve|mirror|design)'
+    from core.difference_intent import requires_exact_differences
+    instructions={'exercise_binding':True,'exercise':dict(exercise,directions=' '.join(str(t) for t in texts),questions=[],captions=[])}
+    if requires_exact_differences(instructions):
+        raise ValueError('Simple workbook: replace the picture spot-the-difference task with a comparison of complete printed written sources; do not request AI picture changes or an exact puzzle')
     for text in texts:
         text=str(text)
         action=re.search(r'(?:^|[.!?:;]\s*|\b(?:then|and)\s+)(?:(?:please|carefully|neatly|accurately|directly|now)\s+)*'+verbs+r'\b',text,re.I)

@@ -334,7 +334,7 @@ class ReadingAnswerReviewTests(unittest.TestCase):
         prompt=_image_prompt({'resource_type':'activity_pack','character_description':''},
                              {'image_prompt':scene},self.config['illustration_style'])
         self.assertNotIn("Children's book illustration",prompt)
-        self.assertIn('SCENE is authoritative',prompt)
+        self.assertIn('Only illustrate the described scene',prompt)
 
 
 if __name__=='__main__':

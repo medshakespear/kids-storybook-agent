@@ -29,8 +29,13 @@ def text_free_scene(scene: str) -> str:
     """Remove explicit quoted prop-lettering requests, preserving the surrounding scene."""
     import re
     props=r'(?:sign|poster|banner|placard|badge|shirt|book cover|screen)'
+    # Meta phrases can be painted as literal lettering (seen in published art).
+    scene=re.sub(r'\btext[ -]free(?:\s+(?:artwork|art|illustration))?\s*[:;,-]?','',scene,flags=re.I)
     value=re.sub(r'\b('+props+r')\s+(?:that\s+)?(?:says|reads|saying|reading|labeled|labelled|with the words)\s*'
         r'[\x27\"‘“][^\x27\"’”]+[\x27\"’”]',lambda m:'blank '+m[1],scene,flags=re.I)
+    value=re.sub(r'\b('+props+r')\s+(?:that\s+)?(?:says|reads|saying|reading|labeled|labelled|with the words)\s+[^.;!?\n]{1,120}',
+        lambda m:'blank '+m[1],value,flags=re.I)
+    value=re.sub(r'\bposters?\b','plain solid-color paper',value,flags=re.I)
     # Text-bearing classroom props otherwise encourage the image model to
     # invent writing even when no literal lettering was requested.
     return re.sub(r'\b(?:bulletin board|whiteboard|chalkboard)s?\b','unlettered picture board',value,flags=re.I)
@@ -41,25 +46,28 @@ def _image_prompt(story: dict, page: dict, style: str, limit: int = 2048) -> str
     description = story["character_description"]
     lock = STYLE_LOCK
     if story.get('resource_type') == 'activity_pack':
-        lock = ('Original educational illustration; follow the supplied pack palette and rendering style consistently. '
-                'The SCENE is authoritative. Never add story cast, mascots, people, animals, faces, or extra subjects '
-                'unless the SCENE explicitly requests them. Isolated objects and environment-only assets must remain '
-                'strictly solitary with no characters in foreground or background. '
-                'No words, letters, numbers, logos, borders, labels or answer marks. '
-                'Use completely blank book covers, paper, posters, signs and screens; never draw a title, '
-                'learning-journal heading, fake lettering or pseudo-writing on any prop. '
-                'One composition, no panels. Full subject visible with generous white margins, no cropping.')
-        # Activity assets are self-contained. Injecting the pack-wide character
-        # description into every request can leak recurring cast into object-only
-        # art. If a character is required, the asset's own SCENE must request it.
-        scene=text_free_scene(page['image_prompt'])
-        required = ('TEXT-FREE ARTWORK: use unmarked props, plain clothing and gestures. '
-                    'Do not depict written event names or campaign slogans.\n'
-                    f'{lock}\nSCENE: {scene}\nSTYLE: ')
-        available = limit - len(required)
-        if available < 0:
-            raise ValueError('Scene requirements exceed the image prompt limit')
-        return required + style[:available]
+        import re
+        scene=text_free_scene(page['image_prompt']).strip(' .\n')
+        art_style=text_free_scene(style).strip(' .\n')
+        # Put visual content first. Uppercase workflow headings and phrases such
+        # as TEXT-FREE ARTWORK have appeared literally in Flux output.
+        quality=('A single cohesive educational illustration with a clear focal subject, '
+                 'clean shapes and consistent lighting. '
+                 'Fill the illustration frame while keeping important subjects fully visible. '
+                 'Only illustrate the described scene; do not add unrelated characters or mascots. '
+                 'Paper, book covers, signs, screens and clothing have plain unmarked surfaces. '
+                 'No lettering, words, numerals, slogans, logos, signatures, watermarks, charts or page borders.')
+        people=bool(re.search(r'\b(?:children|students|pupils|classmates|boys|girls|teachers?|people|families)\b',scene,re.I))
+        if people:quality+=' Use natural faces and relaxed hands for the requested people.'
+        if people and story.get('grade_band') in {'3rd-4th','5th-6th'}:
+            quality+=' Use older elementary-school proportions rather than toddler proportions.'
+        event=' '.join(str(story.get(k,'')) for k in ('title','theme','event_name')).casefold()
+        if people and 'red ribbon' in event:
+            scene+='; the requested people wear small plain red fabric awareness ribbons on their clothing'
+        required=scene+'. '+quality+' '
+        available=limit-len(required)
+        if available<0:raise ValueError('Scene requirements exceed the image prompt limit')
+        return required+art_style[:available]
     prefix = f"CHARACTER: {description}\nSTYLE: {style}\n{lock}\nSCENE: "
     scene = page["image_prompt"].replace(description, "").strip(" .\n")
     available = limit - len(prefix)

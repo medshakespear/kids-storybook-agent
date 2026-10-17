@@ -131,7 +131,8 @@ class ContextualWorkbookFixTests(unittest.TestCase):
         self.assertNotIn('BULLYING PREVENTION MONTH',cleaned)
         prompt=_image_prompt({'resource_type':'activity_pack','character_description':'A student.'},
             {'image_prompt':scene},'Teal and coral.')
-        self.assertTrue(prompt.startswith('TEXT-FREE ARTWORK'))
+        self.assertTrue(prompt.startswith('Friendly children'))
+        self.assertNotIn('TEXT-FREE',prompt.upper())
         self.assertNotIn('BULLYING PREVENTION MONTH',prompt);self.assertLessEqual(len(prompt),2048)
         self.assertEqual(text_free_scene('An owl beside a bridge.'),'An owl beside a bridge.')
 

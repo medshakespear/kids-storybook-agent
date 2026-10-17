@@ -10,7 +10,7 @@ def contextual_text(value: str) -> bool:
         return False
     if re.search(r'(?:^|[.!?]\s+)(?:please\s+|now\s+|then\s+)?(?:draw|write|count|sort|match|circle|find|trace|explain|describe|calculate|solve|choose|complete|help|design|create|compare)\b',value,re.I):
         return False
-    return bool(re.search(r'\b(?:is|are|was|were|use|uses|include|includes|have|has|tells|tell|helps|help|can|often)\b',value,re.I))
+    return bool(re.search(r'\b(?:is|are|was|were|use|uses|include|includes|have|has|tells|tell|helps|help|can|often|distributed|hosted|organized|participated|attended|collected|received|recorded|reported|prepared|planned|shared|held|visited|gathered|worked|used|provided|learned)\b',value,re.I))
 
 
 def bind_contextual_wording(page: dict, title: str = '') -> None:

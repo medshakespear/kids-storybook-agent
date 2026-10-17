@@ -45,7 +45,11 @@ def raw_paragraphs(page: dict) -> set[str]:
         if isinstance(node,str) or 'comment' in node:
             return
         inside=inside or any(k=='data-content' for k,_ in node['attrs'])
-        if not inside and node['tag'] in CONTAINERS:
+        # A pure block wrapper is not one paragraph. Keep each original p/div
+        # intact so a scoped repair can bind it without truncating its neighbors.
+        block_children=any(isinstance(c,dict) and c.get('tag') in {'p','div','section'} for c in node['children'])
+        own_text=any(isinstance(c,str) and c.strip() for c in node['children'])
+        if not inside and node['tag'] in CONTAINERS and not (block_children and not own_text):
             pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
             if all(p is not None for p in pieces):
                 text=normalized(''.join(pieces))
@@ -156,3 +160,56 @@ def merge_authored_wording(original: dict, correction: dict) -> dict:
     if not candidates.issubset(covered|remaining):
         raise ValueError('Authored wording repair cannot discard original unbound paragraphs or headings')
     return result
+
+
+def bind_printed_context(page: dict, exercise: dict, config: dict) -> None:
+    """Register complete already-printed declarative paragraphs without another AI call.
+
+    Only opted-in authored workbooks qualify. Never take words from canonical
+    slots, data tables, questions, labels, media or handwriting surfaces. Every
+    promoted character and the existing question/key remain unchanged.
+    """
+    if not config.get('simple_exercises_only') or exercise.get('render_mode')!='authored':return
+    parser=CanonicalTextContainers({});parser.feed(page['html']);parser.close()
+    if parser.stack:return
+    from core.context_recovery import contextual_text
+    from core.print_grid import literal_html
+    stimuli=exercise.get('stimuli',[])
+    if not isinstance(stimuli,list):return
+    known={normalized(str(exercise.get(k,''))) for k in ('directions','passage')}
+    known.add(normalized(str(page.get('_recovery_title',''))))
+    for field,key in (('stimuli','text'),('captions','text'),('questions','prompt')):
+        known.update(normalized(str(item.get(key,''))) for item in exercise.get(field,[]) if isinstance(item,dict))
+    ids={item.get('id') for item in stimuli if isinstance(item,dict)}
+    ids.update(item.get('id') for item in exercise.get('captions',[]) if isinstance(item,dict))
+    changed=False
+    def visit(node,protected=False):
+        """Keep actual table cells and complete paragraph boundaries distinct."""
+        nonlocal changed
+        if isinstance(node,str) or 'comment' in node:return
+        slot=dict(node['attrs']).get('data-content')
+        table=(node['tag']=='table' and (any(isinstance(c,dict) and c.get('tag')=='th' for c in node['children'])
+               or bool(re.search(r'<th\b',literal_html(node))) or len(re.findall(r'<tr\b',literal_html(node)))>1))
+        protected=protected or bool(slot) or table
+        if not protected and node['tag'] in {'p','div','section'}:
+            pieces=[parser.plain_text(c) for c in node['children']]
+            leaf=not any(isinstance(c,dict) and c.get('tag') in {'p','div','section'} for c in node['children'])
+            text=''.join(pieces).strip() if leaf and all(p is not None for p in pieces) else ''
+            own_style=dict(node['attrs']).get('style','') or ''
+            commands=any(instruction_start(re.sub(r'^(?:next|finally)[,:]?\s+','',part,flags=re.I))
+                         for part in re.split(r'(?<=[.!?;:])\s+|\band\s+|,\s+',text))
+            if (80<=len(text)<=650 and normalized(text) not in known and contextual_text(text)
+                    and not commands and not instruction_start(text) and not re.search(r'(?:^|;)\s*(?:min-|max-)?height\s*:',own_style,re.I)):
+                # Passage avoids inventing a source label for a single raw paragraph.
+                if not str(exercise.get('passage','') or '').strip():
+                    exercise['passage']=text;target='passage'
+                elif len(stimuli)<config.get('stimulus_limit',4):
+                    sid=next(f'printed_context_{n}' for n in range(1,len(ids)+2) if f'printed_context_{n}' not in ids)
+                    ids.add(sid);stimuli.append({'id':sid,'label':'Reading Context','text':text});exercise['stimuli']=stimuli
+                    target='stimulus_'+sid
+                else:return
+                node['attrs'].append(('data-content',target));node['children']=[]
+                known.add(normalized(text));changed=True;return
+        for child in node['children']:visit(child,protected)
+    for node in parser.root:visit(node)
+    if changed:page['html']=''.join(literal_html(n) for n in parser.root)

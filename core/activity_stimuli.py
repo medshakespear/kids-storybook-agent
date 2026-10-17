@@ -268,13 +268,24 @@ def prepare_stimuli(page: dict, exercise: dict) -> list[dict]:
             if not isinstance(cid,str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,23}',cid):
                 retained.append(caption)
                 continue
-            if cid in ids:
-                raise ValueError('Source stimulus IDs must not collide with migrated caption IDs')
-            stimuli.append(dict(caption))
-            ids.add(cid)
-            # Both prefix conventions are accepted elsewhere for declared IDs.
-            pattern = r'(\bdata-content\s*=\s*)([\'\"])(?:caption_)?'+re.escape(cid)+r'\2'
-            page['html'] = re.sub(pattern,lambda m:m[1]+m[2]+'stimulus_'+cid+m[2],page['html'])
+            sid=cid
+            collision=cid in ids
+            if collision:
+                # Captions and sources are separate namespaces. A reused ID is
+                # not permission to overwrite or merge two different excerpts.
+                reserved=ids|{c.get('id') for c in captions if isinstance(c,dict)}
+                for number in range(1,len(reserved)+2):
+                    suffix=f'_context_{number}'
+                    candidate=cid[:24-len(suffix)]+suffix
+                    if candidate not in reserved:
+                        sid=candidate;break
+            migrated=dict(caption,id=sid);stimuli.append(migrated)
+            ids.add(sid)
+            # On a collision, only the explicit caption namespace belongs to
+            # the migrated paragraph. The existing source reference stays put.
+            prefix='caption_' if collision else '(?:caption_)?'
+            pattern = r'(\bdata-content\s*=\s*)([\'\"])'+prefix+re.escape(cid)+r'\2'
+            page['html'] = re.sub(pattern,lambda m:m[1]+m[2]+'stimulus_'+sid+m[2],page['html'])
         else:
             retained.append(caption)
     exercise['captions'] = retained

@@ -56,9 +56,14 @@ class ActivityStimuliTests(unittest.TestCase):
         self.assertEqual(page['exercise']['captions'],[{'id':'empty','text':''}])
 
     def test_source_ids_collisions_are_not_silently_overwritten(self):
-        """An existing source cannot be replaced by a different migrated caption."""
+        """Both excerpts survive under distinct IDs; source and caption slots stay distinct."""
         page=authored_page();page['exercise'].update(stimuli=[{'id':'s1','text':'Existing source.'}],captions=[{'id':'s1','text':SOURCES[0]}])
-        with self.assertRaisesRegex(ValueError,'collide'):prepare_stimuli(page,page['exercise'])
+        page['html']='<p data-content="stimulus_s1"></p><p data-content="caption_s1"></p>'
+        result=prepare_stimuli(page,page['exercise'])
+        self.assertEqual(result[0],{'id':'s1','text':'Existing source.'})
+        self.assertEqual(result[1]['text'],SOURCES[0]);self.assertNotEqual(result[1]['id'],'s1')
+        self.assertIn('data-content="stimulus_s1"',page['html'])
+        self.assertIn('data-content="stimulus_'+result[1]['id']+'"',page['html'])
 
     def test_dense_mixed_sources_request_content_revision_only_after_overflow(self):
         """A layout-only loop cannot solve excessive retained source text."""

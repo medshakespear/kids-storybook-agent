@@ -74,15 +74,16 @@ text workers are capped by configured credential capacity. Reduce to `1` for
 small provider quotas. Real latency depends on provider response times and
 retries; no fixed generation time is guaranteed.
 
-## Daily selection: 7–37 days ahead and keyword titles
+## Daily selection: 7–37 days ahead and event titles
 
 1. Resolve today in `BOOK_TIMEZONE` (default UTC).
 2. Include event periods overlapping **today + 7 through today + 37 days**, inclusive.
    For a run on October 7, the window is October 14–November 13. An ongoing month/week qualifies
    only if its period overlaps that future window; events ending earlier are excluded.
-3. Randomly choose an eligible event, one of its `title_keywords`, then a theme angle.
-   The selected keyword becomes the exact book/cover title and steers the readings.
-   Events with more keywords/angles do not receive extra selection weight.
+3. Randomly choose an eligible event and a theme angle. Use its `event_name` as the
+   book/cover title (for example, Halloween). Calendar keyword aliases no longer
+   rename event books or steer them toward crafts, decor, or bulletin-board products.
+   Events with more angles do not receive extra selection weight.
 4. Avoid recently used theme/grade pairs where possible and shuffle grade bands
    in balanced groups of the two active bands.
 5. Dated holidays/observances take priority. If none overlap, use a matching seasonal
@@ -448,16 +449,13 @@ replace text-prone display surfaces with plain surfaces and request closed unmar
 No image reviewer is used; image generators can still violate prompts, so visually inspect
 the final PDF before listing it for sale.
 
-### Editing keyword titles
+### Event and topic titles
 
-Each calendar entry has `title_keywords` (a JSON list of title strings, each at most
-52 characters). `keyword_topics` may map individual titles to a more specific reading
-context. For example, Halloween randomly selects Halloween Activities, Halloween Craft
-or Halloween Bulletin Board, and every unit must address that selected context. The
-cover still says Reading Comprehension: these keywords do not introduce a craft template
-or bulletin-board kit. Titles, dates, selected window and keywords are recorded in cron
-logs and successful state/catalog records. Webhook requests keep their existing generated
-titles; the automatic keyword-title rule applies to calendar-driven cron books.
+Calendar-driven cron books and manually selected event books use `event_name` as
+their title. Existing `title_keywords` and `keyword_topics` remain in the calendar
+for compatibility but do not control dated or seasonal event books. Undated reading
+topics and evergreen fallback books retain their topic titles. Link and description
+requests retain their existing title generation. The event date window is unchanged.
 
 `selection_window` in `calendar.json` defines inclusive start/end offsets (defaults 7/37).
 Dated events, seasonal themes and evergreen subjects are separate. Search-volume/rank

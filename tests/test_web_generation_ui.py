@@ -139,7 +139,7 @@ class WebGenerationTests(unittest.TestCase):
                 self.assertEqual(response.status_code,200)
                 read.assert_not_called()
                 request=generate.call_args.kwargs
-                self.assertIn(request['book_title'],['Halloween Activities','Halloween Craft','Halloween Bulletin Board'])
+                self.assertEqual(request['book_title'],'Halloween')
                 self.assertIn('Halloween',request['source_context'])
                 self.assertEqual(request['grade_band'],band)
                 self.assertEqual(register.call_args.args[0]['selection_mode'],'manual_event')

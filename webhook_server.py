@@ -22,7 +22,7 @@ from core.paths import OUTPUT_DIR, CALENDAR_PATH, ensure_runtime_directories
 from core.grade_policy import ACTIVE_GRADE_BANDS
 from core.pipeline import generate_book, load_grade_config
 from core.state_manager import load_state
-from core.theme_picker import pick_webhook_grade_band
+from core.theme_picker import pick_webhook_grade_band, calendar_book_titles
 from core.calendar_catalog import calendar_catalog
 from core.book_types import BOOK_TYPES, DEFAULT_BOOK_TYPE, require_book_type
 from core.reference_reader import read_reference, reference_context, ReferenceReadError
@@ -119,12 +119,14 @@ def run_generation(brief):
     event = brief.get('event')
     if event:
         chooser = random.SystemRandom()
-        keyword = chooser.choice(event.get('title_keywords') or [event['event_name']])
+        keyword = chooser.choice(calendar_book_titles(event))
         theme = (keyword + ': Original mixed exercises about '+event['event_name']
                  if book_type == 'varied_activities' else keyword + ': ' + chooser.choice(event['theme_angles']))
         undated = event.get('category') in {'evergreen_topic', 'undated_topic'}
-        context = ('Selected reading topic: ' if undated else 'Selected calendar event: ') + event['event_name'] + '\nTitle keyword: ' + keyword
-        context += '\n' + event.get('keyword_topics',{}).get(keyword,'') + '\n' + event.get('note','')
+        context = ('Selected reading topic: ' if undated else 'Selected calendar event: ') + event['event_name'] + '\nBook title: ' + keyword
+        context += '\n' + event.get('note','')
+        if undated:
+            context += '\n' + event.get('keyword_topics',{}).get(keyword,'')
         title_options['book_title'] = keyword
     story, pdf_path = generate_book(
         theme=theme, grade_band=brief['grade_band'], source_context=context,

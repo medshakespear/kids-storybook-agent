@@ -61,7 +61,7 @@ def main() -> int:
     for index, spec in enumerate(specs, start=1):
         label = f"{spec['event_name']} / {spec['grade_band']} / {spec['theme']}"
         print(f"  THEME MODE: {spec['selection_mode']}; period {spec['event_date']} to {spec['event_end']}", flush=True)
-        print(f"  KEYWORD TITLE: {spec['book_title']}", flush=True)
+        print(f"  BOOK TITLE: {spec['book_title']}", flush=True)
         print(f"[{index}/{count}] Generating {label}", flush=True)
         try:
             story, pdf_path = generate_book(

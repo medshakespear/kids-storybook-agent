@@ -76,11 +76,11 @@ class CalendarKeywordTests(unittest.TestCase):
         halloween=next(e for e in self.calendar['events'] if e['event_name']=='Halloween')
         calendar={'events':[halloween]}
         specs=[pick_daily_book_specs(calendar,self.state,count=1,today=date(2026,10,20),rng=random.Random(n))[0] for n in range(40)]
-        self.assertEqual({s['book_title'] for s in specs},set(halloween['title_keywords']))
+        self.assertEqual({s['book_title'] for s in specs},{'Halloween'})
         for spec in specs:
             self.assertEqual(spec['event_name'],'Halloween')
-            self.assertIn(spec['book_title'],spec['theme'])
-            self.assertEqual(spec['title_keyword'],spec['book_title'])
+            self.assertFalse(any(title in spec['theme'] for title in halloween['title_keywords']))
+            self.assertEqual(spec['title_keyword'],'')
 
     def test_seasonal_then_evergreen_fallback(self):
         """Undated themes never pretend to be fixed-date holidays."""
@@ -102,7 +102,7 @@ class CalendarKeywordTests(unittest.TestCase):
         with patch.object(cron_job,'validate_providers'),patch.object(cron_job,'fetch_library_state',return_value=None),patch.object(cron_job,'load_state',return_value=state),patch.object(cron_job,'_daily_count',return_value=1),patch.object(cron_job,'today_in_timezone',return_value=date(2026,10,6)),patch.object(cron_job,'generate_book',side_effect=generate),patch.object(cron_job,'deliver_book',return_value=True),patch.object(cron_job,'save_state'),patch.object(cron_job,'commit_state_to_github',return_value=(True,'Saved')),redirect_stdout(io.StringIO()):
             self.assertEqual(cron_job.main(),0)
         record=state['generated'][0]
-        self.assertTrue(any(captured['book_title'] in event['title_keywords'] for event in self.calendar['events']))
+        self.assertIn(captured['book_title'],{event['event_name'] for event in self.calendar['events']})
         self.assertIn(captured['book_title'],captured['source_context'])
         self.assertEqual(record['title'],captured['book_title'])
         self.assertEqual(record['selection_window_start'],'2026-10-13')

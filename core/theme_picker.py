@@ -1,4 +1,4 @@
-"""Choose days-7–37 events, matching keyword titles and original reading topics."""
+"""Choose days-7–37 events by name and original reading topics."""
 
 from __future__ import annotations
 
@@ -11,6 +11,15 @@ from core.calendar_rules import find_active_events, find_events_in_window, today
 from core.grade_policy import ACTIVE_GRADE_BANDS
 
 GRADE_BANDS = list(ACTIVE_GRADE_BANDS)
+
+
+def calendar_book_titles(event: dict[str, Any]) -> list[str]:
+    """Use the event name for calendar books; retain titles for undated topics."""
+    undated = event.get('evergreen') or event.get('category') in {'evergreen_topic', 'undated_topic'}
+    titles = (event.get('title_keywords') or [event['event_name']]) if undated else [event['event_name']]
+    if not isinstance(titles, list) or not titles or any(not isinstance(t, str) or not t.strip() for t in titles):
+        raise ValueError('Calendar book titles must be nonempty text')
+    return list(dict.fromkeys(t.strip() for t in titles))
 
 
 def _recent_pairs(state: dict[str, Any], today: date, days: int = 120) -> set[tuple[str, str]]:
@@ -49,7 +58,7 @@ def pick_daily_book_specs(
     today: date | None = None,
     rng: random.Random | None = None,
 ) -> list[dict[str, str]]:
-    """Choose overlapping days-7–37 events and keyword titles with balanced grades."""
+    """Choose overlapping days-7–37 events by name with balanced grades."""
 
     if not 1 <= count <= 20:
         raise ValueError("count must be between 1 and 20")
@@ -82,27 +91,25 @@ def pick_daily_book_specs(
     recent = _recent_pairs(state, reference)
     candidates: list[dict[str, str]] = []
     for event in events:
-        titles = event.get('title_keywords') or [event['event_name']]
-        if not isinstance(titles,list) or not titles or any(not isinstance(t,str) or not t.strip() or len(t)>52 for t in titles):
-            raise ValueError('Calendar title_keywords must contain nonempty text of at most 52 characters')
+        titles = calendar_book_titles(event)
         contexts = event.get('keyword_topics',{})
         for keyword in dict.fromkeys(titles):
             for angle in event.get('theme_angles', []):
                 theme = angle
-                if event.get('title_keywords'):
+                if event.get('evergreen'):
                     theme = f"{keyword}: {contexts.get(keyword, 'Original readings centered on '+keyword)}. {angle}"
                 candidates.append({
                     "event_name":event["event_name"], "event_date":event["occurs_on"],
                     "event_end":event.get("ends_on",event["occurs_on"]),
                     "selection_mode":"evergreen" if event.get("evergreen") else 'seasonal_theme' if event.get('category')=='seasonal_theme' else "upcoming_event",
-                    "theme":theme,"book_title":keyword,"title_keyword":keyword,
+                    "theme":theme,"book_title":keyword,"title_keyword":keyword if event.get("evergreen") else "",
                     "calendar_note":event.get('note',''),
                     "selection_window_start":window_start,"selection_window_end":window_end})
     if not candidates:
         raise ValueError("Eligible calendar events contain no theme angles")
     randomizer.shuffle(candidates)
 
-    # One event per daily batch; grade bands, keyword titles and angles can vary.
+    # One event per daily batch; grade bands and angles can vary.
     fresh = [item for item in candidates if any((item['theme'], band) not in recent for band in bands)]
     event_names = sorted({(item['event_name'], item['event_date']) for item in (fresh or candidates)})
     batch_event = randomizer.choice(event_names)

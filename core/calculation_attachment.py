@@ -6,7 +6,7 @@ def label_matching_text(prompt: str) -> str | None:
     """Identify label-only matching instructions; numbered ranges are references, not subtraction."""
     if not isinstance(prompt,str) or not re.search(r'\b(?:match|matching|pair|connect)\b',prompt,re.I):
         return None
-    if not re.search(r'\b(?:claims?|sources?|cards?|statements?|labels?)\b',prompt,re.I):
+    if not re.search(r'\b(?:claims?|sources?|cards?|statements?|labels?|terms?|items?|components?|materials?|descriptions?)\b',prompt,re.I):
         return None
     ranges=list(re.finditer(r'\((?:[1-9]\d?\s*[-–]\s*[1-9]\d?|[A-Z]\s*[-–]\s*[A-Z])\)',prompt))
     if not ranges:
@@ -17,7 +17,7 @@ def label_matching_text(prompt: str) -> str | None:
         return None
     # A numeric range must be introduced explicitly as a printed identifier.
     for match in ranges:
-        if match[0][1].isdigit() and not re.search(r'\b(?:numbers?|labels?|sources?|cards?)\s*$',prompt[:match.start()],re.I):
+        if match[0][1].isdigit() and not re.search(r'\b(?:numbers?|labels?|sources?|cards?|terms?|items?|components?|materials?|descriptions?)\s*$',prompt[:match.start()],re.I):
             return None
     return text
 

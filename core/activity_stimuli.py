@@ -40,6 +40,32 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
         raise ValueError('Exercise layout tags must be balanced')
     sources={s['id']:s for s in normalized if isinstance(s,dict) and s.get('id') in seen}
     captions=deepcopy(exercise.get('captions',[]))
+    # Only generic source-card/text aliases can bind by elimination. Do not
+    # guess identities for named cards, missing evidence, or competing sources.
+    generic_ids={'source_text','source_card','source_passage','reading_text','reading_card'}
+    references=[]
+    def collect_references(node):
+        """Count every original source reference before choosing an unused source."""
+        if isinstance(node,str) or 'comment' in node:return
+        slot=dict(node['attrs']).get('data-content','') or ''
+        if slot.startswith('stimulus_'):references.append(source_id(slot))
+        for child in node['children']:collect_references(child)
+    for root in parser.root:collect_references(root)
+    missing=[sid for sid in references if sid not in seen]
+    unused=[sid for sid in seen if sid not in references]
+
+    def generic_alias(node,sid):
+        """Rebind one generic placeholder to one complete, unused declared source."""
+        if sid not in generic_ids or missing!=[sid] or len(unused)!=1:return None
+        candidate=unused[0]
+        if candidate not in generic_ids:return None
+        pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
+        if any(p is None for p in pieces):return None
+        printed=' '.join(''.join(pieces).split())
+        expected=' '.join(str(sources[candidate].get('text','')).split())
+        if printed and printed!=expected:return None
+        return 'stimulus_'+candidate
+
 
     def caption_group(node):
         """Unwrap a source-named layout group only when complete declared captions own it.
@@ -142,7 +168,7 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
                     changed=changed or value!=canonical
                     value=canonical
                 else:
-                    heading=label_slot(node,sid)
+                    heading=generic_alias(node,sid) or label_slot(node,sid)
                     if heading:
                         value=heading
                         changed=True

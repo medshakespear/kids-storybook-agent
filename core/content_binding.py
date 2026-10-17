@@ -32,16 +32,21 @@ def metadata_nodes(fields: tuple[str, str]) -> list:
 
 
 def canonical_content_slot(slot: str | None, blocks: dict) -> str | None:
-    """Resolve unique declared caption/source aliases without inventing missing text."""
-    if isinstance(slot,str) and slot not in blocks:
-        matches=[]
-        if 'caption_'+slot in blocks: matches.append('caption_'+slot)
-        if 'stimulus_'+slot in blocks: matches.append('stimulus_'+slot)
-        if slot.startswith('stimulus_'):
-            bare=slot
-            while bare.startswith('stimulus_'): bare=bare[len('stimulus_'):]
-            if 'caption_'+bare in blocks: matches.append('caption_'+bare)
-        if len(set(matches))==1: return matches[0]
+    """Resolve declared namespace/body-suffix aliases; never guess source identity."""
+    if not isinstance(slot,str) or slot in blocks:return slot
+    matches={key for key in ('caption_'+slot,'stimulus_'+slot) if key in blocks}
+    bare=slot
+    while bare.startswith('stimulus_'):bare=bare[len('stimulus_'):]
+    if bare.startswith('caption_'):bare=bare[len('caption_'):]
+    if bare!=slot:
+        matches.update(key for key in ('caption_'+bare,'stimulus_'+bare) if key in blocks)
+    # Full declared IDs have precedence over optional body suffixes. Collisions
+    # remain explicit errors rather than choosing a caption over a reading.
+    if matches:return next(iter(matches)) if len(matches)==1 else slot
+    for suffix in ('_text','_body','_content'):
+        if bare.endswith(suffix):
+            candidate='stimulus_'+bare[:-len(suffix)]
+            if candidate in blocks:return candidate
     return slot
 
 

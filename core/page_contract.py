@@ -619,14 +619,14 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
         from core.creative_layout import clean_style
         page['html'] = normalize_image_dimensions(page['html'],page_visuals(page),config.get('visual_area_mm2',6500),
             lambda style:clean_style(style,config.get('minimum_text_pt',11)))
-    from core.reading_bindings import normalize_passage_alias
-    page['html']=normalize_passage_alias(page['html'],blocks,exercise,config)
+    from core.reading_bindings import normalize_reading_body_aliases
+    page['html']=normalize_reading_body_aliases(page['html'],blocks,exercise,config)
     layout = page['html']
     from core.label_bindings import restore_declared_labels,restore_declared_card_group
     if config.get('student_workbook'):
         layout = bind_formatted_canonical_text(layout,blocks,separate_protected=True)
         # Separating an outer label wrapper can expose the passage alias it held.
-        layout = normalize_passage_alias(layout,blocks,exercise,config)
+        layout = normalize_reading_body_aliases(layout,blocks,exercise,config)
         layout = restore_declared_labels(layout,blocks,exercise,config)
         layout = restore_declared_card_group(layout,blocks,exercise,config)
     bound_layout = bind_formatted_canonical_text(layout,blocks,separate_protected=bool(config.get('student_workbook')))
@@ -638,6 +638,10 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     restored=restore_reading_slots(bound_layout,blocks,exercise,config)
     if restored is not None or sources_changed:
         layout=restored if restored is not None else bound_layout
+    if config.get('student_workbook') or restored is not None or sources_changed:
+        # Alias normalization can expose an existing or locally restored label,
+        # even when no reading/source slot needed insertion. Reconcile it after
+        # all structural binding, not only after missing-reading restoration.
         # A restored source heading may now supply the label that the source
         # block would otherwise print itself. Reconcile the pair once, retaining
         # both canonical slots and all original source fields.

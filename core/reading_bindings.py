@@ -60,18 +60,19 @@ def declare_reading_headings(markup: str, exercise: dict, config: dict) -> None:
     if captions:exercise['captions']=captions
 
 
-def normalize_passage_alias(markup: str, blocks: dict, exercise: dict, config: dict) -> str:
-    """Bind one source-named body to the sole unused canonical passage, losslessly.
+def normalize_reading_body_aliases(markup: str, blocks: dict, exercise: dict, config: dict) -> str:
+    """Bind one generic reading-body placeholder to the sole unused declared reading.
 
     Never guess among source records, overwrite conflicting evidence, consume
     graphics/workspaces, or reinterpret a heading as a reading body. A bare ID
     of an explicitly declared stimulus is handled separately by canonical slots.
     """
     if (not config.get('student_workbook') or exercise.get('render_mode')!='authored'
-            or not blocks.get('passage') or any(k.startswith('stimulus_') for k in blocks)):
+            or not any(k=='passage' or k.startswith('stimulus_') for k in blocks)):
         return markup
     parser=CanonicalTextContainers(blocks);parser.feed(markup);parser.close()
     if parser.stack:return markup
+    bodies={k for k in blocks if k=='passage' or k.startswith('stimulus_')}
     references=[];candidates=[]
     def visit(node,inside=False):
         """Inspect only whole outer text slots; nested content remains protected."""
@@ -80,26 +81,41 @@ def normalize_passage_alias(markup: str, blocks: dict, exercise: dict, config: d
         slot=canonical_content_slot(raw,blocks)
         if slot:references.append(slot)
         if (not inside and isinstance(raw,str) and slot not in blocks
-                and re.fullmatch(r'(?:stimulus_)*source_[a-z0-9_]{1,24}',raw)
+                and re.fullmatch(r'(?:(?:stimulus_|caption_))*(?:source|reading)_[a-z0-9_]{1,24}',raw)
                 and not re.search(r'_(?:label|heading|title)$',raw)):
             candidates.append(node)
         for child in node['children']:visit(child,inside or bool(raw))
     for node in parser.root:visit(node)
-    if 'passage' in references or len(candidates)!=1:return markup
-    node=candidates[0]
+    if len(bodies)!=1 or bodies.intersection(references) or len(candidates)!=1:return markup
+    body=next(iter(bodies));node=candidates[0]
+    raw=dict(node['attrs'])['data-content']
+    generic=re.sub(r'^(?:(?:stimulus_|caption_))+','',raw)
+    if body!='passage' and generic not in {'source_text','source_body','source_content','source_passage','reading_text','reading_body','reading_content'}:
+        return markup  # A missing named Source B must not become an unrelated Source A.
+
     if node['tag'] not in {'p','div','section','span'}:return markup
     pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
     protected=any(piece is None for piece in pieces)
     printed=' '.join(''.join(piece for piece in pieces if piece is not None).split()).casefold()
+    expected={parser.text_blocks[body]}
+    for source in exercise.get('stimuli',[]):
+        if isinstance(source,dict) and body=='stimulus_'+str(source.get('id')) and isinstance(source.get('text'),str):
+            expected.add(' '.join(source['text'].split()).casefold())
     if protected:
         # A mixed wrapper is safe only when it already prints the COMPLETE
         # canonical passage. Keep its protected siblings for the existing
         # structural binder; an empty image box cannot stand in for a reading.
-        if not printed or printed!=parser.text_blocks['passage']:return markup
-    elif printed and printed!=parser.text_blocks['passage']:return markup
-    node['attrs']=[(k,'passage' if k=='data-content' else v) for k,v in node['attrs']]
+        if not printed or printed not in expected:return markup
+    elif printed and printed not in expected:return markup
+    node['attrs']=[(k,body if k=='data-content' else v) for k,v in node['attrs']]
     if not protected:node['children']=[]
     return ''.join(literal_html(n) for n in parser.root)
+
+
+def normalize_passage_alias(markup: str, blocks: dict, exercise: dict, config: dict) -> str:
+    """Keep the passage-only API conservative when independent stimuli also exist."""
+    if not blocks.get('passage') or any(k.startswith('stimulus_') for k in blocks):return markup
+    return normalize_reading_body_aliases(markup,blocks,exercise,config)
 
 
 def restore_reading_slots(markup: str, blocks: dict, exercise: dict, config: dict) -> str | None:

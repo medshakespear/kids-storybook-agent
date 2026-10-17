@@ -625,6 +625,8 @@ def compile_exercise(page: dict, config: dict, title: str, brief: dict | None = 
     from core.label_bindings import restore_declared_labels,restore_declared_card_group
     if config.get('student_workbook'):
         layout = bind_formatted_canonical_text(layout,blocks,separate_protected=True)
+        # Separating an outer label wrapper can expose the passage alias it held.
+        layout = normalize_passage_alias(layout,blocks,exercise,config)
         layout = restore_declared_labels(layout,blocks,exercise,config)
         layout = restore_declared_card_group(layout,blocks,exercise,config)
     bound_layout = bind_formatted_canonical_text(layout,blocks,separate_protected=bool(config.get('student_workbook')))

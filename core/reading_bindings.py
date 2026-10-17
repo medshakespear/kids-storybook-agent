@@ -80,7 +80,7 @@ def normalize_passage_alias(markup: str, blocks: dict, exercise: dict, config: d
         slot=canonical_content_slot(raw,blocks)
         if slot:references.append(slot)
         if (not inside and isinstance(raw,str) and slot not in blocks
-                and re.fullmatch(r'source_[a-z0-9_]{1,24}',raw)
+                and re.fullmatch(r'(?:stimulus_)*source_[a-z0-9_]{1,24}',raw)
                 and not re.search(r'_(?:label|heading|title)$',raw)):
             candidates.append(node)
         for child in node['children']:visit(child,inside or bool(raw))
@@ -89,13 +89,16 @@ def normalize_passage_alias(markup: str, blocks: dict, exercise: dict, config: d
     node=candidates[0]
     if node['tag'] not in {'p','div','section','span'}:return markup
     pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
-    if any(piece is None for piece in pieces):return markup
-    printed=' '.join(''.join(pieces).split()).casefold()
-    if printed and printed!=parser.text_blocks['passage']:return markup
-    # Keep the original container and all layout attributes. Its body is either
-    # empty or a complete redundant copy of the canonical reading.
+    protected=any(piece is None for piece in pieces)
+    printed=' '.join(''.join(piece for piece in pieces if piece is not None).split()).casefold()
+    if protected:
+        # A mixed wrapper is safe only when it already prints the COMPLETE
+        # canonical passage. Keep its protected siblings for the existing
+        # structural binder; an empty image box cannot stand in for a reading.
+        if not printed or printed!=parser.text_blocks['passage']:return markup
+    elif printed and printed!=parser.text_blocks['passage']:return markup
     node['attrs']=[(k,'passage' if k=='data-content' else v) for k,v in node['attrs']]
-    node['children']=[]
+    if not protected:node['children']=[]
     return ''.join(literal_html(n) for n in parser.root)
 
 

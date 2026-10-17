@@ -72,7 +72,8 @@ def restore_declared_labels(markup: str, blocks: dict, exercise: dict, config: d
         elif cid.endswith('_label'):
             subject = cid[:-6]
             sources = source_anchors.get('stimulus_'+subject, [])
-            if not sources and subject.endswith('_paragraph'):
+            if not sources and (subject.endswith('_paragraph') or (subject in {'source','reading','passage'}
+                    and not exercise.get('stimuli'))):
                 sources = source_anchors.get('passage', [])
             if len(sources)==1:
                 children,node=sources[0]

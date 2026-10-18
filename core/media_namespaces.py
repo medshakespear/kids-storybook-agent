@@ -23,6 +23,16 @@ def normalize_authored_media(page: dict) -> None:
         if isinstance(node,str) or 'comment' in node:return
         attrs=dict(node['attrs'])
         if len(attrs)!=len(node['attrs']):return
+        asset=attrs.get('data-asset')
+        if (node['tag'] in {'div','span'} and asset in declared
+                and not attrs.get('data-content') and not attrs.get('data-visual')
+                and all(isinstance(c,str) and not c.strip() for c in node['children'])):
+            # An empty declared-art container is a model formatting error, not
+            # permission to omit artwork. Retain its layout styles and insert
+            # the real image; dimensions and print fit are checked downstream.
+            node['attrs']=[(k,v) for k,v in node['attrs'] if k!='data-asset']
+            node['children']=[{'tag':'img','attrs':[('data-asset',asset)],'children':[]}]
+            changed=True
         visual=attrs.get('data-visual')
         if node['tag']=='img' and isinstance(visual,str) and not attrs.get('data-content'):
             aid=re.sub(r'[\s-]+','_',visual.strip().casefold())

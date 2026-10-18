@@ -21,7 +21,9 @@ def normalize_question_slots(markup: str, blocks: dict, *, deduplicate_empty: bo
         """Collect actual question slot attributes without reading labels inside prose."""
         if isinstance(node,str) or 'comment' in node: return
         slot=dict(node['attrs']).get('data-content')
-        if isinstance(slot,str) and slot.startswith('question_'): nodes.append((node,slot))
+        if isinstance(slot,str) and (slot.startswith('question_') or (slot not in blocks and re.fullmatch(
+                r'(?:caption_)?(?:p|prob|problem)_?[1-9]\d?[A-Za-z]?_text',slot))):
+            nodes.append((node,slot))
         if slot: return  # Never infer ownership from wording inside another bound field.
         pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
         value=' '.join(''.join(pieces).split()).casefold() if all(p is not None for p in pieces) else ''
@@ -54,11 +56,17 @@ def normalize_question_slots(markup: str, blocks: dict, *, deduplicate_empty: bo
         pieces=[parser.plain_text(child,allow_text_dimensions=True) for child in node['children']]
         text=''.join(pieces) if all(piece is not None for piece in pieces) else None
         targets=[key for key in missing if text and task_text(text)==task_text(parser.text_blocks[key])]
+        alias=re.fullmatch(r'(?:caption_)?(?:p|prob|problem)_?([1-9]\d?[A-Za-z]?)_text',slot)
+        if alias:targets=[key for key in targets if key=='question_'+alias[1]]
         # A lone empty, unsized placeholder can only denote the lone missing
         # canonical question. Do not infer from position when there are several.
         sized=re.search(r'(?:^|;)\s*(?:height|min-height|max-height)\s*:',dict(node['attrs']).get('style','') or '',re.I)
         empty=all(isinstance(child,str) and not child.strip() for child in node['children'])
-        if not targets and len(unknown)==1 and len(missing)==1 and empty and not sized:
+        if not targets and alias and empty and not sized and 'question_'+alias[1] in missing:
+            # The explicit problem number owns this placeholder. No association
+            # is inferred from position or an unrelated source/caption ID.
+            targets=['question_'+alias[1]]
+        if not targets and not alias and len(unknown)==1 and len(missing)==1 and empty and not sized:
             targets=list(missing)
         if len(targets)==1:
             key=targets[0]
@@ -79,6 +87,7 @@ def normalize_question_slots(markup: str, blocks: dict, *, deduplicate_empty: bo
                 changed=True
     if not missing:
         for node,slot in unknown:
+            if not slot.startswith('question_'):continue
             if dict(node['attrs']).get('data-content')!=slot or not all(blank(child) for child in node['children']):
                 continue
             # It has no task or answer in the shared spec. Keep its complete

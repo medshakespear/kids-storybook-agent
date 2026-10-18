@@ -8,16 +8,19 @@ def label_matching_text(prompt: str) -> str | None:
         return None
     if not re.search(r'\b(?:claims?|sources?|cards?|statements?|labels?|terms?|items?|components?|materials?|descriptions?)\b',prompt,re.I):
         return None
-    ranges=list(re.finditer(r'\((?:[1-9]\d?\s*[-–]\s*[1-9]\d?|[A-Z]\s*[-–]\s*[A-Z])\)',prompt))
+    # Parentheses are optional, but the adjacent noun must still identify
+    # labels. Never strip a numeric operation simply because this is matching.
+    range_pattern=r'(?<![\w.])(?:\((?:[1-9]\d?\s*[-–]\s*[1-9]\d?|[A-Z]\s*[-–]\s*[A-Z])\)|[1-9]\d?\s*[-–]\s*[1-9]\d?|[A-Z]\s*[-–]\s*[A-Z])(?!\w|\.\d)'
+    ranges=list(re.finditer(range_pattern,prompt))
     if not ranges:
         return None
-    text=re.sub(r'\((?:[1-9]\d?\s*[-–]\s*[1-9]\d?|[A-Z]\s*[-–]\s*[A-Z])\)','',prompt)
+    text=re.sub(range_pattern,'',prompt)
     quantity=r'calculate|compute|solve|evaluate|subtract|add|multiply|divide|totals?|sums?|differences?|percent(?:age)?|how many|how much|count|average|mean|median|mode|ratio|fraction|rate|remaining|amount|quantity|measurements?|weights?|lengths?|zero|one|two|three|four|five|six|seven|eight|nine|ten|half|double|twice'
     if re.search(r'\d|[+×÷*/=]|\b(?:'+quantity+r')\b',text,re.I):
         return None
     # A numeric range must be introduced explicitly as a printed identifier.
     for match in ranges:
-        if match[0][1].isdigit() and not re.search(r'\b(?:numbers?|labels?|sources?|cards?|terms?|items?|components?|materials?|descriptions?)\s*$',prompt[:match.start()],re.I):
+        if match[0].lstrip('(')[0].isdigit() and not re.search(r'\b(?:numbers?|labels?|sources?|cards?|terms?|items?|components?|materials?|descriptions?|headings?)\s*$',prompt[:match.start()],re.I):
             return None
     return text
 

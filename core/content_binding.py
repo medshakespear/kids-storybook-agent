@@ -395,6 +395,23 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
                    'differences':'spot the differences'}
     activity_label = ('activity ' + tool_labels[exercise['mechanic']] + ' task'
                       if exercise.get('render_mode') == 'exact' and exercise.get('mechanic') in tool_labels else None)
+    matching=bool(re.search(r'\b(?:match\w*|pair\w*|link\w*)\b',
+        str(exercise.get('mechanic','')).replace('_',' ')+' '+str(exercise.get('directions','')),re.I))
+
+    def matching_label(value):
+        """Recognize a standalone A-H item marker only in a written matching activity."""
+        return matching and bool(re.fullmatch(r'[A-H][.)]',value.strip()))
+
+    def wrap_markers(children,inside=False):
+        """Bind bare marker text without swallowing adjacent source or response nodes."""
+        for index,node in enumerate(children):
+            if isinstance(node,str):
+                if not inside and matching_label(node):
+                    children[index]={'tag':'span','attrs':[],'children':[node]}
+            elif 'comment' not in node:
+                wrap_markers(node['children'],inside or any(k=='data-content' for k,_ in node['attrs']))
+
+    wrap_markers(parser.root)
 
     def visit(node, inside_slot=False):
         """Find whole text-only headings outside existing canonical content slots."""
@@ -406,7 +423,7 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
             value = ' '.join(''.join(pieces).split()) if all(p is not None for p in pieces) else ''
             if (value.casefold().rstrip(':') in {'zone id','terms','numbered terms','definitions','descriptions'} or tip_heading(value) or goal_heading(value)
                     or evidence_heading(value) or source_heading(value) or definition_label(value) or diagram_label(value)
-                    or instruction_heading(value) or problem_heading(value)
+                    or instruction_heading(value) or problem_heading(value) or matching_label(value)
                     or (node['tag'] in {'h2','h3','h4','h5','h6'} and len(value)<=80
                         and re.fullmatch(r'[A-Za-z][A-Za-z :’\x27-]{0,65}\b(?:Design Challenge|Design Studio|Design Workshop)',value))
                     or value.casefold() == activity_label):
@@ -444,6 +461,7 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
                   'evidence_label' if evidence_heading(text) else
                   'diagram_label' if diagram_label(text) else
                   'problem_label' if problem_heading(text) else
+                  'matching_label' if matching_label(text) else
                   'section_label' if text.casefold().rstrip(':') in {'terms','numbered terms','definitions','descriptions'} else
                   'design_heading' if re.search(r'Design (?:Challenge|Studio|Workshop)$',text) else 'zone_label')
         cid = next(f'{prefix}_{i}' for i in range(1,len(used)+2) if f'{prefix}_{i}' not in used)

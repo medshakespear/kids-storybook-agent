@@ -4,9 +4,9 @@ import re
 
 def label_matching_text(prompt: str) -> str | None:
     """Identify label-only matching instructions; numbered ranges are references, not subtraction."""
-    if not isinstance(prompt,str) or not re.search(r'\b(?:match|matching|pair|connect)\b',prompt,re.I):
+    if not isinstance(prompt,str) or not re.search(r'\b(?:match|matching|pair|connect|link)\b|\bwrite\s+(?:the\s+)?(?:correct|matching)\s+letter\b',prompt,re.I):
         return None
-    if not re.search(r'\b(?:claims?|sources?|cards?|statements?|labels?|terms?|items?|components?|materials?|descriptions?)\b',prompt,re.I):
+    if not re.search(r'\b(?:claims?|sources?|cards?|statements?|labels?|terms?|items?|components?|materials?|descriptions?|definitions?|vocabulary)\b',prompt,re.I):
         return None
     # Parentheses are optional, but the adjacent noun must still identify
     # labels. Never strip a numeric operation simply because this is matching.
@@ -16,7 +16,8 @@ def label_matching_text(prompt: str) -> str | None:
         return None
     text=re.sub(range_pattern,'',prompt)
     quantity=r'calculate|compute|solve|evaluate|subtract|add|multiply|divide|totals?|sums?|differences?|percent(?:age)?|how many|how much|count|average|mean|median|mode|ratio|fraction|rate|remaining|amount|quantity|measurements?|weights?|lengths?|zero|one|two|three|four|five|six|seven|eight|nine|ten|half|double|twice'
-    if re.search(r'\d|[+×÷*/=]|\b(?:'+quantity+r')\b',text,re.I):
+    qualitative=re.sub(r'\b(?:explain|justify|describe)\s+(?:any\s+)?one\s+(?:choice|match|pair|example)\b','',text,flags=re.I)
+    if re.search(r'\d|[+×÷*/=]|\b(?:'+quantity+r')\b',qualitative,re.I):
         return None
     # A numeric range must be introduced explicitly as a printed identifier.
     for match in ranges:

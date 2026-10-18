@@ -669,7 +669,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         break
 
                     # Answer-length repairs cannot remove illustrations or replace the original task.
-                    range_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): Arithmetic result is outside this grade band',str(exc))
+                    range_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:Arithmetic result is outside this grade band|arithmetic is below [^;]+ level)',str(exc))
                     caption_match = re.fullmatch(r'Exercise caption ([a-z][a-z0-9_]{0,23}) must be nonempty text <= 120 characters',str(exc))
                     answer_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) answer/criterion',str(exc))
                     prompt_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) prompt must',str(exc))
@@ -809,8 +809,11 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         )
                     if range_repair_base is not None:
                         repair += (
-                            f' Simplify ONLY exercise.questions id {range_repair_id} to the allowed result '
-                            'range in the diagnostic. Return exercise.questions with that id, revised prompt, '
+                            f' Revise ONLY exercise.questions id {range_repair_id} to meet the grade requirement '
+                            'in the diagnostic. For below-grade arithmetic, increase its mathematical demand; '
+                            'for an out-of-range result, reduce its magnitude. Never add arithmetic to a '
+                            'literacy matching task or interpret card-label ranges as subtraction. '
+                            'Return exercise.questions with that id, revised prompt, '
                             'answer, calculation and its ORIGINAL space_mm. Keep the same learning skill and '
                             'context; adjust quantities and operation coherently in both the printed question '
                             'and calculation, verify the answer, and do not simply change the answer number. '
@@ -965,7 +968,7 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                                 'including html, images, visuals and answers; do not replace a puzzle with '
                                 'an AI illustration or invent missing task numbers.'
                             )
-                    if ('calculation' in asset_error or 'arithmetic' in asset_error or 'only numbers' in asset_error
+                    if range_repair_base is None and ('calculation' in asset_error or 'arithmetic' in asset_error or 'only numbers' in asset_error
                             or 'only integer/decimal literals' in asset_error):
                         if 'ONE shared source' in prompt:
                             repair += (

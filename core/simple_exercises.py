@@ -89,12 +89,23 @@ def check_simple_activity(exercise: dict, *, planning: bool = False) -> None:
         raise ValueError('Simple workbook: replace the picture spot-the-difference task with a comparison of complete printed written sources; do not request AI picture changes or an exact puzzle')
     for text in texts:
         text=str(text)
+        # These are written reasoning actions, not requests for craft assets.
+        # Inspect an equivalent action phrase locally; preserve original prose.
+        text=re.sub(r'\bdraw\s+(?:(?:a|the)\s+)?conclusions?\b','infer',text,flags=re.I)
+        text=re.sub(r'\b(?:build|construct|craft)\s+(?:(?:a|an|the)\s+)?(?:written\s+)?'
+                    r'(?:arguments?|explanations?|equations?|number sentences?)\b','write',text,flags=re.I)
+        if re.search(r'\b(?:word problems?|calculate|compute)\b',text,re.I):
+            text=re.sub(r'\b(?:about|involving|featuring)\s+(?:the\s+)?templates?\b','about quantities',text,flags=re.I)
+            text=re.sub(r'\b(?:cost|price|number|area|perimeter|length|width)\s+of\s+(?:the\s+)?templates?\b',
+                        'quantity of materials',text,flags=re.I)
         action=re.search(r'(?:^|[.!?:;]\s*|\b(?:then|and)\s+)(?:(?:please|carefully|neatly|accurately|directly|now)\s+)*'+verbs+r'\b',text,re.I)
         if planning:
             action=action or re.search(r'\b(?:students?|children|learners?)\s+(?:will\s+)?'+verbs+r'\b',text,re.I)
         indirect=re.search(r'\b(?:by|to)\s+(?:drawing|sketching|tracing|coloring|colouring|cutting|folding|crafting|mirroring)\b',text,re.I)
         if action or indirect or re.search(r'\b(?:templates?|blank (?:right|left) half|mirror image|drawing (?:box|area))\b',text,re.I):
-            raise ValueError('Simple workbook: replace drawing, crafting or template instructions with a clear reading, writing or math question')
+            match=action or indirect or re.search(r'\b(?:templates?|blank (?:right|left) half|mirror image|drawing (?:box|area))\b',text,re.I)
+            raise ValueError('Simple workbook: replace drawing, crafting or template instructions with a clear reading, writing or math question. '
+                             f'Detected action: {match[0]!r}; field excerpt: {text[:220]!r}')
         if re.search(r'\b\d+(?:\.\d+)?\s*mm\s+(?:writing|response|answer)\s+space\b',text,re.I):
             raise ValueError('Keep response-space measurements in space_mm, not in the student question')
 

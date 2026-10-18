@@ -54,6 +54,21 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
     missing=[sid for sid in references if sid not in seen]
     unused=[sid for sid in seen if sid not in references]
 
+    def letter_alias(node,sid):
+        """Resolve Text A to the sole unused declared Card A, retaining its complete text."""
+        match=re.fullmatch(r'(?:text|card|source|reading|passage)_([a-h])',sid)
+        if not match or references.count(sid)!=1:return None
+        if isinstance(captions,list) and any(isinstance(c,dict) and c.get('id')==sid for c in captions):return None
+        pattern=r'(?:text|card|source|reading|passage)_'+match[1]
+        candidates=[candidate for candidate in unused if re.fullmatch(pattern,candidate)]
+        if len(candidates)!=1 or sum(bool(re.fullmatch(pattern,other)) for other in missing)!=1:return None
+        pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
+        if any(piece is None for piece in pieces):return None
+        printed=' '.join(''.join(pieces).split())
+        expected=' '.join(str(sources[candidates[0]].get('text','')).split())
+        if not expected or printed and printed!=expected:return None
+        return 'stimulus_'+candidates[0]
+
     def generic_alias(node,sid):
         """Rebind one generic placeholder to one complete, unused declared source."""
         if sid not in generic_ids or missing!=[sid] or len(unused)!=1:return None
@@ -168,7 +183,7 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
                     changed=changed or value!=canonical
                     value=canonical
                 else:
-                    heading=generic_alias(node,sid) or label_slot(node,sid)
+                    heading=letter_alias(node,sid) or generic_alias(node,sid) or label_slot(node,sid)
                     if heading:
                         value=heading
                         changed=True

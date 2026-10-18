@@ -9,7 +9,7 @@ NEUTRAL_HEADERS = {
     'criterion':'Criterion', 'item':'Item', 'detail':'Detail', 'description':'Description',
     'source':'Source', 'evidence':'Evidence', 'observation':'Observation', 'notes':'Notes',
     'comparison':'Comparison', 'similarities':'Similarities', 'differences':'Differences',
-    'symbolic':'Symbolic',
+    'symbolic':'Symbolic', 'count':'Count',
 }
 
 

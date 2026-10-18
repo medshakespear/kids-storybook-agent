@@ -3,6 +3,17 @@ import re
 from core.exercise_quality import numeric_display_text, normalize_calculation
 
 
+def compound_calculation(expression: str) -> bool:
+    """Detect multiple explicit arithmetic results without silently discarding either."""
+    if not isinstance(expression,str):return False
+    parts=re.split(r'\s+and\s+|\s*;\s*',expression.strip(),flags=re.I)
+    if not 2<=len(parts)<=4:return False
+    try:
+        for part in parts:normalize_calculation(part)
+    except ValueError:return False
+    return True
+
+
 def standalone_arithmetic(prompt: str) -> str | None:
     """Return validated standalone arithmetic; never infer operations from prose quantities."""
     if not isinstance(prompt,str):

@@ -66,10 +66,21 @@ class ReadingBodyRoleTests(unittest.TestCase):
             ('<p data-content="stimulus_source_b"></p>',one),
             ('<p data-content="caption_source_text"></p>',blocks),
             ('<p data-content="caption_source_text">Partial or conflicting evidence.</p>',one),
-            ('<p data-content="caption_source_text"></p><p data-content="stimulus_event_data"></p>',one),
             ('<p data-content="caption_source_text"></p><p data-content="stimulus_source_text"></p>',one),
             ('<h3 data-content="caption_source_text"></h3>',one)):
             self.assertEqual(normalize_reading_body_aliases(markup,available,exercise,config),markup)
+
+    def test_redundant_empty_generic_body_retains_the_existing_source_once(self):
+        """An unused empty body alias carries no words and must not duplicate an existing reading."""
+        markup='<p data-content="caption_source_text"></p><p data-content="stimulus_event_data"></p>'
+        result=normalize_reading_body_aliases(markup,{'stimulus_event_data':'Retained source.'},
+            {'render_mode':'authored'},{'student_workbook':True})
+        self.assertEqual(result.count('data-content='),1)
+        self.assertIn('data-content="stimulus_event_data"',result)
+        self.assertEqual(result.count('<p'),2)
+        nonempty=markup.replace('caption_source_text"></p>','caption_source_text">Different retained words.</p>')
+        self.assertEqual(normalize_reading_body_aliases(nonempty,{'stimulus_event_data':'Retained source.'},
+            {'render_mode':'authored'},{'student_workbook':True}),nonempty)
 
 
 if __name__=='__main__':unittest.main()

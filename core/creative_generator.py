@@ -674,6 +674,14 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     answer_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) answer/criterion',str(exc))
                     prompt_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) prompt must',str(exc))
                     math_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|calculation expression|answer key|calculation does not solve|printed arithmetic)',str(exc))
+                    if math_match and isinstance(validated_draft,dict):
+                        from core.printed_arithmetic import compound_calculation
+                        compound=[q for q in validated_draft.get('exercise',{}).get('questions',[])
+                                  if isinstance(q,dict) and str(q.get('id'))==math_match[1]
+                                  and isinstance(q.get('calculation'),dict)
+                                  and compound_calculation(q['calculation'].get('expression'))]
+                        if len(compound)==1:
+                            range_match=math_match;math_match=None
                     if label=='Creative plan' and validated_draft is not None:
                         mode_match = re.search(r'^Planned page (\d+).*Each page needs render_mode',str(exc))
                         constraints_match = re.search(r'^Planned page (\d+).*Exact mechanic (?:constraints|alias)',str(exc))
@@ -811,8 +819,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         repair += (
                             f' Revise ONLY exercise.questions id {range_repair_id} to meet the grade requirement '
                             'in the diagnostic. For below-grade arithmetic, increase its mathematical demand; '
-                            'for an out-of-range result, reduce its magnitude. Never add arithmetic to a '
-                            'literacy matching task or interpret card-label ranges as subtraction. '
+                            'for an out-of-range result, reduce its magnitude. '
+                            'For a compound expression joined by and or semicolons, revise this question '
+                            'to ONE focused computed outcome using the same printed source facts; choose '
+                            'a grade-appropriate multi-step outcome. Never silently keep the first expression '
+                            'while leaving a second requested answer in the printed prompt. '
+                            'Never add arithmetic to a literacy matching task or interpret card-label ranges as subtraction. '
                             'Return exercise.questions with that id, revised prompt, '
                             'answer, calculation and its ORIGINAL space_mm. Keep the same learning skill and '
                             'context; adjust quantities and operation coherently in both the printed question '

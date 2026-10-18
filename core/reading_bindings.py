@@ -81,19 +81,28 @@ def normalize_reading_body_aliases(markup: str, blocks: dict, exercise: dict, co
         slot=canonical_content_slot(raw,blocks)
         if slot:references.append(slot)
         if (not inside and isinstance(raw,str) and slot not in blocks
-                and re.fullmatch(r'(?:(?:stimulus_|caption_))*(?:source|reading|text)_[a-z0-9_]{1,24}',raw)
+                and re.fullmatch(r'(?:(?:stimulus_|caption_))*(?:text|(?:source|reading|text)_[a-z0-9_]{1,24})',raw)
                 and not re.search(r'_(?:label|heading|title)$',raw)):
             candidates.append(node)
         for child in node['children']:visit(child,inside or bool(raw))
     for node in parser.root:visit(node)
-    if len(bodies)!=1 or bodies.intersection(references) or len(candidates)!=1:return markup
+    if len(bodies)!=1 or len(candidates)!=1:return markup
     body=next(iter(bodies));node=candidates[0]
     raw=dict(node['attrs'])['data-content']
     generic=re.sub(r'^(?:(?:stimulus_|caption_))+','',raw)
-    if body!='passage' and generic not in {'source_text','source_body','source_content','source_passage','reading_text','reading_body','reading_content','text_body','text_content'}:
+    if body!='passage' and generic not in {'text','source_text','source_body','source_content','source_passage','reading_text','reading_body','reading_content','text_body','text_content'}:
         return markup  # A missing named Source B must not become an unrelated Source A.
 
     if node['tag'] not in {'p','div','section','span'}:return markup
+    if bodies.intersection(references):
+        # A redundant unsized empty generic body slot has no independent
+        # wording. Keep its wrapper but never print the retained source twice.
+        empty=all(isinstance(c,str) and not c.strip() for c in node['children'])
+        sized=re.search(r'(?:^|;)\s*(?:min-|max-)?height\s*:',dict(node['attrs']).get('style','') or '',re.I)
+        if generic not in {'text','source_text','source_body','source_content','reading_text','reading_body','reading_content','text_body','text_content'} or not empty or sized:
+            return markup
+        node['attrs']=[(k,v) for k,v in node['attrs'] if k!='data-content']
+        return ''.join(literal_html(n) for n in parser.root)
     pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
     protected=any(piece is None for piece in pieces)
     printed=' '.join(''.join(piece for piece in pieces if piece is not None).split()).casefold()

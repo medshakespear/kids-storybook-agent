@@ -42,7 +42,8 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
     captions=deepcopy(exercise.get('captions',[]))
     # Only generic source-card/text aliases can bind by elimination. Do not
     # guess identities for named cards, missing evidence, or competing sources.
-    generic_ids={'source_text','source_card','source_passage','reading_text','reading_card',
+    generic_ids={'text','source_text','source_body','source_content','source_card','source_passage',
+                 'reading_text','reading_body','reading_content','reading_card',
                  'text_body','text_card','text_content'}
     references=[]
     def collect_references(node):
@@ -67,14 +68,16 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
         if any(piece is None for piece in pieces):return None
         printed=' '.join(''.join(pieces).split())
         expected=' '.join(str(sources[candidates[0]].get('text','')).split())
-        if not expected or printed and printed!=expected:return None
+        label=' '.join(str(sources[candidates[0]].get('label','')).split())
+        copies={expected}
+        if label:copies.update({label+' '+expected,label+': '+expected,label+'. '+expected})
+        if not expected or printed and printed not in copies:return None
         return 'stimulus_'+candidates[0]
 
     def generic_alias(node,sid):
         """Rebind one generic placeholder to one complete, unused declared source."""
         if sid not in generic_ids or missing!=[sid] or len(unused)!=1:return None
         candidate=unused[0]
-        if candidate not in generic_ids:return None
         pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
         if any(p is None for p in pieces):return None
         printed=' '.join(''.join(pieces).split())

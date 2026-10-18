@@ -25,6 +25,8 @@ def exercise_guidance(grade_band: str) -> str:
         'reading, writing or mathematics. Keep language accessible for the selected grade; '
         'simple directions do not mean below-grade mathematics. '+math+' '
         'For every numeric problem include one calculation matching the printed problem and '
+        'request one computed outcome per question. Multi-step operations may produce that one '
+        'outcome, but never join separate calculation results with and or semicolons. '
         'its exact answer. Independently solve the problem before writing the answer key. '
         'Distinguish points earned from the number of items; use the correct unit in both prompt '
         'and solution. Number matching terms explicitly (one term per line) whenever a question '

@@ -56,9 +56,9 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
     missing=[sid for sid in references if sid not in seen]
     unused=[sid for sid in seen if sid not in references]
 
-    def letter_alias(node,sid):
-        """Resolve Text A to the sole unused declared Card A, retaining its complete text."""
-        match=re.fullmatch(r'(?:text|card|source|reading|passage)_([a-h])',sid)
+    def indexed_alias(node,sid):
+        """Resolve an equivalent letter/number source identity, retaining its complete text."""
+        match=re.fullmatch(r'(?:text|card|source|reading|passage)_([a-h]|[1-9]|[12][0-9]|30)',sid)
         if not match or references.count(sid)!=1:return None
         if isinstance(captions,list) and any(isinstance(c,dict) and c.get('id')==sid for c in captions):return None
         pattern=r'(?:text|card|source|reading|passage)_'+match[1]
@@ -187,7 +187,7 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
                     changed=changed or value!=canonical
                     value=canonical
                 else:
-                    heading=letter_alias(node,sid) or generic_alias(node,sid) or label_slot(node,sid)
+                    heading=indexed_alias(node,sid) or generic_alias(node,sid) or label_slot(node,sid)
                     if heading:
                         value=heading
                         changed=True

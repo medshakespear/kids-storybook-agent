@@ -306,6 +306,13 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
             if not isinstance(text,str) or normalized(text)!=normalized(str(by_id[cid].get('text',''))):
                 raise ValueError('Layout-only repair cannot change existing caption wording')
             continue
+        sources=result['exercise'].get('stimuli',[])
+        if (cid in {'source_text','source_body','source_content','reading_text','reading_body','text_body','text_content'}
+                and isinstance(sources,list) and len(sources)==1):
+            # This is a reading-body role, not a new caption. The retained
+            # source owns its wording; normal binding must still resolve the
+            # HTML reference without accepting a missing or invented body.
+            continue
         if not isinstance(text,str) or not text.strip() or len(text.strip())>120:
             raise ValueError('Layout caption recovery needs nonempty original label text <=120 characters')
         equivalent = next((c['id'] for c in captions if normalized(str(c.get('text','')))==normalized(text)),None)
@@ -674,11 +681,12 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         break
 
                     # Answer-length repairs cannot remove illustrations or replace the original task.
-                    range_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:Arithmetic result is outside this grade band|arithmetic is below [^;]+ level)',str(exc))
+                    range_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:Arithmetic result is outside this grade band|arithmetic is below [^;]+ level|calculation expression [^\n]+: Arithmetic (?:literal|result) is too large)',str(exc))
                     caption_match = re.fullmatch(r'Exercise caption ([a-z][a-z0-9_]{0,23}) must be nonempty text <= 120 characters',str(exc))
                     answer_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) answer/criterion',str(exc))
                     prompt_match = re.search(r'Exercise question ([1-9]\d?(?:[A-Za-z])?) prompt must',str(exc))
                     math_match = re.search(r'Question ([1-9]\d?(?:[A-Za-z])?): (?:declared math answer|calculation expression|answer key|calculation does not solve|printed arithmetic)',str(exc))
+                    if range_match is not None:math_match=None
                     if math_match and isinstance(validated_draft,dict):
                         from core.printed_arithmetic import compound_calculation
                         compound=[q for q in validated_draft.get('exercise',{}).get('questions',[])
@@ -761,6 +769,15 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                     if content:
                         messages.append({'role': 'assistant', 'content': content[:36000]})
                     repair = f'Correct only this unit and return complete JSON. Validation: {exc}'
+                    retained_exercise=validated_draft.get('exercise',{}) if isinstance(validated_draft,dict) else {}
+                    retained_sources=retained_exercise.get('stimuli',[]) if isinstance(retained_exercise,dict) else []
+                    if (isinstance(retained_sources,list) and len(retained_sources)==1
+                            and isinstance(retained_sources[0],dict) and isinstance(retained_sources[0].get('id'),str)
+                            and ('caption_source_text' in str(exc) or 'Layout caption recovery' in str(exc))):
+                        repair += (' The reading body is already declared as stimulus_'+retained_sources[0]['id']+'. '
+                            'Use that exact data-content slot in an empty text container. Do not create a '
+                            'source_text caption or add/shorten the retained source. Put other captions, '
+                            'graphics and response areas outside this text container; preserve them all. ')
                     if source_repair_base is not None:
                         repair += (' This is a SOURCE MANIFEST repair, not an HTML-only repair. Return complete '
                                    'html, images and exercise including exercise.stimuli. Supply a nonempty id/text '
@@ -825,6 +842,10 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                             f' Revise ONLY exercise.questions id {range_repair_id} to meet the grade requirement '
                             'in the diagnostic. For below-grade arithmetic, increase its mathematical demand; '
                             'for an out-of-range result, reduce its magnitude. '
+                            'For an arithmetic literal or intermediate result that is too large, revise '
+                            'this question to use smaller grade-appropriate quantities and operations; '
+                            'do not keep retrying the same forbidden expression. Keep retained source '
+                            'facts unchanged: use a smaller subset or explicitly stated share if needed. '
                             'For a compound expression joined by and or semicolons, revise this question '
                             'to ONE focused computed outcome using the same printed source facts; choose '
                             'a grade-appropriate multi-step outcome. Never silently keep the first expression '

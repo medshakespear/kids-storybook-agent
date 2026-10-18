@@ -17,6 +17,9 @@ def label_matching_text(prompt: str) -> str | None:
     text=re.sub(range_pattern,'',prompt)
     quantity=r'calculate|compute|solve|evaluate|subtract|add|multiply|divide|totals?|sums?|differences?|percent(?:age)?|how many|how much|count|average|mean|median|mode|ratio|fraction|rate|remaining|amount|quantity|measurements?|weights?|lengths?|zero|one|two|three|four|five|six|seven|eight|nine|ten|half|double|twice'
     qualitative=re.sub(r'\b(?:explain|justify|describe)\s+(?:any\s+)?one\s+(?:choice|match|pair|example)\b','',text,flags=re.I)
+    qualitative=re.sub(r'\b(?:[1-8]|one|two|three|four|five|six|seven|eight)\s+'
+        r'(?:(?:numbered|labeled|labelled|printed|supplied)\s+){0,2}'
+        r'(?:claims?|sources?|cards?|statements?|labels?|terms?|items?|definitions?|descriptions?)\b','labels',qualitative,flags=re.I)
     if re.search(r'\d|[+×÷*/=]|\b(?:'+quantity+r')\b',qualitative,re.I):
         return None
     # A numeric range must be introduced explicitly as a printed identifier.

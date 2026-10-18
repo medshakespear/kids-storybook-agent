@@ -40,18 +40,32 @@ def requires_exact_differences(page: dict) -> bool:
     written_cards=bool(page.get('exercise_binding') and isinstance(page.get('exercise'),dict)
                        and (page['exercise'].get('stimuli') or page['exercise'].get('passage')))
     for instruction in instructions:
+        # Plans describe the written sources before their actual excerpts exist.
+        # Recognize that explicit context within this field, never from titles,
+        # mechanic labels, illustration prompts or another planning field.
+        written_context=bool(re.search(
+            r'\b(?:read|compare|contrast|examine|analyze|analyse)\b[^.!?;\n]{0,80}\b'
+            r'(?:passages?|texts?|accounts?|reports?|sources?|written\s+cards?|printed\s+cards?)\b',
+            instruction,re.I))
+        picture_context=bool(re.search(
+            r'\b(?:pictures?|images?|illustrations?|drawings?|scenes?|photos?|photographs?)\b',
+            instruction,re.I))
         for clause in re.split(r'[!?;\n]+|(?<!\d)\.|\.(?!\d)',instruction):
             for match in re.finditer(action,clause,re.I):
                 target=clause[match.end():]
                 if re.search(picture_target,target,re.I): return True
+                if re.search(r'\b(?:rows?|objects?|symbols?|shapes?)\b',target,re.I) and not re.search(text_targets,target,re.I):
+                    return True
                 comparison=re.split(r'\b(?:then|and\s+(?:explain|write|tell|record|justify|draw|color|colour|answer))\b',target,maxsplit=1,flags=re.I)[0]
-                textual=(re.match(r'^\s*(?:between|in|among|of|across)\b',comparison,re.I)
+                textual=(re.match(r'^\s*(?:between|in|among|of|across|using|from|through|based\s+on)\b',comparison,re.I)
                          and (re.search(text_targets,comparison,re.I) or re.search(r'\b(?:written|printed|source)\s+cards?\b',comparison,re.I)))
                 conceptual=(re.match(r'^\s*(?:between|in|among|across)\b',comparison,re.I)
                             and re.search(r'\b(?:customs?|traditions?|celebrations?|practices?)\b',comparison,re.I)
                             and not re.search(r'\b(?:pictures?|images?|illustrations?|drawings?|scenes?|photos?)\b',comparison,re.I))
                 labeled_cards=(written_cards and re.match(r'^\s*(?:between|in|among)\s+(?:(?:the|these|two|both|written|printed)\s+)*(?:cards?\b|(?:Card\s+)?[A-H]\s+(?:and|versus|vs)\s+(?:Card\s+)?[A-H]\b)',comparison,re.I))
-                if textual or conceptual or labeled_cards or re.search(numeric_target,target,re.I):
+                if (textual and not picture_context) or conceptual or labeled_cards or re.search(numeric_target,target,re.I):
+                    continue
+                if written_context and not picture_context:
                     continue
                 return True  # A generic picture-change task needs the exact component too.
     return False

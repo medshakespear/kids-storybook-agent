@@ -81,8 +81,11 @@ def check_simple_activity(exercise: dict, *, planning: bool = False) -> None:
            [exercise.get('directions','')]+[q.get('prompt','') for q in (questions if isinstance(questions,list) else []) if isinstance(q,dict)])
     verbs=r'(?:draw(?!\s+(?:a|the)\s+conclusion)|sketch|trace|colou?r|paint|cut|fold|glue|assemble|decorate|craft|build|construct|carve|mirror|design)'
     from core.difference_intent import requires_exact_differences
-    instructions={'exercise_binding':True,'exercise':dict(exercise,directions=' '.join(str(t) for t in texts),questions=[],captions=[])}
-    if requires_exact_differences(instructions):
+    # Keep planner fields separate: the end of a goal and start of a concept
+    # must never manufacture a new student command.
+    instructions=[{'exercise_binding':True,'exercise':dict(exercise,directions=str(text),questions=[],captions=[])}
+                  for text in texts]
+    if any(requires_exact_differences(instruction) for instruction in instructions):
         raise ValueError('Simple workbook: replace the picture spot-the-difference task with a comparison of complete printed written sources; do not request AI picture changes or an exact puzzle')
     for text in texts:
         text=str(text)

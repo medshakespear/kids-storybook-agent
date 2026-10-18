@@ -81,7 +81,7 @@ def normalize_reading_body_aliases(markup: str, blocks: dict, exercise: dict, co
         slot=canonical_content_slot(raw,blocks)
         if slot:references.append(slot)
         if (not inside and isinstance(raw,str) and slot not in blocks
-                and re.fullmatch(r'(?:(?:stimulus_|caption_))*(?:source|reading)_[a-z0-9_]{1,24}',raw)
+                and re.fullmatch(r'(?:(?:stimulus_|caption_))*(?:source|reading|text)_[a-z0-9_]{1,24}',raw)
                 and not re.search(r'_(?:label|heading|title)$',raw)):
             candidates.append(node)
         for child in node['children']:visit(child,inside or bool(raw))
@@ -90,7 +90,7 @@ def normalize_reading_body_aliases(markup: str, blocks: dict, exercise: dict, co
     body=next(iter(bodies));node=candidates[0]
     raw=dict(node['attrs'])['data-content']
     generic=re.sub(r'^(?:(?:stimulus_|caption_))+','',raw)
-    if body!='passage' and generic not in {'source_text','source_body','source_content','source_passage','reading_text','reading_body','reading_content'}:
+    if body!='passage' and generic not in {'source_text','source_body','source_content','source_passage','reading_text','reading_body','reading_content','text_body','text_content'}:
         return markup  # A missing named Source B must not become an unrelated Source A.
 
     if node['tag'] not in {'p','div','section','span'}:return markup
@@ -106,6 +106,19 @@ def normalize_reading_body_aliases(markup: str, blocks: dict, exercise: dict, co
         # canonical passage. Keep its protected siblings for the existing
         # structural binder; an empty image box cannot stand in for a reading.
         if not printed or printed not in expected:return markup
+        # Bind the complete retained reading in its own text slot. Keep media,
+        # other slots and response surfaces outside it, even when the canonical
+        # source block also owns a label absent from this redundant body copy.
+        children=[];inserted=False
+        for child,piece in zip(node['children'],pieces):
+            if piece is None:
+                children.append(child)
+            elif piece.strip() and not inserted:
+                children.append({'tag':'div','attrs':[('data-content',body)],'children':[]})
+                inserted=True
+        node['attrs']=[(k,v) for k,v in node['attrs'] if k!='data-content']
+        node['children']=children
+        return ''.join(literal_html(n) for n in parser.root)
     elif printed and printed not in expected:return markup
     node['attrs']=[(k,body if k=='data-content' else v) for k,v in node['attrs']]
     if not protected:node['children']=[]

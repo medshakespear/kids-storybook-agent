@@ -42,7 +42,8 @@ def normalize_stimulus_ids(page: dict, exercise: dict) -> None:
     captions=deepcopy(exercise.get('captions',[]))
     # Only generic source-card/text aliases can bind by elimination. Do not
     # guess identities for named cards, missing evidence, or competing sources.
-    generic_ids={'source_text','source_card','source_passage','reading_text','reading_card'}
+    generic_ids={'source_text','source_card','source_passage','reading_text','reading_card',
+                 'text_body','text_card','text_content'}
     references=[]
     def collect_references(node):
         """Count every original source reference before choosing an unused source."""

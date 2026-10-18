@@ -100,6 +100,15 @@ def problem_heading(value: str) -> bool:
     return bool(re.fullmatch(r'(?:problem|question)\s+[1-9]\d?[a-z]?\s*[:.]?',value.strip(),re.I))
 
 
+def vocabulary_heading(value: str) -> bool:
+    """Recognize short subject-qualified vocabulary headings, never a task sentence."""
+    from core.authored_wording import instruction_start
+    text=value.strip().rstrip(':').strip()
+    return (bool(re.fullmatch(r'(?:[A-Za-z][A-Za-z\x27-]*\s+){0,3}(?:Terms|Definitions|Descriptions)',text,re.I))
+            and not instruction_start(text)
+            and not re.search(r'\b(?:answer|should|must|need|can|will|are|is)\b',text,re.I))
+
+
 def definition_label(value: str) -> bool:
     """Recognize a short complete literacy definition, never tasks or numerical keys."""
     value=value.strip()
@@ -423,7 +432,7 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
             value = ' '.join(''.join(pieces).split()) if all(p is not None for p in pieces) else ''
             if (value.casefold().rstrip(':') in {'zone id','terms','numbered terms','definitions','descriptions'} or tip_heading(value) or goal_heading(value)
                     or evidence_heading(value) or source_heading(value) or definition_label(value) or diagram_label(value)
-                    or instruction_heading(value) or problem_heading(value) or matching_label(value)
+                    or instruction_heading(value) or problem_heading(value) or matching_label(value) or vocabulary_heading(value)
                     or (node['tag'] in {'h2','h3','h4','h5','h6'} and len(value)<=80
                         and re.fullmatch(r'[A-Za-z][A-Za-z :’\x27-]{0,65}\b(?:Design Challenge|Design Studio|Design Workshop)',value))
                     or value.casefold() == activity_label):
@@ -462,7 +471,7 @@ def bind_standard_heading(layout: str, exercise: dict, *, context_limit: int = 6
                   'diagram_label' if diagram_label(text) else
                   'problem_label' if problem_heading(text) else
                   'matching_label' if matching_label(text) else
-                  'section_label' if text.casefold().rstrip(':') in {'terms','numbered terms','definitions','descriptions'} else
+                  'section_label' if vocabulary_heading(text) else
                   'design_heading' if re.search(r'Design (?:Challenge|Studio|Workshop)$',text) else 'zone_label')
         cid = next(f'{prefix}_{i}' for i in range(1,len(used)+2) if f'{prefix}_{i}' not in used)
         captions = list(captions)+[{'id':cid,'text':text}]

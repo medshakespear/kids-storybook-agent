@@ -290,7 +290,7 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
         # or charge genuine table cells against the prose-caption allowance.
         repaired_table_ids.update(prepare_table_captions(deepcopy(original)))
     for caption in supplied:
-        if not isinstance(caption,dict) or not isinstance(caption.get('id'),str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,23}',caption['id']):
+        if not isinstance(caption,dict) or not isinstance(caption.get('id'),str):
             raise ValueError('Layout caption recovery needs a short lowercase caption id')
         cid,text = caption['id'],caption.get('text')
         if cid not in by_id and cid not in referenced_slots and 'caption_' + cid not in referenced_slots:
@@ -298,6 +298,8 @@ def merge_layout_repair(original: dict, correction: dict) -> dict:
             # suggestions are not new student content and cannot change the
             # pinned exercise or force a needless semantic repair.
             continue
+        if not re.fullmatch(r'[a-z][a-z0-9_]{0,23}',cid):
+            raise ValueError('Layout caption recovery needs a short lowercase caption id')
         if cid in by_id:
             if original.get('_caption_context_limit') == 24:
                 continue  # Mixed layout repair owns HTML only; retain the canonical caption verbatim.
@@ -631,6 +633,9 @@ def ask_json(prompt: str, validate, label: str, tokens: int = 6000, *, response_
                         if corrected is None:
                             from core.math_result_recovery import repair_declared_result
                             corrected = repair_declared_result(validated_draft,local_math[1])
+                        if corrected is None and 'declared math answer is incorrect' in str(exc):
+                            from core.math_result_recovery import repair_calculation_metadata
+                            corrected=repair_calculation_metadata(validated_draft,local_math[1])
                         if corrected is None:
                             break
                         locally_repaired.add(local_math[1])

@@ -9,6 +9,25 @@ from core.exercise_quality import expected_calculation,normalize_calculation,rou
 NUMBER = re.compile(r'(?<![\w.])[-−]?(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|\.\d+)(?:/\d+)?(?!\w|\.\d|/\d)')
 
 
+def repair_calculation_metadata(page: dict, question_id: str) -> dict | None:
+    """Compute only an incorrect declared result; leave ambiguous prose for scoped review."""
+    exercise=page.get('exercise') if isinstance(page,dict) else None
+    questions=exercise.get('questions') if isinstance(exercise,dict) else None
+    matches=[q for q in questions if isinstance(q,dict) and str(q.get('id'))==question_id] if isinstance(questions,list) else []
+    if len(matches)!=1 or not isinstance(matches[0].get('calculation'),dict):return None
+    question=matches[0];calculation=question['calculation']
+    try:
+        expression=normalize_calculation(calculation.get('expression'))
+        actual=expected_calculation(expression,question.get('prompt',''))
+        supplied=Fraction(str(calculation.get('answer')))
+    except (ValueError,TypeError,ZeroDivisionError):return None
+    if supplied==actual:return None
+    result=deepcopy(page)
+    target=next(q for q in result['exercise']['questions'] if str(q.get('id'))==question_id)
+    target['calculation']={**calculation,'expression':expression,'answer':format_result(actual,question.get('prompt',''))}
+    return result
+
+
 def format_result(value: Fraction, prompt: str) -> str:
     """Print explicitly rounded results as decimals without floating point loss."""
     places = rounding_precision(prompt)

@@ -8,8 +8,40 @@ READING_HEADINGS={
     'context_reading':'Reading Context','reading_heading':'Reading',
     'passage_heading':'Reading','source_heading':'Source',
     'reading_title':'Reading','source_title':'Source',
+    'source_label':'Source',
 }
 FLOW_PARENTS={None,'div','section','td','li'}
+
+
+def split_source_media(markup: str, blocks: dict, exercise: dict) -> str:
+    """Separate an explicit source's complete redundant body from protected sibling elements."""
+    parser=CanonicalTextContainers(blocks);parser.feed(markup);parser.close()
+    if parser.stack:return markup
+    texts={'stimulus_'+s['id']:s['text'] for s in exercise.get('stimuli',[])
+        if isinstance(s,dict) and isinstance(s.get('id'),str) and isinstance(s.get('text'),str)}
+    if isinstance(exercise.get('passage'),str):texts['passage']=exercise['passage']
+    changed=False
+    def visit(node,inside=False):
+        """Only a complete known reading may leave its own mixed container."""
+        nonlocal changed
+        if isinstance(node,str) or 'comment' in node:return
+        slot=canonical_content_slot(dict(node['attrs']).get('data-content'),blocks)
+        if not inside and slot in texts and node['tag'] in {'p','div','section','span'}:
+            pieces=[parser.plain_text(c,allow_text_dimensions=True) for c in node['children']]
+            own=' '.join(''.join(p for p in pieces if p is not None).split()).casefold()
+            expected={' '.join(texts[slot].split()).casefold(),parser.text_blocks.get(slot,'')}
+            if own and own in expected and any(p is None for p in pieces):
+                children=[];inserted=False
+                for child,piece in zip(node['children'],pieces):
+                    if piece is None:children.append(child)
+                    elif piece.strip() and not inserted:
+                        children.append({'tag':'div','attrs':[('data-content',slot)],'children':[]});inserted=True
+                node['attrs']=[(k,v) for k,v in node['attrs'] if k!='data-content']
+                node['children']=children;changed=True
+                return
+        for child in node['children']:visit(child,inside or bool(slot))
+    for node in parser.root:visit(node)
+    return ''.join(literal_html(n) for n in parser.root) if changed else markup
 
 
 def declare_reading_headings(markup: str, exercise: dict, config: dict) -> None:
@@ -70,6 +102,7 @@ def normalize_reading_body_aliases(markup: str, blocks: dict, exercise: dict, co
     if (not config.get('student_workbook') or exercise.get('render_mode')!='authored'
             or not any(k=='passage' or k.startswith('stimulus_') for k in blocks)):
         return markup
+    markup=split_source_media(markup,blocks,exercise)
     parser=CanonicalTextContainers(blocks);parser.feed(markup);parser.close()
     if parser.stack:return markup
     bodies={k for k in blocks if k=='passage' or k.startswith('stimulus_')}

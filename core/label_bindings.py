@@ -86,12 +86,30 @@ def restore_declared_labels(markup: str, blocks: dict, exercise: dict, config: d
             if anchor is None and len(candidates) == 1:
                 children, node = candidates[0]
                 anchor = (children, children.index(node) + 1)
+        if anchor is None and config.get('simple_exercises_only'):
+            from core.context_recovery import contextual_text
+            from core.authored_wording import instruction_start
+            neutral_tradition=(cid.endswith('_tradition') and len(text)<=60
+                and re.fullmatch(r'[a-z][a-z\s\x27-]+',text))
+            if ((contextual_text(caption['text']) or neutral_tradition)
+                    and not instruction_start(caption['text']) and not diagram_label_text(caption['text'])):
+                # Retained factual context can stand on its own before the
+                # source/art region. Do not guess which diagram it labels.
+                index=next((i for i,node in enumerate(parser.root) if isinstance(node,dict)
+                    and (node.get('tag')=='table' or str(dict(node.get('attrs',[])).get('data-content','')).startswith('question_'))),None)
+                if index is not None:anchor=(parser.root,index)
         if anchor is not None:
             children, index = anchor
             children.insert(index, {'tag': 'p', 'attrs': [('data-content', slot),
                 ('style', f"font-size:{config.get('minimum_text_pt',12)}pt;line-height:1.2;margin:0 0 2mm")], 'children': []})
             used.add(slot)
     return ''.join(literal_html(node) for node in parser.root)
+
+
+def diagram_label_text(text: str) -> bool:
+    """Keep short diagram identifiers out of standalone contextual prose recovery."""
+    from core.content_binding import diagram_label
+    return diagram_label(text)
 
 
 def restore_declared_card_group(markup: str, blocks: dict, exercise: dict, config: dict) -> str:

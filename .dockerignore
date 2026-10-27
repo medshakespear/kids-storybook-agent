@@ -7,4 +7,6 @@ __pycache__
 .pytest_cache
 output/*.pdf
 .env
+.env.local
+local-data
 tmp/

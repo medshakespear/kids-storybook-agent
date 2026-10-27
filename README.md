@@ -1,5 +1,9 @@
 # Classroom Reading and QCM Agent
 
+**Run on your Windows computer:** follow [LOCAL_SETUP.md](LOCAL_SETUP.md), then
+double-click `Start Local.cmd`. The complete web interface opens at
+`http://localhost:8080`; PDFs and state are saved in `local-data`. Railway is optional.
+
 Generates original illustrated reading-comprehension packs for **grades 3–6**.
 Both cron and webhook use the reading engine. Active bands are `3rd-4th` and
 `5th-6th`; younger-grade requests are rejected before API calls.

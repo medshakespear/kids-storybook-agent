@@ -1,0 +1,32 @@
+name: classroom-workbook-local
+services:
+  web:
+    build: .
+    command: ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "4", "--timeout", "900", "local_server:app"]
+    env_file:
+      - path: .env.local
+        format: raw
+    environment:
+      DATA_DIR: /data
+      PORT: "8080"
+      BOOK_LIBRARY_URL: ""
+      DELIVERY_TOKEN: ""
+      GITHUB_TOKEN: ""
+      GH_TOKEN: ""
+    ports:
+      - "127.0.0.1:${LOCAL_PORT:-8080}:8080"
+    volumes:
+      - ./local-data:/data
+    restart: unless-stopped
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 6
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
